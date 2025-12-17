@@ -46,13 +46,13 @@
     --info: 199 89% 48%;
     --info-foreground: 0 0% 100%;
 
-    --sidebar-background: 222 47% 11%;
-    --sidebar-foreground: 210 40% 98%;
+    --sidebar-background: 220 25% 20%;
+    --sidebar-foreground: 0 0% 95%;
     --sidebar-primary: 217 91% 60%;
     --sidebar-primary-foreground: 0 0% 100%;
-    --sidebar-accent: 217 32% 20%;
-    --sidebar-accent-foreground: 210 40% 98%;
-    --sidebar-border: 217 32% 20%;
+    --sidebar-accent: 220 25% 28%;
+    --sidebar-accent-foreground: 0 0% 98%;
+    --sidebar-border: 220 20% 28%;
     --sidebar-ring: 217 91% 60%;
 
     /* Gradients */
