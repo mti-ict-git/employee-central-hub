@@ -7,6 +7,7 @@ import Index from "./pages/Index";
 import EmployeeList from "./pages/EmployeeList";
 import EmployeeDetail from "./pages/EmployeeDetail";
 import AddEmployee from "./pages/AddEmployee";
+import ImportEmployees from "./pages/ImportEmployees";
 import NotFound from "./pages/NotFound";
 
 const queryClient = new QueryClient();
@@ -21,6 +22,7 @@ const App = () => (
           <Route path="/" element={<Index />} />
           <Route path="/employees" element={<EmployeeList />} />
           <Route path="/employees/new" element={<AddEmployee />} />
+          <Route path="/employees/import" element={<ImportEmployees />} />
           <Route path="/employees/:id" element={<EmployeeDetail />} />
           {/* ADD ALL CUSTOM ROUTES ABOVE THE CATCH-ALL "*" ROUTE */}
           <Route path="*" element={<NotFound />} />

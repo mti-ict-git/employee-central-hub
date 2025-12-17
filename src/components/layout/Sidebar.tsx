@@ -5,7 +5,8 @@ import {
   UserPlus, 
   FileText, 
   Settings,
-  Building2
+  Building2,
+  Upload
 } from "lucide-react";
 import { Link, useLocation } from "react-router-dom";
 
@@ -13,6 +14,7 @@ const navigation = [
   { name: 'Dashboard', href: '/', icon: LayoutDashboard },
   { name: 'Employee List', href: '/employees', icon: Users },
   { name: 'Add Employee', href: '/employees/new', icon: UserPlus },
+  { name: 'Import Data', href: '/employees/import', icon: Upload },
   { name: 'Reports', href: '/reports', icon: FileText },
   { name: 'Settings', href: '/settings', icon: Settings },
 ];
