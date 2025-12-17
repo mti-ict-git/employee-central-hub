@@ -4,7 +4,7 @@ import { EmployeeTable } from "@/components/employees/EmployeeTable";
 import { EmployeeFilters } from "@/components/employees/EmployeeFilters";
 import { Button } from "@/components/ui/button";
 import { mockEmployees } from "@/data/mockEmployees";
-import { Plus, Download } from "lucide-react";
+import { Plus, Download, Upload } from "lucide-react";
 import { Link, useSearchParams } from "react-router-dom";
 
 const EmployeeList = () => {
@@ -59,6 +59,12 @@ const EmployeeList = () => {
             <Link to="/employees/new">
               <Plus className="mr-2 h-4 w-4" />
               Add Employee
+            </Link>
+          </Button>
+          <Button variant="outline" asChild>
+            <Link to="/employees/import">
+              <Upload className="mr-2 h-4 w-4" />
+              Import
             </Link>
           </Button>
           <Button variant="outline">
