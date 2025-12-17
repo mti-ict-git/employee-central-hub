@@ -8,6 +8,7 @@ import EmployeeList from "./pages/EmployeeList";
 import EmployeeDetail from "./pages/EmployeeDetail";
 import AddEmployee from "./pages/AddEmployee";
 import ImportEmployees from "./pages/ImportEmployees";
+import Auth from "./pages/Auth";
 import NotFound from "./pages/NotFound";
 
 const queryClient = new QueryClient();
@@ -19,6 +20,7 @@ const App = () => (
       <Sonner />
       <BrowserRouter>
         <Routes>
+          <Route path="/auth" element={<Auth />} />
           <Route path="/" element={<Index />} />
           <Route path="/employees" element={<EmployeeList />} />
           <Route path="/employees/new" element={<AddEmployee />} />
