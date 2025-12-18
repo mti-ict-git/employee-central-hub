@@ -6,6 +6,24 @@ import { Label } from "@/components/ui/label";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { useToast } from "@/hooks/use-toast";
 import { Eye, EyeOff, LogIn } from "lucide-react";
+import { Badge } from "@/components/ui/badge";
+
+// Mock users for development
+const MOCK_USERS = [
+  { username: "admin", password: "P@ssw0rd.123", role: "superadmin", displayName: "Super Administrator" },
+  { username: "hradmin", password: "P@ssw0rd.123", role: "admin", displayName: "HR Administrator" },
+  { username: "hruser", password: "P@ssw0rd.123", role: "hr_general", displayName: "HR Staff" },
+  { username: "finance", password: "P@ssw0rd.123", role: "finance", displayName: "Finance Staff" },
+  { username: "deprep", password: "P@ssw0rd.123", role: "dep_rep", displayName: "Department Representative" },
+];
+
+const ROLE_LABELS: Record<string, { label: string; color: string }> = {
+  superadmin: { label: "Super Admin", color: "bg-red-500" },
+  admin: { label: "Admin", color: "bg-orange-500" },
+  hr_general: { label: "HR General", color: "bg-blue-500" },
+  finance: { label: "Finance", color: "bg-green-500" },
+  dep_rep: { label: "Dept. Rep", color: "bg-purple-500" },
+};
 
 const Auth = () => {
   const [username, setUsername] = useState("");
@@ -31,17 +49,22 @@ const Auth = () => {
     
     try {
       // Development mock login
-      if (username === "admin" && password === "P@ssw0rd.123") {
-        const mockUser = {
-          id: "dev-superadmin-001",
-          username: "admin",
-          displayName: "Super Administrator",
-          email: "admin@dev.local",
-          role: "superadmin",
+      const mockUser = MOCK_USERS.find(u => u.username === username && u.password === password);
+      if (mockUser) {
+        const user = {
+          id: `dev-${mockUser.role}-001`,
+          username: mockUser.username,
+          displayName: mockUser.displayName,
+          email: `${mockUser.username}@dev.local`,
+          role: mockUser.role,
         };
-        localStorage.setItem("auth_token", "dev-mock-token-superadmin");
-        localStorage.setItem("auth_user", JSON.stringify(mockUser));
-        toast({ title: "Login Successful", description: `Welcome, ${mockUser.displayName}!` });
+        localStorage.setItem("auth_token", `dev-mock-token-${mockUser.role}`);
+        localStorage.setItem("auth_user", JSON.stringify(user));
+        const roleInfo = ROLE_LABELS[mockUser.role];
+        toast({ 
+          title: "Login Successful", 
+          description: `Welcome, ${mockUser.displayName}! Role: ${roleInfo.label}` 
+        });
         navigate("/");
         return;
       }
@@ -148,10 +171,38 @@ const Auth = () => {
               </Button>
             </form>
 
-            <div className="mt-6 pt-6 border-t border-border/50">
+            <div className="mt-6 pt-6 border-t border-border/50 space-y-3">
               <p className="text-center text-sm text-muted-foreground">
                 Authentication via Active Directory
               </p>
+              
+              {/* Development Test Accounts */}
+              <div className="bg-muted/50 rounded-lg p-3 space-y-2">
+                <p className="text-xs font-medium text-muted-foreground">Test Accounts (Dev Only):</p>
+                <div className="space-y-1.5">
+                  {MOCK_USERS.map((user) => (
+                    <div 
+                      key={user.username}
+                      className="flex items-center justify-between text-xs cursor-pointer hover:bg-muted rounded px-2 py-1 transition-colors"
+                      onClick={() => {
+                        setUsername(user.username);
+                        setPassword(user.password);
+                      }}
+                    >
+                      <span className="font-mono text-foreground">{user.username}</span>
+                      <Badge 
+                        variant="secondary" 
+                        className={`${ROLE_LABELS[user.role].color} text-white text-[10px] px-1.5 py-0`}
+                      >
+                        {ROLE_LABELS[user.role].label}
+                      </Badge>
+                    </div>
+                  ))}
+                </div>
+                <p className="text-[10px] text-muted-foreground text-center mt-2">
+                  Password: P@ssw0rd.123
+                </p>
+              </div>
             </div>
           </CardContent>
         </Card>
