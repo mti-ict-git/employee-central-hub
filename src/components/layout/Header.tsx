@@ -1,13 +1,68 @@
-import { Bell, Search, User } from "lucide-react";
+import { useEffect, useState } from "react";
+import { useNavigate } from "react-router-dom";
+import { Bell, Search, User, Settings, LogOut, Shield, HelpCircle } from "lucide-react";
 import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
+import { Badge } from "@/components/ui/badge";
+import {
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuLabel,
+  DropdownMenuSeparator,
+  DropdownMenuTrigger,
+} from "@/components/ui/dropdown-menu";
+import { Avatar, AvatarFallback } from "@/components/ui/avatar";
+import { useToast } from "@/hooks/use-toast";
 
 interface HeaderProps {
   title: string;
   subtitle?: string;
 }
 
+interface AuthUser {
+  id: string;
+  username: string;
+  displayName: string;
+  email: string;
+  role: string;
+}
+
+const ROLE_LABELS: Record<string, { label: string; color: string }> = {
+  superadmin: { label: "Super Admin", color: "bg-red-500" },
+  admin: { label: "Admin", color: "bg-orange-500" },
+  hr_general: { label: "HR General", color: "bg-blue-500" },
+  finance: { label: "Finance", color: "bg-green-500" },
+  dep_rep: { label: "Dept. Rep", color: "bg-purple-500" },
+};
+
 export function Header({ title, subtitle }: HeaderProps) {
+  const [user, setUser] = useState<AuthUser | null>(null);
+  const navigate = useNavigate();
+  const { toast } = useToast();
+
+  useEffect(() => {
+    const storedUser = localStorage.getItem("auth_user");
+    if (storedUser) {
+      setUser(JSON.parse(storedUser));
+    }
+  }, []);
+
+  const handleLogout = () => {
+    localStorage.removeItem("auth_token");
+    localStorage.removeItem("auth_user");
+    toast({ title: "Logged out", description: "You have been logged out successfully." });
+    navigate("/auth");
+  };
+
+  const roleInfo = user?.role ? ROLE_LABELS[user.role] : null;
+  const initials = user?.displayName
+    ?.split(" ")
+    .map((n) => n[0])
+    .join("")
+    .toUpperCase()
+    .slice(0, 2) || "U";
+
   return (
     <header className="sticky top-0 z-40 flex h-16 items-center justify-between border-b border-border bg-background/95 px-6 backdrop-blur supports-[backdrop-filter]:bg-background/60">
       <div>
@@ -29,9 +84,55 @@ export function Header({ title, subtitle }: HeaderProps) {
           <span className="absolute right-1.5 top-1.5 h-2 w-2 rounded-full bg-destructive" />
         </Button>
 
-        <Button variant="ghost" size="icon" className="rounded-full">
-          <User className="h-5 w-5" />
-        </Button>
+        <DropdownMenu>
+          <DropdownMenuTrigger asChild>
+            <Button variant="ghost" size="icon" className="rounded-full h-9 w-9 p-0">
+              <Avatar className="h-9 w-9">
+                <AvatarFallback className="bg-primary text-primary-foreground text-sm font-medium">
+                  {initials}
+                </AvatarFallback>
+              </Avatar>
+            </Button>
+          </DropdownMenuTrigger>
+          <DropdownMenuContent align="end" className="w-64 bg-popover border border-border shadow-lg z-50">
+            <DropdownMenuLabel className="font-normal">
+              <div className="flex flex-col space-y-2">
+                <div className="flex items-center justify-between">
+                  <p className="text-sm font-medium leading-none">{user?.displayName || "User"}</p>
+                  {roleInfo && (
+                    <Badge className={`${roleInfo.color} text-white text-[10px] px-1.5 py-0`}>
+                      {roleInfo.label}
+                    </Badge>
+                  )}
+                </div>
+                <p className="text-xs text-muted-foreground">{user?.email || "user@example.com"}</p>
+                <p className="text-xs text-muted-foreground font-mono">@{user?.username || "user"}</p>
+              </div>
+            </DropdownMenuLabel>
+            <DropdownMenuSeparator />
+            <DropdownMenuItem className="cursor-pointer">
+              <User className="mr-2 h-4 w-4" />
+              <span>Profile</span>
+            </DropdownMenuItem>
+            <DropdownMenuItem className="cursor-pointer">
+              <Settings className="mr-2 h-4 w-4" />
+              <span>Settings</span>
+            </DropdownMenuItem>
+            <DropdownMenuItem className="cursor-pointer">
+              <Shield className="mr-2 h-4 w-4" />
+              <span>Security</span>
+            </DropdownMenuItem>
+            <DropdownMenuItem className="cursor-pointer">
+              <HelpCircle className="mr-2 h-4 w-4" />
+              <span>Help & Support</span>
+            </DropdownMenuItem>
+            <DropdownMenuSeparator />
+            <DropdownMenuItem className="cursor-pointer text-destructive focus:text-destructive" onClick={handleLogout}>
+              <LogOut className="mr-2 h-4 w-4" />
+              <span>Log out</span>
+            </DropdownMenuItem>
+          </DropdownMenuContent>
+        </DropdownMenu>
       </div>
     </header>
   );
