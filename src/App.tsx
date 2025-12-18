@@ -9,9 +9,11 @@ import EmployeeDetail from "./pages/EmployeeDetail";
 import AddEmployee from "./pages/AddEmployee";
 import ImportEmployees from "./pages/ImportEmployees";
 import Settings from "./pages/Settings";
+import UserManagement from "./pages/UserManagement";
 import Auth from "./pages/Auth";
 import NotFound from "./pages/NotFound";
 import RequireAuth from "./components/auth/RequireAuth";
+import RequireRole from "./components/auth/RequireRole";
 
 const queryClient = new QueryClient();
 
@@ -68,6 +70,16 @@ const App = () => (
             element={
               <RequireAuth>
                 <Settings />
+              </RequireAuth>
+            }
+          />
+          <Route
+            path="/settings/users"
+            element={
+              <RequireAuth>
+                <RequireRole allowed={["admin", "superadmin"]}>
+                  <UserManagement />
+                </RequireRole>
               </RequireAuth>
             }
           />

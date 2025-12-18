@@ -4,12 +4,12 @@ import {
   LayoutDashboard, 
   UserPlus, 
   FileText, 
-  Settings,
+  Settings as SettingsIcon,
   Building2,
   Upload
 } from "lucide-react";
 import { Link, useLocation } from "react-router-dom";
-import type { ComponentType } from "react";
+import { useEffect, useState, type ComponentType } from "react";
 
 type IconType = ComponentType<{ className?: string }>;
 
@@ -17,7 +17,7 @@ type NavItem = {
   name: string;
   href?: string;
   icon?: IconType;
-  children?: { name: string; href: string; icon?: IconType }[];
+  children?: { name: string; href: string; icon?: IconType; roles?: string[] }[];
 };
 
 const navigation: NavItem[] = [
@@ -32,11 +32,31 @@ const navigation: NavItem[] = [
     ],
   },
   { name: 'Reports', href: '/reports', icon: FileText },
-  { name: 'Settings', href: '/settings', icon: Settings },
+  {
+    name: 'Settings',
+    icon: SettingsIcon,
+    children: [
+      { name: 'General', href: '/settings', icon: SettingsIcon },
+      { name: 'User Management', href: '/settings/users', icon: Users, roles: ['admin', 'superadmin'] },
+    ],
+  },
 ];
 
 export function Sidebar() {
   const location = useLocation();
+  const [role, setRole] = useState<string | null>(null);
+
+  useEffect(() => {
+    try {
+      const stored = localStorage.getItem('auth_user');
+      if (stored) {
+        const parsed = JSON.parse(stored);
+        if (parsed?.role) setRole(parsed.role);
+      }
+    } catch {
+      // ignore
+    }
+  }, []);
 
   return (
     <aside className="fixed inset-y-0 left-0 z-50 w-64 bg-sidebar border-r border-sidebar-border">
@@ -77,13 +97,20 @@ export function Sidebar() {
             }
 
             // Grouped section
+            const visibleChildren = (item.children || []).filter((child) => {
+              if (!child.roles || child.roles.length === 0) return true;
+              return role ? child.roles.includes(role) : false;
+            });
+
+            if (visibleChildren.length === 0) return null;
+
             return (
               <div key={item.name} className="space-y-1">
                 <div className="flex items-center gap-3 px-3 py-2.5 text-xs font-semibold uppercase text-sidebar-foreground/70">
                   {item.icon && <item.icon className="h-4 w-4" />}
                   {item.name}
                 </div>
-                {item.children?.map((child) => {
+                {visibleChildren.map((child) => {
                   const isActive = location.pathname === child.href ||
                     (child.href !== '/' && location.pathname.startsWith(child.href));
                   return (
