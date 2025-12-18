@@ -80,8 +80,18 @@ const Auth = () => {
         throw new Error(data?.error || "Login failed");
       }
       localStorage.setItem("auth_token", data.token);
-      localStorage.setItem("auth_user", JSON.stringify(data.user));
-      toast({ title: "Login Successful", description: `Welcome, ${data.user.displayName || data.user.username}!` });
+      // Map AD roles array to single role for display
+      const primaryRole = data.user.roles?.[0] || "user";
+      const userWithRole = {
+        ...data.user,
+        role: primaryRole,
+      };
+      localStorage.setItem("auth_user", JSON.stringify(userWithRole));
+      const roleInfo = ROLE_LABELS[primaryRole];
+      toast({ 
+        title: "Login Successful", 
+        description: `Welcome, ${data.user.displayName || data.user.username}!${roleInfo ? ` Role: ${roleInfo.label}` : ''}` 
+      });
       navigate("/");
     } catch (err: any) {
       toast({ title: "Authentication Failed", description: err?.message || "Invalid credentials or access denied.", variant: "destructive" });
