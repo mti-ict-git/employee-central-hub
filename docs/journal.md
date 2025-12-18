@@ -88,3 +88,29 @@ Wednesday, December 17, 2025 4:24:46 PM - Secured env handling: added .env to .g
 - Using full email as username returned `USER_NOT_FOUND` with current `LDAP_USER_SEARCH_FILTER` default.
 - Recommendation pending: allow email/UPN by setting `LDAP_USER_SEARCH_FILTER=(|(sAMAccountName={username})(userPrincipalName={username})(mail={username}))` in `.env`.
 
+## 2025-12-18 11:43:55 — Sidebar User Management and Role Guard
+
+- Added "User Management" submenu under Settings in the sidebar.
+- Implemented role-based visibility; only `admin` and `superadmin` see the submenu.
+- Created placeholder page `src/pages/UserManagement.tsx` with Shadcn UI and responsive grid.
+- Added guarded route `/settings/users` using `RequireAuth` and new `RequireRole` guard.
+- Implemented `src/components/auth/RequireRole.tsx` to restrict route access based on `auth_user.role` in `localStorage`.
+- Ran `npx tsc --noEmit` — passed successfully.
+- Launched dev server at `http://localhost:8086/` and validated sidebar visibility and route access.
+
+## 2025-12-18 11:45:48 — Lint Fix in Auth Page
+
+- Replaced `catch (err: any)` with `catch (err: unknown)` in `src/pages/Auth.tsx`.
+- Narrowed error using `err instanceof Error` to extract message safely.
+- Ensures compliance with `@typescript-eslint/no-explicit-any` and improves type safety.
+- Ran `npx tsc --noEmit` — compilation succeeded with exit code 0.
+
+## 2025-12-18 11:49:18 — Friendly Authentication Errors
+
+- Improved login error messages in `src/pages/Auth.tsx`.
+- Added mapper for common LDAP codes: 525 (user not found), 52e (invalid credentials), 532 (password expired), 533 (disabled), 701 (account expired), 773 (must change password), 775 (locked).
+- When technical strings like `AcceptSecurityContext`/`DSID` appear, show user-friendly guidance and suggest using sAMAccountName if email is entered.
+- Retained a safe fallback for unexpected errors.
+- Ran `npx tsc --noEmit` — compilation passed.
+- Previewed via `http://localhost:8086/` to validate toasts.
+

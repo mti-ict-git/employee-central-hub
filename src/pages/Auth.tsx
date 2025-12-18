@@ -33,6 +33,41 @@ const Auth = () => {
   const navigate = useNavigate();
   const { toast } = useToast();
 
+  const toFriendlyAuthMessage = (raw: string, enteredUsername: string) => {
+    const m = raw.toLowerCase();
+    if (m.includes("user_not_found") || m.includes("data 525")) {
+      return "We couldn’t find that account. Try your AD username (sAMAccountName).";
+    }
+    if (m.includes("invalid credentials") || m.includes("data 52e")) {
+      return "Incorrect username or password. Check your AD username (sAMAccountName) and try again.";
+    }
+    if (m.includes("data 532")) {
+      return "Your password has expired. Please change it or contact IT.";
+    }
+    if (m.includes("data 533")) {
+      return "Your account is disabled. Please contact IT support.";
+    }
+    if (m.includes("data 773")) {
+      return "You must change your password before you can sign in.";
+    }
+    if (m.includes("data 775")) {
+      return "Your account is locked due to too many attempts. Please contact IT.";
+    }
+    if (m.includes("data 701")) {
+      return "Your account has expired. Please contact IT support.";
+    }
+    if (m.includes("insufficient_access") || m.includes("insufficient permissions")) {
+      return "You don’t have permission to access this application. Please contact an administrator.";
+    }
+    if (m.includes("acceptsecuritycontext") || m.includes("dsid")) {
+      const emailHint = enteredUsername.includes("@")
+        ? " Tip: use your AD username (sAMAccountName), not email."
+        : "";
+      return `Sign-in failed. Please verify your username and password.${emailHint}`;
+    }
+    return raw;
+  };
+
   const handleLogin = async (e: React.FormEvent) => {
     e.preventDefault();
     
@@ -93,8 +128,10 @@ const Auth = () => {
         description: `Welcome, ${data.user.displayName || data.user.username}!${roleInfo ? ` Role: ${roleInfo.label}` : ''}` 
       });
       navigate("/");
-    } catch (err: any) {
-      toast({ title: "Authentication Failed", description: err?.message || "Invalid credentials or access denied.", variant: "destructive" });
+    } catch (err: unknown) {
+      const raw = err instanceof Error ? err.message : "Invalid credentials or access denied.";
+      const friendly = toFriendlyAuthMessage(raw, username);
+      toast({ title: "Authentication Failed", description: friendly, variant: "destructive" });
     } finally {
       setIsLoading(false);
     }
