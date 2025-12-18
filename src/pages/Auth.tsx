@@ -30,6 +30,23 @@ const Auth = () => {
     setIsLoading(true);
     
     try {
+      // Development mock login
+      if (username === "admin" && password === "P@ssw0rd.123") {
+        const mockUser = {
+          id: "dev-superadmin-001",
+          username: "admin",
+          displayName: "Super Administrator",
+          email: "admin@dev.local",
+          role: "superadmin",
+        };
+        localStorage.setItem("auth_token", "dev-mock-token-superadmin");
+        localStorage.setItem("auth_user", JSON.stringify(mockUser));
+        toast({ title: "Login Successful", description: `Welcome, ${mockUser.displayName}!` });
+        navigate("/");
+        return;
+      }
+
+      // Production: Active Directory login
       const res = await fetch("/api/auth/login", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
