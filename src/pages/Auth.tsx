@@ -8,7 +8,7 @@ import { useToast } from "@/hooks/use-toast";
 import { Eye, EyeOff, LogIn } from "lucide-react";
 
 const Auth = () => {
-  const [email, setEmail] = useState("");
+  const [username, setUsername] = useState("");
   const [password, setPassword] = useState("");
   const [showPassword, setShowPassword] = useState(false);
   const [isLoading, setIsLoading] = useState(false);
@@ -18,10 +18,10 @@ const Auth = () => {
   const handleLogin = async (e: React.FormEvent) => {
     e.preventDefault();
     
-    if (!email || !password) {
+    if (!username || !password) {
       toast({
         title: "Validation Error",
-        description: "Please enter both email and password.",
+        description: "Please enter both username and password.",
         variant: "destructive",
       });
       return;
@@ -29,16 +29,25 @@ const Auth = () => {
 
     setIsLoading(true);
     
-    // TODO: Integrate with Active Directory authentication
-    // For now, simulate login
-    setTimeout(() => {
-      setIsLoading(false);
-      toast({
-        title: "Login Successful",
-        description: "Welcome back!",
+    try {
+      const res = await fetch("/api/auth/login", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ username, password }),
       });
+      const data = await res.json();
+      if (!res.ok) {
+        throw new Error(data?.error || "Login failed");
+      }
+      localStorage.setItem("auth_token", data.token);
+      localStorage.setItem("auth_user", JSON.stringify(data.user));
+      toast({ title: "Login Successful", description: `Welcome, ${data.user.displayName || data.user.username}!` });
       navigate("/");
-    }, 1000);
+    } catch (err: any) {
+      toast({ title: "Authentication Failed", description: err?.message || "Invalid credentials or access denied.", variant: "destructive" });
+    } finally {
+      setIsLoading(false);
+    }
   };
 
   return (
@@ -59,15 +68,15 @@ const Auth = () => {
           <CardContent>
             <form onSubmit={handleLogin} className="space-y-4">
               <div className="space-y-2">
-                <Label htmlFor="email">Email Address</Label>
+                <Label htmlFor="username">Username</Label>
                 <Input
-                  id="email"
-                  type="email"
-                  placeholder="name@company.com"
-                  value={email}
-                  onChange={(e) => setEmail(e.target.value)}
+                  id="username"
+                  type="text"
+                  placeholder="sAMAccountName"
+                  value={username}
+                  onChange={(e) => setUsername(e.target.value)}
                   className="h-11"
-                  autoComplete="email"
+                  autoComplete="username"
                 />
               </div>
 

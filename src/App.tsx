@@ -10,6 +10,7 @@ import AddEmployee from "./pages/AddEmployee";
 import ImportEmployees from "./pages/ImportEmployees";
 import Auth from "./pages/Auth";
 import NotFound from "./pages/NotFound";
+import RequireAuth from "./components/auth/RequireAuth";
 
 const queryClient = new QueryClient();
 
@@ -21,11 +22,46 @@ const App = () => (
       <BrowserRouter>
         <Routes>
           <Route path="/auth" element={<Auth />} />
-          <Route path="/" element={<Index />} />
-          <Route path="/employees" element={<EmployeeList />} />
-          <Route path="/employees/new" element={<AddEmployee />} />
-          <Route path="/employees/import" element={<ImportEmployees />} />
-          <Route path="/employees/:id" element={<EmployeeDetail />} />
+          <Route
+            path="/"
+            element={
+              <RequireAuth>
+                <Index />
+              </RequireAuth>
+            }
+          />
+          <Route
+            path="/employees"
+            element={
+              <RequireAuth>
+                <EmployeeList />
+              </RequireAuth>
+            }
+          />
+          <Route
+            path="/employees/new"
+            element={
+              <RequireAuth>
+                <AddEmployee />
+              </RequireAuth>
+            }
+          />
+          <Route
+            path="/employees/import"
+            element={
+              <RequireAuth>
+                <ImportEmployees />
+              </RequireAuth>
+            }
+          />
+          <Route
+            path="/employees/:id"
+            element={
+              <RequireAuth>
+                <EmployeeDetail />
+              </RequireAuth>
+            }
+          />
           {/* ADD ALL CUSTOM ROUTES ABOVE THE CATCH-ALL "*" ROUTE */}
           <Route path="*" element={<NotFound />} />
         </Routes>
