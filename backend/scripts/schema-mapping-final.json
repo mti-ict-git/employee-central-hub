@@ -1,0 +1,2307 @@
+{
+  "decisions": [
+    {
+      "excel": {
+        "table": "employee_insurance",
+        "schema": "dbo",
+        "column": "insurance_endorsement",
+        "excelName": "Insurance (Endorsment)",
+        "usedColumnHeader": "Mapping to Existing DB Schema",
+        "usedTableHeader": "Existing Table Name"
+      },
+      "initial_status": "column_matched",
+      "matched": {
+        "table": "dbo.employee_insurance",
+        "column": "insurance_endorsement",
+        "type": "varchar"
+      },
+      "suggestions": null,
+      "final": {
+        "table": "dbo.employee_insurance",
+        "column": "insurance_endorsement"
+      },
+      "decision": "accepted",
+      "rationale": "explicit match from Excel mapping or exact column match"
+    },
+    {
+      "excel": {
+        "table": "employee_insurance",
+        "schema": "dbo",
+        "column": "insurance_owlexa",
+        "excelName": "Insurance Card Owlexa",
+        "usedColumnHeader": "Mapping to Existing DB Schema",
+        "usedTableHeader": "Existing Table Name"
+      },
+      "initial_status": "column_matched",
+      "matched": {
+        "table": "dbo.employee_insurance",
+        "column": "insurance_owlexa",
+        "type": "varchar"
+      },
+      "suggestions": null,
+      "final": {
+        "table": "dbo.employee_insurance",
+        "column": "insurance_owlexa"
+      },
+      "decision": "accepted",
+      "rationale": "explicit match from Excel mapping or exact column match"
+    },
+    {
+      "excel": {
+        "table": "employee_insurance",
+        "schema": "dbo",
+        "column": "insurance_fpg",
+        "excelName": "Insurance Card FPG",
+        "usedColumnHeader": "Mapping to Existing DB Schema",
+        "usedTableHeader": "Existing Table Name"
+      },
+      "initial_status": "column_matched",
+      "matched": {
+        "table": "dbo.employee_insurance",
+        "column": "insurance_fpg",
+        "type": "varchar"
+      },
+      "suggestions": null,
+      "final": {
+        "table": "dbo.employee_insurance",
+        "column": "insurance_fpg"
+      },
+      "decision": "accepted",
+      "rationale": "explicit match from Excel mapping or exact column match"
+    },
+    {
+      "excel": {
+        "table": "employee_bank",
+        "schema": "dbo",
+        "column": "employee_id",
+        "excelName": "Emp. ID",
+        "usedColumnHeader": "Mapping to Existing DB Schema",
+        "usedTableHeader": "Existing Table Name"
+      },
+      "initial_status": "column_matched",
+      "matched": {
+        "table": "dbo.employee_bank",
+        "column": "employee_id",
+        "type": "varchar"
+      },
+      "suggestions": null,
+      "final": {
+        "table": "dbo.employee_bank",
+        "column": "employee_id"
+      },
+      "decision": "accepted",
+      "rationale": "explicit match from Excel mapping or exact column match"
+    },
+    {
+      "excel": {
+        "table": "employee_contact",
+        "schema": "dbo",
+        "column": "employee_id",
+        "excelName": "Emp. ID",
+        "usedColumnHeader": "Mapping to Existing DB Schema",
+        "usedTableHeader": "Existing Table Name"
+      },
+      "initial_status": "column_matched",
+      "matched": {
+        "table": "dbo.employee_contact",
+        "column": "employee_id",
+        "type": "varchar"
+      },
+      "suggestions": null,
+      "final": {
+        "table": "dbo.employee_contact",
+        "column": "employee_id"
+      },
+      "decision": "accepted",
+      "rationale": "explicit match from Excel mapping or exact column match"
+    },
+    {
+      "excel": {
+        "table": "employee_core",
+        "schema": "dbo",
+        "column": "employee_id",
+        "excelName": "Emp. ID",
+        "usedColumnHeader": "Mapping to Existing DB Schema",
+        "usedTableHeader": "Existing Table Name"
+      },
+      "initial_status": "column_matched",
+      "matched": {
+        "table": "dbo.employee_core",
+        "column": "employee_id",
+        "type": "varchar"
+      },
+      "suggestions": null,
+      "final": {
+        "table": "dbo.employee_core",
+        "column": "employee_id"
+      },
+      "decision": "accepted",
+      "rationale": "explicit match from Excel mapping or exact column match"
+    },
+    {
+      "excel": {
+        "table": "employee_employment",
+        "schema": "dbo",
+        "column": "employee_id",
+        "excelName": "Emp. ID",
+        "usedColumnHeader": "Mapping to Existing DB Schema",
+        "usedTableHeader": "Existing Table Name"
+      },
+      "initial_status": "column_matched",
+      "matched": {
+        "table": "dbo.employee_employment",
+        "column": "employee_id",
+        "type": "varchar"
+      },
+      "suggestions": null,
+      "final": {
+        "table": "dbo.employee_employment",
+        "column": "employee_id"
+      },
+      "decision": "accepted",
+      "rationale": "explicit match from Excel mapping or exact column match"
+    },
+    {
+      "excel": {
+        "table": "employee_insurance",
+        "schema": "dbo",
+        "column": "employee_id",
+        "excelName": "Emp. ID",
+        "usedColumnHeader": "Mapping to Existing DB Schema",
+        "usedTableHeader": "Existing Table Name"
+      },
+      "initial_status": "column_matched",
+      "matched": {
+        "table": "dbo.employee_insurance",
+        "column": "employee_id",
+        "type": "varchar"
+      },
+      "suggestions": null,
+      "final": {
+        "table": "dbo.employee_insurance",
+        "column": "employee_id"
+      },
+      "decision": "accepted",
+      "rationale": "explicit match from Excel mapping or exact column match"
+    },
+    {
+      "excel": {
+        "table": "employee_onboard",
+        "schema": "dbo",
+        "column": "employee_id",
+        "excelName": "Emp. ID",
+        "usedColumnHeader": "Mapping to Existing DB Schema",
+        "usedTableHeader": "Existing Table Name"
+      },
+      "initial_status": "column_matched",
+      "matched": {
+        "table": "dbo.employee_onboard",
+        "column": "employee_id",
+        "type": "varchar"
+      },
+      "suggestions": null,
+      "final": {
+        "table": "dbo.employee_onboard",
+        "column": "employee_id"
+      },
+      "decision": "accepted",
+      "rationale": "explicit match from Excel mapping or exact column match"
+    },
+    {
+      "excel": {
+        "table": "employee_travel",
+        "schema": "dbo",
+        "column": "employee_id",
+        "excelName": "Emp. ID",
+        "usedColumnHeader": "Mapping to Existing DB Schema",
+        "usedTableHeader": "Existing Table Name"
+      },
+      "initial_status": "column_matched",
+      "matched": {
+        "table": "dbo.employee_travel",
+        "column": "employee_id",
+        "type": "varchar"
+      },
+      "suggestions": null,
+      "final": {
+        "table": "dbo.employee_travel",
+        "column": "employee_id"
+      },
+      "decision": "accepted",
+      "rationale": "explicit match from Excel mapping or exact column match"
+    },
+    {
+      "excel": {
+        "table": "employee_core",
+        "schema": "dbo",
+        "column": "imip_id",
+        "excelName": "IMIP ID",
+        "usedColumnHeader": "Mapping to Existing DB Schema",
+        "usedTableHeader": "Existing Table Name"
+      },
+      "initial_status": "column_matched",
+      "matched": {
+        "table": "dbo.employee_core",
+        "column": "imip_id",
+        "type": "varchar"
+      },
+      "suggestions": null,
+      "final": {
+        "table": "dbo.employee_core",
+        "column": "imip_id"
+      },
+      "decision": "accepted",
+      "rationale": "explicit match from Excel mapping or exact column match"
+    },
+    {
+      "excel": {
+        "table": "employee_core",
+        "schema": "dbo",
+        "column": "name",
+        "excelName": "Employee Name",
+        "usedColumnHeader": "Mapping to Existing DB Schema",
+        "usedTableHeader": "Existing Table Name"
+      },
+      "initial_status": "column_matched",
+      "matched": {
+        "table": "dbo.employee_core",
+        "column": "name",
+        "type": "varchar"
+      },
+      "suggestions": null,
+      "final": {
+        "table": "dbo.employee_core",
+        "column": "name"
+      },
+      "decision": "accepted",
+      "rationale": "explicit match from Excel mapping or exact column match"
+    },
+    {
+      "excel": {
+        "table": "employee_core",
+        "schema": "dbo",
+        "column": "gender",
+        "excelName": "Gender",
+        "usedColumnHeader": "Mapping to Existing DB Schema",
+        "usedTableHeader": "Existing Table Name"
+      },
+      "initial_status": "column_matched",
+      "matched": {
+        "table": "dbo.employee_core",
+        "column": "gender",
+        "type": "char"
+      },
+      "suggestions": null,
+      "final": {
+        "table": "dbo.employee_core",
+        "column": "gender"
+      },
+      "decision": "accepted",
+      "rationale": "explicit match from Excel mapping or exact column match"
+    },
+    {
+      "excel": {
+        "table": "employee_core",
+        "schema": "dbo",
+        "column": "place_of_birth",
+        "excelName": "Place of Birth",
+        "usedColumnHeader": "Mapping to Existing DB Schema",
+        "usedTableHeader": "Existing Table Name"
+      },
+      "initial_status": "column_matched",
+      "matched": {
+        "table": "dbo.employee_core",
+        "column": "place_of_birth",
+        "type": "varchar"
+      },
+      "suggestions": null,
+      "final": {
+        "table": "dbo.employee_core",
+        "column": "place_of_birth"
+      },
+      "decision": "accepted",
+      "rationale": "explicit match from Excel mapping or exact column match"
+    },
+    {
+      "excel": {
+        "table": "employee_core",
+        "schema": "dbo",
+        "column": "date_of_birth",
+        "excelName": "Date of Birth",
+        "usedColumnHeader": "Mapping to Existing DB Schema",
+        "usedTableHeader": "Existing Table Name"
+      },
+      "initial_status": "column_matched",
+      "matched": {
+        "table": "dbo.employee_core",
+        "column": "date_of_birth",
+        "type": "date"
+      },
+      "suggestions": null,
+      "final": {
+        "table": "dbo.employee_core",
+        "column": "date_of_birth"
+      },
+      "decision": "accepted",
+      "rationale": "explicit match from Excel mapping or exact column match"
+    },
+    {
+      "excel": {
+        "table": "employee_core",
+        "schema": "dbo",
+        "column": "age",
+        "excelName": "Age",
+        "usedColumnHeader": "Mapping to Existing DB Schema",
+        "usedTableHeader": "Existing Table Name"
+      },
+      "initial_status": "column_matched",
+      "matched": {
+        "table": "dbo.employee_core",
+        "column": "age",
+        "type": "int"
+      },
+      "suggestions": null,
+      "final": {
+        "table": "dbo.employee_core",
+        "column": "age"
+      },
+      "decision": "accepted",
+      "rationale": "explicit match from Excel mapping or exact column match"
+    },
+    {
+      "excel": {
+        "table": "employee_core",
+        "schema": "dbo",
+        "column": "marital_status",
+        "excelName": "Marital Status",
+        "usedColumnHeader": "Mapping to Existing DB Schema",
+        "usedTableHeader": "Existing Table Name"
+      },
+      "initial_status": "column_matched",
+      "matched": {
+        "table": "dbo.employee_core",
+        "column": "marital_status",
+        "type": "varchar"
+      },
+      "suggestions": null,
+      "final": {
+        "table": "dbo.employee_core",
+        "column": "marital_status"
+      },
+      "decision": "accepted",
+      "rationale": "explicit match from Excel mapping or exact column match"
+    },
+    {
+      "excel": {
+        "table": "employee_core",
+        "schema": "dbo",
+        "column": "tax_status",
+        "excelName": "Tax Status",
+        "usedColumnHeader": "Mapping to Existing DB Schema",
+        "usedTableHeader": "Existing Table Name"
+      },
+      "initial_status": "column_matched",
+      "matched": {
+        "table": "dbo.employee_core",
+        "column": "tax_status",
+        "type": "varchar"
+      },
+      "suggestions": null,
+      "final": {
+        "table": "dbo.employee_core",
+        "column": "tax_status"
+      },
+      "decision": "accepted",
+      "rationale": "explicit match from Excel mapping or exact column match"
+    },
+    {
+      "excel": {
+        "table": "employee_contact",
+        "schema": "dbo",
+        "column": "spouse_name",
+        "excelName": "Spouse Name",
+        "usedColumnHeader": "Mapping to Existing DB Schema",
+        "usedTableHeader": "Existing Table Name"
+      },
+      "initial_status": "column_matched",
+      "matched": {
+        "table": "dbo.employee_contact",
+        "column": "spouse_name",
+        "type": "varchar"
+      },
+      "suggestions": null,
+      "final": {
+        "table": "dbo.employee_contact",
+        "column": "spouse_name"
+      },
+      "decision": "accepted",
+      "rationale": "explicit match from Excel mapping or exact column match"
+    },
+    {
+      "excel": {
+        "table": "employee_contact",
+        "schema": "dbo",
+        "column": "child_name_1",
+        "excelName": "Child Name 1",
+        "usedColumnHeader": "Mapping to Existing DB Schema",
+        "usedTableHeader": "Existing Table Name"
+      },
+      "initial_status": "column_matched",
+      "matched": {
+        "table": "dbo.employee_contact",
+        "column": "child_name_1",
+        "type": "varchar"
+      },
+      "suggestions": null,
+      "final": {
+        "table": "dbo.employee_contact",
+        "column": "child_name_1"
+      },
+      "decision": "accepted",
+      "rationale": "explicit match from Excel mapping or exact column match"
+    },
+    {
+      "excel": {
+        "table": "employee_contact",
+        "schema": "dbo",
+        "column": "child_name_2",
+        "excelName": "Child Name 2",
+        "usedColumnHeader": "Mapping to Existing DB Schema",
+        "usedTableHeader": "Existing Table Name"
+      },
+      "initial_status": "column_matched",
+      "matched": {
+        "table": "dbo.employee_contact",
+        "column": "child_name_2",
+        "type": "varchar"
+      },
+      "suggestions": null,
+      "final": {
+        "table": "dbo.employee_contact",
+        "column": "child_name_2"
+      },
+      "decision": "accepted",
+      "rationale": "explicit match from Excel mapping or exact column match"
+    },
+    {
+      "excel": {
+        "table": "employee_contact",
+        "schema": "dbo",
+        "column": "child_name_3",
+        "excelName": "Child Name 3",
+        "usedColumnHeader": "Mapping to Existing DB Schema",
+        "usedTableHeader": "Existing Table Name"
+      },
+      "initial_status": "column_matched",
+      "matched": {
+        "table": "dbo.employee_contact",
+        "column": "child_name_3",
+        "type": "varchar"
+      },
+      "suggestions": null,
+      "final": {
+        "table": "dbo.employee_contact",
+        "column": "child_name_3"
+      },
+      "decision": "accepted",
+      "rationale": "explicit match from Excel mapping or exact column match"
+    },
+    {
+      "excel": {
+        "table": "employee_core",
+        "schema": "dbo",
+        "column": "religion",
+        "excelName": "Religion",
+        "usedColumnHeader": "Mapping to Existing DB Schema",
+        "usedTableHeader": "Existing Table Name"
+      },
+      "initial_status": "column_matched",
+      "matched": {
+        "table": "dbo.employee_core",
+        "column": "religion",
+        "type": "varchar"
+      },
+      "suggestions": null,
+      "final": {
+        "table": "dbo.employee_core",
+        "column": "religion"
+      },
+      "decision": "accepted",
+      "rationale": "explicit match from Excel mapping or exact column match"
+    },
+    {
+      "excel": {
+        "table": "employee_core",
+        "schema": "dbo",
+        "column": "nationality",
+        "excelName": "Nationality",
+        "usedColumnHeader": "Mapping to Existing DB Schema",
+        "usedTableHeader": "Existing Table Name"
+      },
+      "initial_status": "column_matched",
+      "matched": {
+        "table": "dbo.employee_core",
+        "column": "nationality",
+        "type": "varchar"
+      },
+      "suggestions": null,
+      "final": {
+        "table": "dbo.employee_core",
+        "column": "nationality"
+      },
+      "decision": "accepted",
+      "rationale": "explicit match from Excel mapping or exact column match"
+    },
+    {
+      "excel": {
+        "table": "employee_core",
+        "schema": "dbo",
+        "column": "blood_type",
+        "excelName": "Blood Type",
+        "usedColumnHeader": "Mapping to Existing DB Schema",
+        "usedTableHeader": "Existing Table Name"
+      },
+      "initial_status": "column_matched",
+      "matched": {
+        "table": "dbo.employee_core",
+        "column": "blood_type",
+        "type": "varchar"
+      },
+      "suggestions": null,
+      "final": {
+        "table": "dbo.employee_core",
+        "column": "blood_type"
+      },
+      "decision": "accepted",
+      "rationale": "explicit match from Excel mapping or exact column match"
+    },
+    {
+      "excel": {
+        "table": "employee_contact",
+        "schema": "dbo",
+        "column": "phone_number",
+        "excelName": "Mobile Phone",
+        "usedColumnHeader": "Mapping to Existing DB Schema",
+        "usedTableHeader": "Existing Table Name"
+      },
+      "initial_status": "column_matched",
+      "matched": {
+        "table": "dbo.employee_contact",
+        "column": "phone_number",
+        "type": "varchar"
+      },
+      "suggestions": null,
+      "final": {
+        "table": "dbo.employee_contact",
+        "column": "phone_number"
+      },
+      "decision": "accepted",
+      "rationale": "explicit match from Excel mapping or exact column match"
+    },
+    {
+      "excel": {
+        "table": "employee_contact",
+        "schema": "dbo",
+        "column": "emergency_contact_name",
+        "excelName": "Emergency Contact Name",
+        "usedColumnHeader": "Mapping to Existing DB Schema",
+        "usedTableHeader": "Existing Table Name"
+      },
+      "initial_status": "column_matched",
+      "matched": {
+        "table": "dbo.employee_contact",
+        "column": "emergency_contact_name",
+        "type": "varchar"
+      },
+      "suggestions": null,
+      "final": {
+        "table": "dbo.employee_contact",
+        "column": "emergency_contact_name"
+      },
+      "decision": "accepted",
+      "rationale": "explicit match from Excel mapping or exact column match"
+    },
+    {
+      "excel": {
+        "table": "employee_contact",
+        "schema": "dbo",
+        "column": "emergency_contact_phone",
+        "excelName": "Emergency Contact Phone",
+        "usedColumnHeader": "Mapping to Existing DB Schema",
+        "usedTableHeader": "Existing Table Name"
+      },
+      "initial_status": "column_matched",
+      "matched": {
+        "table": "dbo.employee_contact",
+        "column": "emergency_contact_phone",
+        "type": "varchar"
+      },
+      "suggestions": null,
+      "final": {
+        "table": "dbo.employee_contact",
+        "column": "emergency_contact_phone"
+      },
+      "decision": "accepted",
+      "rationale": "explicit match from Excel mapping or exact column match"
+    },
+    {
+      "excel": {
+        "table": "employee_core",
+        "schema": "dbo",
+        "column": "kartu_keluarga_no",
+        "excelName": "Kartu Keluarga No",
+        "usedColumnHeader": "Mapping to Existing DB Schema",
+        "usedTableHeader": "Existing Table Name"
+      },
+      "initial_status": "column_matched",
+      "matched": {
+        "table": "dbo.employee_core",
+        "column": "kartu_keluarga_no",
+        "type": "varchar"
+      },
+      "suggestions": null,
+      "final": {
+        "table": "dbo.employee_core",
+        "column": "kartu_keluarga_no"
+      },
+      "decision": "accepted",
+      "rationale": "explicit match from Excel mapping or exact column match"
+    },
+    {
+      "excel": {
+        "table": "employee_core",
+        "schema": "dbo",
+        "column": "ktp_no",
+        "excelName": "KTP No",
+        "usedColumnHeader": "Mapping to Existing DB Schema",
+        "usedTableHeader": "Existing Table Name"
+      },
+      "initial_status": "column_matched",
+      "matched": {
+        "table": "dbo.employee_core",
+        "column": "ktp_no",
+        "type": "varchar"
+      },
+      "suggestions": null,
+      "final": {
+        "table": "dbo.employee_core",
+        "column": "ktp_no"
+      },
+      "decision": "accepted",
+      "rationale": "explicit match from Excel mapping or exact column match"
+    },
+    {
+      "excel": {
+        "table": "employee_contact",
+        "schema": "dbo",
+        "column": "address",
+        "excelName": "KTP Address",
+        "usedColumnHeader": "Mapping to Existing DB Schema",
+        "usedTableHeader": "Existing Table Name"
+      },
+      "initial_status": "column_matched",
+      "matched": {
+        "table": "dbo.employee_contact",
+        "column": "address",
+        "type": "varchar"
+      },
+      "suggestions": null,
+      "final": {
+        "table": "dbo.employee_contact",
+        "column": "address"
+      },
+      "decision": "accepted",
+      "rationale": "explicit match from Excel mapping or exact column match"
+    },
+    {
+      "excel": {
+        "table": "employee_contact",
+        "schema": "dbo",
+        "column": "city",
+        "excelName": "KTP City",
+        "usedColumnHeader": "Mapping to Existing DB Schema",
+        "usedTableHeader": "Existing Table Name"
+      },
+      "initial_status": "column_matched",
+      "matched": {
+        "table": "dbo.employee_contact",
+        "column": "city",
+        "type": "varchar"
+      },
+      "suggestions": null,
+      "final": {
+        "table": "dbo.employee_contact",
+        "column": "city"
+      },
+      "decision": "accepted",
+      "rationale": "explicit match from Excel mapping or exact column match"
+    },
+    {
+      "excel": {
+        "table": "employee_onboard",
+        "schema": "dbo",
+        "column": "point_of_hire",
+        "excelName": "Poin of Hire",
+        "usedColumnHeader": "Mapping to Existing DB Schema",
+        "usedTableHeader": "Existing Table Name"
+      },
+      "initial_status": "column_matched",
+      "matched": {
+        "table": "dbo.employee_onboard",
+        "column": "point_of_hire",
+        "type": "varchar"
+      },
+      "suggestions": null,
+      "final": {
+        "table": "dbo.employee_onboard",
+        "column": "point_of_hire"
+      },
+      "decision": "accepted",
+      "rationale": "explicit match from Excel mapping or exact column match"
+    },
+    {
+      "excel": {
+        "table": "employee_onboard",
+        "schema": "dbo",
+        "column": "point_of_origin",
+        "excelName": "Poin of Origin",
+        "usedColumnHeader": "Mapping to Existing DB Schema",
+        "usedTableHeader": "Existing Table Name"
+      },
+      "initial_status": "column_matched",
+      "matched": {
+        "table": "dbo.employee_onboard",
+        "column": "point_of_origin",
+        "type": "varchar"
+      },
+      "suggestions": null,
+      "final": {
+        "table": "dbo.employee_onboard",
+        "column": "point_of_origin"
+      },
+      "decision": "accepted",
+      "rationale": "explicit match from Excel mapping or exact column match"
+    },
+    {
+      "excel": {
+        "table": "employee_core",
+        "schema": "dbo",
+        "column": "education",
+        "excelName": "Education",
+        "usedColumnHeader": "Mapping to Existing DB Schema",
+        "usedTableHeader": "Existing Table Name"
+      },
+      "initial_status": "column_matched",
+      "matched": {
+        "table": "dbo.employee_core",
+        "column": "education",
+        "type": "varchar"
+      },
+      "suggestions": null,
+      "final": {
+        "table": "dbo.employee_core",
+        "column": "education"
+      },
+      "decision": "accepted",
+      "rationale": "explicit match from Excel mapping or exact column match"
+    },
+    {
+      "excel": {
+        "table": "employee_onboard",
+        "schema": "dbo",
+        "column": "schedule_type",
+        "excelName": "Schedule Type",
+        "usedColumnHeader": "Mapping to Existing DB Schema",
+        "usedTableHeader": "Existing Table Name"
+      },
+      "initial_status": "column_matched",
+      "matched": {
+        "table": "dbo.employee_onboard",
+        "column": "schedule_type",
+        "type": "varchar"
+      },
+      "suggestions": null,
+      "final": {
+        "table": "dbo.employee_onboard",
+        "column": "schedule_type"
+      },
+      "decision": "accepted",
+      "rationale": "explicit match from Excel mapping or exact column match"
+    },
+    {
+      "excel": {
+        "table": "employee_onboard",
+        "schema": "dbo",
+        "column": "first_join_date_merdeka",
+        "excelName": "First Join Date (Merdeka Group)",
+        "usedColumnHeader": "Mapping to Existing DB Schema",
+        "usedTableHeader": "Existing Table Name"
+      },
+      "initial_status": "column_matched",
+      "matched": {
+        "table": "dbo.employee_onboard",
+        "column": "first_join_date_merdeka",
+        "type": "date"
+      },
+      "suggestions": null,
+      "final": {
+        "table": "dbo.employee_onboard",
+        "column": "first_join_date_merdeka"
+      },
+      "decision": "accepted",
+      "rationale": "explicit match from Excel mapping or exact column match"
+    },
+    {
+      "excel": {
+        "table": "employee_onboard",
+        "schema": "dbo",
+        "column": "transfer_merdeka",
+        "excelName": "Transfer Merdeka Group",
+        "usedColumnHeader": "Mapping to Existing DB Schema",
+        "usedTableHeader": "Existing Table Name"
+      },
+      "initial_status": "column_matched",
+      "matched": {
+        "table": "dbo.employee_onboard",
+        "column": "transfer_merdeka",
+        "type": "date"
+      },
+      "suggestions": null,
+      "final": {
+        "table": "dbo.employee_onboard",
+        "column": "transfer_merdeka"
+      },
+      "decision": "accepted",
+      "rationale": "explicit match from Excel mapping or exact column match"
+    },
+    {
+      "excel": {
+        "table": "employee_onboard",
+        "schema": "dbo",
+        "column": "first_join_date",
+        "excelName": "First Join Date",
+        "usedColumnHeader": "Mapping to Existing DB Schema",
+        "usedTableHeader": "Existing Table Name"
+      },
+      "initial_status": "column_matched",
+      "matched": {
+        "table": "dbo.employee_onboard",
+        "column": "first_join_date",
+        "type": "date"
+      },
+      "suggestions": null,
+      "final": {
+        "table": "dbo.employee_onboard",
+        "column": "first_join_date"
+      },
+      "decision": "accepted",
+      "rationale": "explicit match from Excel mapping or exact column match"
+    },
+    {
+      "excel": {
+        "table": "employee_onboard",
+        "schema": "dbo",
+        "column": "join_date",
+        "excelName": "Join Date",
+        "usedColumnHeader": "Mapping to Existing DB Schema",
+        "usedTableHeader": "Existing Table Name"
+      },
+      "initial_status": "column_matched",
+      "matched": {
+        "table": "dbo.employee_onboard",
+        "column": "join_date",
+        "type": "date"
+      },
+      "suggestions": null,
+      "final": {
+        "table": "dbo.employee_onboard",
+        "column": "join_date"
+      },
+      "decision": "accepted",
+      "rationale": "explicit match from Excel mapping or exact column match"
+    },
+    {
+      "excel": {
+        "table": "employee_onboard",
+        "schema": "dbo",
+        "column": "employment_status",
+        "excelName": "Employment Status",
+        "usedColumnHeader": "Mapping to Existing DB Schema",
+        "usedTableHeader": "Existing Table Name"
+      },
+      "initial_status": "column_matched",
+      "matched": {
+        "table": "dbo.employee_onboard",
+        "column": "employment_status",
+        "type": "varchar"
+      },
+      "suggestions": null,
+      "final": {
+        "table": "dbo.employee_onboard",
+        "column": "employment_status"
+      },
+      "decision": "accepted",
+      "rationale": "explicit match from Excel mapping or exact column match"
+    },
+    {
+      "excel": {
+        "table": "employee_onboard",
+        "schema": "dbo",
+        "column": "end_contract",
+        "excelName": "End Contract",
+        "usedColumnHeader": "Mapping to Existing DB Schema",
+        "usedTableHeader": "Existing Table Name"
+      },
+      "initial_status": "column_matched",
+      "matched": {
+        "table": "dbo.employee_onboard",
+        "column": "end_contract",
+        "type": "date"
+      },
+      "suggestions": null,
+      "final": {
+        "table": "dbo.employee_onboard",
+        "column": "end_contract"
+      },
+      "decision": "accepted",
+      "rationale": "explicit match from Excel mapping or exact column match"
+    },
+    {
+      "excel": {
+        "table": "employee_onboard",
+        "schema": "dbo",
+        "column": "years_in_service",
+        "excelName": "Years in Service",
+        "usedColumnHeader": "Mapping to Existing DB Schema",
+        "usedTableHeader": "Existing Table Name"
+      },
+      "initial_status": "column_matched",
+      "matched": {
+        "table": "dbo.employee_onboard",
+        "column": "years_in_service",
+        "type": "int"
+      },
+      "suggestions": null,
+      "final": {
+        "table": "dbo.employee_onboard",
+        "column": "years_in_service"
+      },
+      "decision": "accepted",
+      "rationale": "explicit match from Excel mapping or exact column match"
+    },
+    {
+      "excel": {
+        "table": null,
+        "schema": "dbo",
+        "column": null,
+        "excelName": "Branch ID",
+        "usedColumnHeader": "Column Name",
+        "usedTableHeader": null
+      },
+      "initial_status": "table_missing",
+      "matched": {
+        "table": null,
+        "column": null,
+        "type": null
+      },
+      "suggestions": null,
+      "final": null,
+      "decision": "unresolved",
+      "rationale": ""
+    },
+    {
+      "excel": {
+        "table": null,
+        "schema": "dbo",
+        "column": null,
+        "excelName": "Branch",
+        "usedColumnHeader": "Column Name",
+        "usedTableHeader": null
+      },
+      "initial_status": "table_missing",
+      "matched": {
+        "table": null,
+        "column": null,
+        "type": null
+      },
+      "suggestions": null,
+      "final": {
+        "table": "dbo.employee_core",
+        "column": "Branch"
+      },
+      "decision": "auto_mapped",
+      "rationale": "auto-mapped by exact column name match across schema"
+    },
+    {
+      "excel": {
+        "table": "employee_employment",
+        "schema": "dbo",
+        "column": "company_office",
+        "excelName": "Company Office",
+        "usedColumnHeader": "Mapping to Existing DB Schema",
+        "usedTableHeader": "Existing Table Name"
+      },
+      "initial_status": "column_matched",
+      "matched": {
+        "table": "dbo.employee_employment",
+        "column": "company_office",
+        "type": "varchar"
+      },
+      "suggestions": null,
+      "final": {
+        "table": "dbo.employee_employment",
+        "column": "company_office"
+      },
+      "decision": "accepted",
+      "rationale": "explicit match from Excel mapping or exact column match"
+    },
+    {
+      "excel": {
+        "table": "employee_employment",
+        "schema": "dbo",
+        "column": "work_location",
+        "excelName": "Work Location",
+        "usedColumnHeader": "Mapping to Existing DB Schema",
+        "usedTableHeader": "Existing Table Name"
+      },
+      "initial_status": "column_matched",
+      "matched": {
+        "table": "dbo.employee_employment",
+        "column": "work_location",
+        "type": "varchar"
+      },
+      "suggestions": null,
+      "final": {
+        "table": "dbo.employee_employment",
+        "column": "work_location"
+      },
+      "decision": "accepted",
+      "rationale": "explicit match from Excel mapping or exact column match"
+    },
+    {
+      "excel": {
+        "table": "employee_employment",
+        "schema": "dbo",
+        "column": "division",
+        "excelName": "Division",
+        "usedColumnHeader": "Mapping to Existing DB Schema",
+        "usedTableHeader": "Existing Table Name"
+      },
+      "initial_status": "column_matched",
+      "matched": {
+        "table": "dbo.employee_employment",
+        "column": "division",
+        "type": "varchar"
+      },
+      "suggestions": null,
+      "final": {
+        "table": "dbo.employee_employment",
+        "column": "division"
+      },
+      "decision": "accepted",
+      "rationale": "explicit match from Excel mapping or exact column match"
+    },
+    {
+      "excel": {
+        "table": "employee_employment",
+        "schema": "dbo",
+        "column": "department",
+        "excelName": "Department",
+        "usedColumnHeader": "Mapping to Existing DB Schema",
+        "usedTableHeader": "Existing Table Name"
+      },
+      "initial_status": "column_matched",
+      "matched": {
+        "table": "dbo.employee_employment",
+        "column": "department",
+        "type": "varchar"
+      },
+      "suggestions": null,
+      "final": {
+        "table": "dbo.employee_employment",
+        "column": "department"
+      },
+      "decision": "accepted",
+      "rationale": "explicit match from Excel mapping or exact column match"
+    },
+    {
+      "excel": {
+        "table": "employee_employment",
+        "schema": "dbo",
+        "column": "section",
+        "excelName": "Section",
+        "usedColumnHeader": "Mapping to Existing DB Schema",
+        "usedTableHeader": "Existing Table Name"
+      },
+      "initial_status": "column_matched",
+      "matched": {
+        "table": "dbo.employee_employment",
+        "column": "section",
+        "type": "varchar"
+      },
+      "suggestions": null,
+      "final": {
+        "table": "dbo.employee_employment",
+        "column": "section"
+      },
+      "decision": "accepted",
+      "rationale": "explicit match from Excel mapping or exact column match"
+    },
+    {
+      "excel": {
+        "table": "employee_employment",
+        "schema": "dbo",
+        "column": "direct_report",
+        "excelName": "Direct Report",
+        "usedColumnHeader": "Mapping to Existing DB Schema",
+        "usedTableHeader": "Existing Table Name"
+      },
+      "initial_status": "column_matched",
+      "matched": {
+        "table": "dbo.employee_employment",
+        "column": "direct_report",
+        "type": "varchar"
+      },
+      "suggestions": null,
+      "final": {
+        "table": "dbo.employee_employment",
+        "column": "direct_report"
+      },
+      "decision": "accepted",
+      "rationale": "explicit match from Excel mapping or exact column match"
+    },
+    {
+      "excel": {
+        "table": "employee_employment",
+        "schema": "dbo",
+        "column": "job_title",
+        "excelName": "Job Title",
+        "usedColumnHeader": "Mapping to Existing DB Schema",
+        "usedTableHeader": "Existing Table Name"
+      },
+      "initial_status": "column_matched",
+      "matched": {
+        "table": "dbo.employee_employment",
+        "column": "job_title",
+        "type": "varchar"
+      },
+      "suggestions": null,
+      "final": {
+        "table": "dbo.employee_employment",
+        "column": "job_title"
+      },
+      "decision": "accepted",
+      "rationale": "explicit match from Excel mapping or exact column match"
+    },
+    {
+      "excel": {
+        "table": "employee_employment",
+        "schema": "dbo",
+        "column": "grade",
+        "excelName": "Grade",
+        "usedColumnHeader": "Mapping to Existing DB Schema",
+        "usedTableHeader": "Existing Table Name"
+      },
+      "initial_status": "column_matched",
+      "matched": {
+        "table": "dbo.employee_employment",
+        "column": "grade",
+        "type": "varchar"
+      },
+      "suggestions": null,
+      "final": {
+        "table": "dbo.employee_employment",
+        "column": "grade"
+      },
+      "decision": "accepted",
+      "rationale": "explicit match from Excel mapping or exact column match"
+    },
+    {
+      "excel": {
+        "table": "employee_employment",
+        "schema": "dbo",
+        "column": "position_grade",
+        "excelName": "Position Grade",
+        "usedColumnHeader": "Mapping to Existing DB Schema",
+        "usedTableHeader": "Existing Table Name"
+      },
+      "initial_status": "column_matched",
+      "matched": {
+        "table": "dbo.employee_employment",
+        "column": "position_grade",
+        "type": "varchar"
+      },
+      "suggestions": null,
+      "final": {
+        "table": "dbo.employee_employment",
+        "column": "position_grade"
+      },
+      "decision": "accepted",
+      "rationale": "explicit match from Excel mapping or exact column match"
+    },
+    {
+      "excel": {
+        "table": "employee_employment",
+        "schema": "dbo",
+        "column": "group_job_title",
+        "excelName": "Group Job Title",
+        "usedColumnHeader": "Mapping to Existing DB Schema",
+        "usedTableHeader": "Existing Table Name"
+      },
+      "initial_status": "column_matched",
+      "matched": {
+        "table": "dbo.employee_employment",
+        "column": "group_job_title",
+        "type": "varchar"
+      },
+      "suggestions": null,
+      "final": {
+        "table": "dbo.employee_employment",
+        "column": "group_job_title"
+      },
+      "decision": "accepted",
+      "rationale": "explicit match from Excel mapping or exact column match"
+    },
+    {
+      "excel": {
+        "table": "employee_bank",
+        "schema": "dbo",
+        "column": "bank_name",
+        "excelName": "Bank Name",
+        "usedColumnHeader": "Mapping to Existing DB Schema",
+        "usedTableHeader": "Existing Table Name"
+      },
+      "initial_status": "column_matched",
+      "matched": {
+        "table": "dbo.employee_bank",
+        "column": "bank_name",
+        "type": "varchar"
+      },
+      "suggestions": null,
+      "final": {
+        "table": "dbo.employee_bank",
+        "column": "bank_name"
+      },
+      "decision": "accepted",
+      "rationale": "explicit match from Excel mapping or exact column match"
+    },
+    {
+      "excel": {
+        "table": "employee_bank",
+        "schema": "dbo",
+        "column": "account_name",
+        "excelName": "Account Name",
+        "usedColumnHeader": "Mapping to Existing DB Schema",
+        "usedTableHeader": "Existing Table Name"
+      },
+      "initial_status": "column_matched",
+      "matched": {
+        "table": "dbo.employee_bank",
+        "column": "account_name",
+        "type": "varchar"
+      },
+      "suggestions": null,
+      "final": {
+        "table": "dbo.employee_bank",
+        "column": "account_name"
+      },
+      "decision": "accepted",
+      "rationale": "explicit match from Excel mapping or exact column match"
+    },
+    {
+      "excel": {
+        "table": "employee_bank",
+        "schema": "dbo",
+        "column": "account_no",
+        "excelName": "Account No",
+        "usedColumnHeader": "Mapping to Existing DB Schema",
+        "usedTableHeader": "Existing Table Name"
+      },
+      "initial_status": "column_matched",
+      "matched": {
+        "table": "dbo.employee_bank",
+        "column": "account_no",
+        "type": "varchar"
+      },
+      "suggestions": null,
+      "final": {
+        "table": "dbo.employee_bank",
+        "column": "account_no"
+      },
+      "decision": "accepted",
+      "rationale": "explicit match from Excel mapping or exact column match"
+    },
+    {
+      "excel": {
+        "table": "employee_core",
+        "schema": "dbo",
+        "column": "npwp",
+        "excelName": "NPWP",
+        "usedColumnHeader": "Mapping to Existing DB Schema",
+        "usedTableHeader": "Existing Table Name"
+      },
+      "initial_status": "column_matched",
+      "matched": {
+        "table": "dbo.employee_core",
+        "column": "npwp",
+        "type": "varchar"
+      },
+      "suggestions": null,
+      "final": {
+        "table": "dbo.employee_core",
+        "column": "npwp"
+      },
+      "decision": "accepted",
+      "rationale": "explicit match from Excel mapping or exact column match"
+    },
+    {
+      "excel": {
+        "table": "employee_insurance",
+        "schema": "dbo",
+        "column": "bpjs_tk",
+        "excelName": "BPJS TK No",
+        "usedColumnHeader": "Mapping to Existing DB Schema",
+        "usedTableHeader": "Existing Table Name"
+      },
+      "initial_status": "column_matched",
+      "matched": {
+        "table": "dbo.employee_insurance",
+        "column": "bpjs_tk",
+        "type": "varchar"
+      },
+      "suggestions": null,
+      "final": {
+        "table": "dbo.employee_insurance",
+        "column": "bpjs_tk"
+      },
+      "decision": "accepted",
+      "rationale": "explicit match from Excel mapping or exact column match"
+    },
+    {
+      "excel": {
+        "table": "employee_insurance",
+        "schema": "dbo",
+        "column": "bpjs_kes",
+        "excelName": "BPJS KES No",
+        "usedColumnHeader": "Mapping to Existing DB Schema",
+        "usedTableHeader": "Existing Table Name"
+      },
+      "initial_status": "column_matched",
+      "matched": {
+        "table": "dbo.employee_insurance",
+        "column": "bpjs_kes",
+        "type": "varchar"
+      },
+      "suggestions": null,
+      "final": {
+        "table": "dbo.employee_insurance",
+        "column": "bpjs_kes"
+      },
+      "decision": "accepted",
+      "rationale": "explicit match from Excel mapping or exact column match"
+    },
+    {
+      "excel": {
+        "table": "employee_insurance",
+        "schema": "dbo",
+        "column": "status_bpjs_kes",
+        "excelName": "STATUS BPJS Kesehatan",
+        "usedColumnHeader": "Mapping to Existing DB Schema",
+        "usedTableHeader": "Existing Table Name"
+      },
+      "initial_status": "column_matched",
+      "matched": {
+        "table": "dbo.employee_insurance",
+        "column": "status_bpjs_kes",
+        "type": "varchar"
+      },
+      "suggestions": null,
+      "final": {
+        "table": "dbo.employee_insurance",
+        "column": "status_bpjs_kes"
+      },
+      "decision": "accepted",
+      "rationale": "explicit match from Excel mapping or exact column match"
+    },
+    {
+      "excel": {
+        "table": "employee_travel",
+        "schema": "dbo",
+        "column": "kitas_no",
+        "excelName": "KITAS NO",
+        "usedColumnHeader": "Mapping to Existing DB Schema",
+        "usedTableHeader": "Existing Table Name"
+      },
+      "initial_status": "column_matched",
+      "matched": {
+        "table": "dbo.employee_travel",
+        "column": "kitas_no",
+        "type": "varchar"
+      },
+      "suggestions": null,
+      "final": {
+        "table": "dbo.employee_travel",
+        "column": "kitas_no"
+      },
+      "decision": "accepted",
+      "rationale": "explicit match from Excel mapping or exact column match"
+    },
+    {
+      "excel": {
+        "table": "employee_travel",
+        "schema": "dbo",
+        "column": "passport_no",
+        "excelName": "PASSPORT ID",
+        "usedColumnHeader": "Mapping to Existing DB Schema",
+        "usedTableHeader": "Existing Table Name"
+      },
+      "initial_status": "column_matched",
+      "matched": {
+        "table": "dbo.employee_travel",
+        "column": "passport_no",
+        "type": "varchar"
+      },
+      "suggestions": null,
+      "final": {
+        "table": "dbo.employee_travel",
+        "column": "passport_no"
+      },
+      "decision": "accepted",
+      "rationale": "explicit match from Excel mapping or exact column match"
+    },
+    {
+      "excel": {
+        "table": "employee_travel",
+        "schema": "dbo",
+        "column": "travel_in",
+        "excelName": "Travel In",
+        "usedColumnHeader": "Mapping to Existing DB Schema",
+        "usedTableHeader": "Existing Table Name"
+      },
+      "initial_status": "column_matched",
+      "matched": {
+        "table": "dbo.employee_travel",
+        "column": "travel_in",
+        "type": "date"
+      },
+      "suggestions": null,
+      "final": {
+        "table": "dbo.employee_travel",
+        "column": "travel_in"
+      },
+      "decision": "accepted",
+      "rationale": "explicit match from Excel mapping or exact column match"
+    },
+    {
+      "excel": {
+        "table": "employee_travel",
+        "schema": "dbo",
+        "column": "travel_out",
+        "excelName": "Travel Out",
+        "usedColumnHeader": "Mapping to Existing DB Schema",
+        "usedTableHeader": "Existing Table Name"
+      },
+      "initial_status": "column_matched",
+      "matched": {
+        "table": "dbo.employee_travel",
+        "column": "travel_out",
+        "type": "date"
+      },
+      "suggestions": null,
+      "final": {
+        "table": "dbo.employee_travel",
+        "column": "travel_out"
+      },
+      "decision": "accepted",
+      "rationale": "explicit match from Excel mapping or exact column match"
+    },
+    {
+      "excel": {
+        "table": null,
+        "schema": "dbo",
+        "column": null,
+        "excelName": "Social Insurance No (alt BPJS TK)",
+        "usedColumnHeader": "Column Name",
+        "usedTableHeader": null
+      },
+      "initial_status": "table_missing",
+      "matched": {
+        "table": null,
+        "column": null,
+        "type": null
+      },
+      "suggestions": null,
+      "final": null,
+      "decision": "unresolved",
+      "rationale": ""
+    },
+    {
+      "excel": {
+        "table": null,
+        "schema": "dbo",
+        "column": null,
+        "excelName": "BPJS Kesehatan No (alt BPJS KES)",
+        "usedColumnHeader": "Column Name",
+        "usedTableHeader": null
+      },
+      "initial_status": "table_missing",
+      "matched": {
+        "table": null,
+        "column": null,
+        "type": null
+      },
+      "suggestions": null,
+      "final": null,
+      "decision": "unresolved",
+      "rationale": ""
+    },
+    {
+      "excel": {
+        "table": "employee_employment",
+        "schema": "dbo",
+        "column": "terminated_date",
+        "excelName": "Terminated Date",
+        "usedColumnHeader": "Mapping to Existing DB Schema",
+        "usedTableHeader": "Existing Table Name"
+      },
+      "initial_status": "column_matched",
+      "matched": {
+        "table": "dbo.employee_employment",
+        "column": "terminated_date",
+        "type": "date"
+      },
+      "suggestions": null,
+      "final": {
+        "table": "dbo.employee_employment",
+        "column": "terminated_date"
+      },
+      "decision": "accepted",
+      "rationale": "explicit match from Excel mapping or exact column match"
+    },
+    {
+      "excel": {
+        "table": "employee_employment",
+        "schema": "dbo",
+        "column": "terminated_type",
+        "excelName": "Terminated Type",
+        "usedColumnHeader": "Mapping to Existing DB Schema",
+        "usedTableHeader": "Existing Table Name"
+      },
+      "initial_status": "column_matched",
+      "matched": {
+        "table": "dbo.employee_employment",
+        "column": "terminated_type",
+        "type": "varchar"
+      },
+      "suggestions": null,
+      "final": {
+        "table": "dbo.employee_employment",
+        "column": "terminated_type"
+      },
+      "decision": "accepted",
+      "rationale": "explicit match from Excel mapping or exact column match"
+    },
+    {
+      "excel": {
+        "table": "employee_employment",
+        "schema": "dbo",
+        "column": "terminated_reason",
+        "excelName": "Terminated Reason",
+        "usedColumnHeader": "Mapping to Existing DB Schema",
+        "usedTableHeader": "Existing Table Name"
+      },
+      "initial_status": "column_matched",
+      "matched": {
+        "table": "dbo.employee_employment",
+        "column": "terminated_reason",
+        "type": "varchar"
+      },
+      "suggestions": null,
+      "final": {
+        "table": "dbo.employee_employment",
+        "column": "terminated_reason"
+      },
+      "decision": "accepted",
+      "rationale": "explicit match from Excel mapping or exact column match"
+    },
+    {
+      "excel": {
+        "table": "employee_employment",
+        "schema": "dbo",
+        "column": "blacklist_mti",
+        "excelName": "Black List MTI",
+        "usedColumnHeader": "Mapping to Existing DB Schema",
+        "usedTableHeader": "Existing Table Name"
+      },
+      "initial_status": "column_matched",
+      "matched": {
+        "table": "dbo.employee_employment",
+        "column": "blacklist_mti",
+        "type": "varchar"
+      },
+      "suggestions": null,
+      "final": {
+        "table": "dbo.employee_employment",
+        "column": "blacklist_mti"
+      },
+      "decision": "accepted",
+      "rationale": "explicit match from Excel mapping or exact column match"
+    },
+    {
+      "excel": {
+        "table": "employee_employment",
+        "schema": "dbo",
+        "column": "blacklist_imip",
+        "excelName": "Black List IMIP",
+        "usedColumnHeader": "Mapping to Existing DB Schema",
+        "usedTableHeader": "Existing Table Name"
+      },
+      "initial_status": "column_matched",
+      "matched": {
+        "table": "dbo.employee_employment",
+        "column": "blacklist_imip",
+        "type": "varchar"
+      },
+      "suggestions": null,
+      "final": {
+        "table": "dbo.employee_employment",
+        "column": "blacklist_imip"
+      },
+      "decision": "accepted",
+      "rationale": "explicit match from Excel mapping or exact column match"
+    },
+    {
+      "excel": {
+        "table": null,
+        "schema": "dbo",
+        "column": null,
+        "excelName": "Office Email",
+        "usedColumnHeader": "Column Name",
+        "usedTableHeader": null
+      },
+      "initial_status": "table_missing",
+      "matched": {
+        "table": null,
+        "column": null,
+        "type": null
+      },
+      "suggestions": null,
+      "final": null,
+      "decision": "unresolved",
+      "rationale": ""
+    },
+    {
+      "excel": {
+        "table": null,
+        "schema": "dbo",
+        "column": "locality_status",
+        "excelName": "Locality Status",
+        "usedColumnHeader": "Mapping to Existing DB Schema",
+        "usedTableHeader": null
+      },
+      "initial_status": "table_missing",
+      "matched": {
+        "table": null,
+        "column": null,
+        "type": null
+      },
+      "suggestions": [
+        {
+          "type": "column",
+          "value": "dbo.employee_employment.locality_status",
+          "score": 1
+        },
+        {
+          "type": "column",
+          "value": "dbo.employee_core.marital_status",
+          "score": 0.6
+        }
+      ],
+      "final": {
+        "table": "dbo.employee_employment",
+        "column": "locality_status"
+      },
+      "decision": "accepted",
+      "rationale": "accepted by exact DB column match across schema"
+    },
+    {
+      "excel": {
+        "table": null,
+        "schema": "dbo",
+        "column": null,
+        "excelName": "FPG No",
+        "usedColumnHeader": "Column Name",
+        "usedTableHeader": null
+      },
+      "initial_status": "table_missing",
+      "matched": {
+        "table": null,
+        "column": null,
+        "type": null
+      },
+      "suggestions": null,
+      "final": null,
+      "decision": "unresolved",
+      "rationale": ""
+    },
+    {
+      "excel": {
+        "table": null,
+        "schema": "dbo",
+        "column": null,
+        "excelName": "OWLEXA No",
+        "usedColumnHeader": "Column Name",
+        "usedTableHeader": null
+      },
+      "initial_status": "table_missing",
+      "matched": {
+        "table": null,
+        "column": null,
+        "type": null
+      },
+      "suggestions": null,
+      "final": null,
+      "decision": "unresolved",
+      "rationale": ""
+    },
+    {
+      "excel": {
+        "table": null,
+        "schema": "dbo",
+        "column": null,
+        "excelName": "Month of Birthday",
+        "usedColumnHeader": "Column Name",
+        "usedTableHeader": null
+      },
+      "initial_status": "table_missing",
+      "matched": {
+        "table": null,
+        "column": null,
+        "type": null
+      },
+      "suggestions": null,
+      "final": null,
+      "decision": "unresolved",
+      "rationale": ""
+    },
+    {
+      "excel": {
+        "table": null,
+        "schema": "dbo",
+        "column": null,
+        "excelName": "ID CARD MTI",
+        "usedColumnHeader": "Column Name",
+        "usedTableHeader": null
+      },
+      "initial_status": "table_missing",
+      "matched": {
+        "table": null,
+        "column": null,
+        "type": null
+      },
+      "suggestions": null,
+      "final": null,
+      "decision": "unresolved",
+      "rationale": ""
+    },
+    {
+      "excel": {
+        "table": null,
+        "schema": "dbo",
+        "column": null,
+        "excelName": "Field",
+        "usedColumnHeader": "Column Name",
+        "usedTableHeader": null
+      },
+      "initial_status": "table_missing",
+      "matched": {
+        "table": null,
+        "column": null,
+        "type": null
+      },
+      "suggestions": null,
+      "final": {
+        "table": "dbo.employee_core",
+        "column": "Field"
+      },
+      "decision": "auto_mapped",
+      "rationale": "auto-mapped by exact column name match across schema"
+    },
+    {
+      "excel": {
+        "table": null,
+        "schema": "dbo",
+        "column": null,
+        "excelName": "Bank Code",
+        "usedColumnHeader": "Column Name",
+        "usedTableHeader": null
+      },
+      "initial_status": "table_missing",
+      "matched": {
+        "table": null,
+        "column": null,
+        "type": null
+      },
+      "suggestions": null,
+      "final": null,
+      "decision": "unresolved",
+      "rationale": ""
+    },
+    {
+      "excel": {
+        "table": null,
+        "schema": "dbo",
+        "column": null,
+        "excelName": "ICBC Bank Account No.",
+        "usedColumnHeader": "Column Name",
+        "usedTableHeader": null
+      },
+      "initial_status": "table_missing",
+      "matched": {
+        "table": null,
+        "column": null,
+        "type": null
+      },
+      "suggestions": null,
+      "final": null,
+      "decision": "unresolved",
+      "rationale": ""
+    },
+    {
+      "excel": {
+        "table": null,
+        "schema": "dbo",
+        "column": null,
+        "excelName": "Name as Pasport",
+        "usedColumnHeader": "Column Name",
+        "usedTableHeader": null
+      },
+      "initial_status": "table_missing",
+      "matched": {
+        "table": null,
+        "column": null,
+        "type": null
+      },
+      "suggestions": null,
+      "final": null,
+      "decision": "unresolved",
+      "rationale": ""
+    },
+    {
+      "excel": {
+        "table": "employee_contact",
+        "schema": "dbo",
+        "column": "email",
+        "excelName": "Personal email",
+        "usedColumnHeader": "Mapping to Existing DB Schema",
+        "usedTableHeader": "Existing Table Name"
+      },
+      "initial_status": "column_matched",
+      "matched": {
+        "table": "dbo.employee_contact",
+        "column": "email",
+        "type": "varchar"
+      },
+      "suggestions": null,
+      "final": {
+        "table": "dbo.employee_contact",
+        "column": "email"
+      },
+      "decision": "accepted",
+      "rationale": "explicit match from Excel mapping or exact column match"
+    },
+    {
+      "excel": {
+        "table": null,
+        "schema": "dbo",
+        "column": null,
+        "excelName": "Passport Expiry",
+        "usedColumnHeader": "Column Name",
+        "usedTableHeader": null
+      },
+      "initial_status": "table_missing",
+      "matched": {
+        "table": null,
+        "column": null,
+        "type": null
+      },
+      "suggestions": null,
+      "final": null,
+      "decision": "unresolved",
+      "rationale": ""
+    },
+    {
+      "excel": {
+        "table": null,
+        "schema": "dbo",
+        "column": null,
+        "excelName": "KITAS Expiry",
+        "usedColumnHeader": "Column Name",
+        "usedTableHeader": null
+      },
+      "initial_status": "table_missing",
+      "matched": {
+        "table": null,
+        "column": null,
+        "type": null
+      },
+      "suggestions": null,
+      "final": null,
+      "decision": "unresolved",
+      "rationale": ""
+    },
+    {
+      "excel": {
+        "table": null,
+        "schema": "dbo",
+        "column": null,
+        "excelName": "IMTA",
+        "usedColumnHeader": "Column Name",
+        "usedTableHeader": null
+      },
+      "initial_status": "table_missing",
+      "matched": {
+        "table": null,
+        "column": null,
+        "type": null
+      },
+      "suggestions": null,
+      "final": {
+        "table": "dbo.employee_travel",
+        "column": "IMTA"
+      },
+      "decision": "auto_mapped",
+      "rationale": "auto-mapped by exact column name match across schema"
+    },
+    {
+      "excel": {
+        "table": null,
+        "schema": "dbo",
+        "column": null,
+        "excelName": "RPTKA No",
+        "usedColumnHeader": "Column Name",
+        "usedTableHeader": null
+      },
+      "initial_status": "table_missing",
+      "matched": {
+        "table": null,
+        "column": null,
+        "type": null
+      },
+      "suggestions": null,
+      "final": null,
+      "decision": "unresolved",
+      "rationale": ""
+    },
+    {
+      "excel": {
+        "table": null,
+        "schema": "dbo",
+        "column": null,
+        "excelName": "RPTKA Position",
+        "usedColumnHeader": "Column Name",
+        "usedTableHeader": null
+      },
+      "initial_status": "table_missing",
+      "matched": {
+        "table": null,
+        "column": null,
+        "type": null
+      },
+      "suggestions": null,
+      "final": null,
+      "decision": "unresolved",
+      "rationale": ""
+    },
+    {
+      "excel": {
+        "table": null,
+        "schema": "dbo",
+        "column": null,
+        "excelName": "KITAS Address",
+        "usedColumnHeader": "Column Name",
+        "usedTableHeader": null
+      },
+      "initial_status": "table_missing",
+      "matched": {
+        "table": null,
+        "column": null,
+        "type": null
+      },
+      "suggestions": null,
+      "final": null,
+      "decision": "unresolved",
+      "rationale": ""
+    },
+    {
+      "excel": {
+        "table": null,
+        "schema": "dbo",
+        "column": null,
+        "excelName": "Job Tittle (Based on KITAS)",
+        "usedColumnHeader": "Column Name",
+        "usedTableHeader": null
+      },
+      "initial_status": "table_missing",
+      "matched": {
+        "table": null,
+        "column": null,
+        "type": null
+      },
+      "suggestions": null,
+      "final": null,
+      "decision": "unresolved",
+      "rationale": ""
+    },
+    {
+      "excel": {
+        "table": null,
+        "schema": "dbo",
+        "column": null,
+        "excelName": "ICBC Username",
+        "usedColumnHeader": "Column Name",
+        "usedTableHeader": null
+      },
+      "initial_status": "table_missing",
+      "matched": {
+        "table": null,
+        "column": null,
+        "type": null
+      },
+      "suggestions": null,
+      "final": null,
+      "decision": "unresolved",
+      "rationale": ""
+    },
+    {
+      "excel": {
+        "table": null,
+        "schema": "dbo",
+        "column": null,
+        "excelName": "Batch",
+        "usedColumnHeader": "Column Name",
+        "usedTableHeader": null
+      },
+      "initial_status": "table_missing",
+      "matched": {
+        "table": null,
+        "column": null,
+        "type": null
+      },
+      "suggestions": null,
+      "final": {
+        "table": "dbo.employee_notes",
+        "column": "Batch"
+      },
+      "decision": "auto_mapped",
+      "rationale": "auto-mapped by exact column name match across schema"
+    },
+    {
+      "excel": {
+        "table": null,
+        "schema": "dbo",
+        "column": null,
+        "excelName": "Cek Document / Note",
+        "usedColumnHeader": "Column Name",
+        "usedTableHeader": null
+      },
+      "initial_status": "table_missing",
+      "matched": {
+        "table": null,
+        "column": null,
+        "type": null
+      },
+      "suggestions": null,
+      "final": null,
+      "decision": "unresolved",
+      "rationale": ""
+    },
+    {
+      "excel": {
+        "table": null,
+        "schema": "dbo",
+        "column": null,
+        "excelName": "Paspor (Checklist)",
+        "usedColumnHeader": "Column Name",
+        "usedTableHeader": null
+      },
+      "initial_status": "table_missing",
+      "matched": {
+        "table": null,
+        "column": null,
+        "type": null
+      },
+      "suggestions": null,
+      "final": null,
+      "decision": "unresolved",
+      "rationale": ""
+    },
+    {
+      "excel": {
+        "table": null,
+        "schema": "dbo",
+        "column": null,
+        "excelName": "KITAS (Checklist)",
+        "usedColumnHeader": "Column Name",
+        "usedTableHeader": null
+      },
+      "initial_status": "table_missing",
+      "matched": {
+        "table": null,
+        "column": null,
+        "type": null
+      },
+      "suggestions": null,
+      "final": null,
+      "decision": "unresolved",
+      "rationale": ""
+    },
+    {
+      "excel": {
+        "table": null,
+        "schema": "dbo",
+        "column": null,
+        "excelName": "IMTA (Checklist)",
+        "usedColumnHeader": "Column Name",
+        "usedTableHeader": null
+      },
+      "initial_status": "table_missing",
+      "matched": {
+        "table": null,
+        "column": null,
+        "type": null
+      },
+      "suggestions": null,
+      "final": null,
+      "decision": "unresolved",
+      "rationale": ""
+    },
+    {
+      "excel": {
+        "table": null,
+        "schema": "dbo",
+        "column": null,
+        "excelName": "RPTKA (Checklist)",
+        "usedColumnHeader": "Column Name",
+        "usedTableHeader": null
+      },
+      "initial_status": "table_missing",
+      "matched": {
+        "table": null,
+        "column": null,
+        "type": null
+      },
+      "suggestions": null,
+      "final": null,
+      "decision": "unresolved",
+      "rationale": ""
+    },
+    {
+      "excel": {
+        "table": null,
+        "schema": "dbo",
+        "column": null,
+        "excelName": "NPWP (Checklist)",
+        "usedColumnHeader": "Column Name",
+        "usedTableHeader": null
+      },
+      "initial_status": "table_missing",
+      "matched": {
+        "table": null,
+        "column": null,
+        "type": null
+      },
+      "suggestions": null,
+      "final": null,
+      "decision": "unresolved",
+      "rationale": ""
+    },
+    {
+      "excel": {
+        "table": null,
+        "schema": "dbo",
+        "column": null,
+        "excelName": "BPJS-KES (Checklist)",
+        "usedColumnHeader": "Column Name",
+        "usedTableHeader": null
+      },
+      "initial_status": "table_missing",
+      "matched": {
+        "table": null,
+        "column": null,
+        "type": null
+      },
+      "suggestions": null,
+      "final": null,
+      "decision": "unresolved",
+      "rationale": ""
+    },
+    {
+      "excel": {
+        "table": null,
+        "schema": "dbo",
+        "column": null,
+        "excelName": "BPJS-TK (Checklist)",
+        "usedColumnHeader": "Column Name",
+        "usedTableHeader": null
+      },
+      "initial_status": "table_missing",
+      "matched": {
+        "table": null,
+        "column": null,
+        "type": null
+      },
+      "suggestions": null,
+      "final": null,
+      "decision": "unresolved",
+      "rationale": ""
+    },
+    {
+      "excel": {
+        "table": null,
+        "schema": "dbo",
+        "column": null,
+        "excelName": "Bank (Checklist)",
+        "usedColumnHeader": "Column Name",
+        "usedTableHeader": null
+      },
+      "initial_status": "table_missing",
+      "matched": {
+        "table": null,
+        "column": null,
+        "type": null
+      },
+      "suggestions": null,
+      "final": null,
+      "decision": "unresolved",
+      "rationale": ""
+    },
+    {
+      "excel": {
+        "table": null,
+        "schema": "dbo",
+        "column": null,
+        "excelName": "Employee Status",
+        "usedColumnHeader": "Column Name",
+        "usedTableHeader": null
+      },
+      "initial_status": "table_missing",
+      "matched": {
+        "table": null,
+        "column": null,
+        "type": null
+      },
+      "suggestions": null,
+      "final": null,
+      "decision": "unresolved",
+      "rationale": ""
+    }
+  ],
+  "summary": {
+    "accepted": 70,
+    "autoMapped": 5,
+    "tableOnly": 0,
+    "unresolved": 28,
+    "total": 103
+  }
+}

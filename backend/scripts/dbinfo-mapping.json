@@ -1,0 +1,1856 @@
+[
+  {
+    "excel": {
+      "table": "employee_insurance",
+      "schema": "dbo",
+      "column": "insurance_endorsement",
+      "excelName": "Insurance (Endorsment)",
+      "usedColumnHeader": "DB Column",
+      "usedTableHeader": "Table Name"
+    },
+    "matched": {
+      "table": "dbo.employee_insurance",
+      "column": "insurance_endorsement",
+      "type": "varchar"
+    },
+    "status": "column_matched",
+    "suggestion": null,
+    "suggestions": null
+  },
+  {
+    "excel": {
+      "table": "employee_insurance",
+      "schema": "dbo",
+      "column": "insurance_owlexa",
+      "excelName": "Insurance Card Owlexa",
+      "usedColumnHeader": "DB Column",
+      "usedTableHeader": "Table Name"
+    },
+    "matched": {
+      "table": "dbo.employee_insurance",
+      "column": "insurance_owlexa",
+      "type": "varchar"
+    },
+    "status": "column_matched",
+    "suggestion": null,
+    "suggestions": null
+  },
+  {
+    "excel": {
+      "table": "employee_insurance",
+      "schema": "dbo",
+      "column": "insurance_fpg",
+      "excelName": "Insurance Card FPG",
+      "usedColumnHeader": "DB Column",
+      "usedTableHeader": "Table Name"
+    },
+    "matched": {
+      "table": "dbo.employee_insurance",
+      "column": "insurance_fpg",
+      "type": "varchar"
+    },
+    "status": "column_matched",
+    "suggestion": null,
+    "suggestions": null
+  },
+  {
+    "excel": {
+      "table": "employee_bank",
+      "schema": "dbo",
+      "column": "employee_id",
+      "excelName": "Emp. ID",
+      "usedColumnHeader": "DB Column",
+      "usedTableHeader": "Table Name"
+    },
+    "matched": {
+      "table": "dbo.employee_bank",
+      "column": "employee_id",
+      "type": "varchar"
+    },
+    "status": "column_matched",
+    "suggestion": null,
+    "suggestions": null
+  },
+  {
+    "excel": {
+      "table": "employee_contact",
+      "schema": "dbo",
+      "column": "employee_id",
+      "excelName": "Emp. ID",
+      "usedColumnHeader": "DB Column",
+      "usedTableHeader": "Table Name"
+    },
+    "matched": {
+      "table": "dbo.employee_contact",
+      "column": "employee_id",
+      "type": "varchar"
+    },
+    "status": "column_matched",
+    "suggestion": null,
+    "suggestions": null
+  },
+  {
+    "excel": {
+      "table": "employee_core",
+      "schema": "dbo",
+      "column": "employee_id",
+      "excelName": "Emp. ID",
+      "usedColumnHeader": "DB Column",
+      "usedTableHeader": "Table Name"
+    },
+    "matched": {
+      "table": "dbo.employee_core",
+      "column": "employee_id",
+      "type": "varchar"
+    },
+    "status": "column_matched",
+    "suggestion": null,
+    "suggestions": null
+  },
+  {
+    "excel": {
+      "table": "employee_employment",
+      "schema": "dbo",
+      "column": "employee_id",
+      "excelName": "Emp. ID",
+      "usedColumnHeader": "DB Column",
+      "usedTableHeader": "Table Name"
+    },
+    "matched": {
+      "table": "dbo.employee_employment",
+      "column": "employee_id",
+      "type": "varchar"
+    },
+    "status": "column_matched",
+    "suggestion": null,
+    "suggestions": null
+  },
+  {
+    "excel": {
+      "table": "employee_insurance",
+      "schema": "dbo",
+      "column": "employee_id",
+      "excelName": "Emp. ID",
+      "usedColumnHeader": "DB Column",
+      "usedTableHeader": "Table Name"
+    },
+    "matched": {
+      "table": "dbo.employee_insurance",
+      "column": "employee_id",
+      "type": "varchar"
+    },
+    "status": "column_matched",
+    "suggestion": null,
+    "suggestions": null
+  },
+  {
+    "excel": {
+      "table": "employee_onboard",
+      "schema": "dbo",
+      "column": "employee_id",
+      "excelName": "Emp. ID",
+      "usedColumnHeader": "DB Column",
+      "usedTableHeader": "Table Name"
+    },
+    "matched": {
+      "table": "dbo.employee_onboard",
+      "column": "employee_id",
+      "type": "varchar"
+    },
+    "status": "column_matched",
+    "suggestion": null,
+    "suggestions": null
+  },
+  {
+    "excel": {
+      "table": "employee_travel",
+      "schema": "dbo",
+      "column": "employee_id",
+      "excelName": "Emp. ID",
+      "usedColumnHeader": "DB Column",
+      "usedTableHeader": "Table Name"
+    },
+    "matched": {
+      "table": "dbo.employee_travel",
+      "column": "employee_id",
+      "type": "varchar"
+    },
+    "status": "column_matched",
+    "suggestion": null,
+    "suggestions": null
+  },
+  {
+    "excel": {
+      "table": "employee_core",
+      "schema": "dbo",
+      "column": "imip_id",
+      "excelName": "IMIP ID",
+      "usedColumnHeader": "DB Column",
+      "usedTableHeader": "Table Name"
+    },
+    "matched": {
+      "table": "dbo.employee_core",
+      "column": "imip_id",
+      "type": "varchar"
+    },
+    "status": "column_matched",
+    "suggestion": null,
+    "suggestions": null
+  },
+  {
+    "excel": {
+      "table": "employee_core",
+      "schema": "dbo",
+      "column": "name",
+      "excelName": "Employee Name",
+      "usedColumnHeader": "DB Column",
+      "usedTableHeader": "Table Name"
+    },
+    "matched": {
+      "table": "dbo.employee_core",
+      "column": "name",
+      "type": "varchar"
+    },
+    "status": "column_matched",
+    "suggestion": null,
+    "suggestions": null
+  },
+  {
+    "excel": {
+      "table": "employee_core",
+      "schema": "dbo",
+      "column": "gender",
+      "excelName": "Gender",
+      "usedColumnHeader": "DB Column",
+      "usedTableHeader": "Table Name"
+    },
+    "matched": {
+      "table": "dbo.employee_core",
+      "column": "gender",
+      "type": "char"
+    },
+    "status": "column_matched",
+    "suggestion": null,
+    "suggestions": null
+  },
+  {
+    "excel": {
+      "table": "employee_core",
+      "schema": "dbo",
+      "column": "place_of_birth",
+      "excelName": "Place of Birth",
+      "usedColumnHeader": "DB Column",
+      "usedTableHeader": "Table Name"
+    },
+    "matched": {
+      "table": "dbo.employee_core",
+      "column": "place_of_birth",
+      "type": "varchar"
+    },
+    "status": "column_matched",
+    "suggestion": null,
+    "suggestions": null
+  },
+  {
+    "excel": {
+      "table": "employee_core",
+      "schema": "dbo",
+      "column": "date_of_birth",
+      "excelName": "Date of Birth",
+      "usedColumnHeader": "DB Column",
+      "usedTableHeader": "Table Name"
+    },
+    "matched": {
+      "table": "dbo.employee_core",
+      "column": "date_of_birth",
+      "type": "date"
+    },
+    "status": "column_matched",
+    "suggestion": null,
+    "suggestions": null
+  },
+  {
+    "excel": {
+      "table": "employee_core",
+      "schema": "dbo",
+      "column": "age",
+      "excelName": "Age",
+      "usedColumnHeader": "DB Column",
+      "usedTableHeader": "Table Name"
+    },
+    "matched": {
+      "table": "dbo.employee_core",
+      "column": "age",
+      "type": "int"
+    },
+    "status": "column_matched",
+    "suggestion": null,
+    "suggestions": null
+  },
+  {
+    "excel": {
+      "table": "employee_core",
+      "schema": "dbo",
+      "column": "marital_status",
+      "excelName": "Marital Status",
+      "usedColumnHeader": "DB Column",
+      "usedTableHeader": "Table Name"
+    },
+    "matched": {
+      "table": "dbo.employee_core",
+      "column": "marital_status",
+      "type": "varchar"
+    },
+    "status": "column_matched",
+    "suggestion": null,
+    "suggestions": null
+  },
+  {
+    "excel": {
+      "table": "employee_core",
+      "schema": "dbo",
+      "column": "tax_status",
+      "excelName": "Tax Status",
+      "usedColumnHeader": "DB Column",
+      "usedTableHeader": "Table Name"
+    },
+    "matched": {
+      "table": "dbo.employee_core",
+      "column": "tax_status",
+      "type": "varchar"
+    },
+    "status": "column_matched",
+    "suggestion": null,
+    "suggestions": null
+  },
+  {
+    "excel": {
+      "table": "employee_contact",
+      "schema": "dbo",
+      "column": "spouse_name",
+      "excelName": "Spouse Name",
+      "usedColumnHeader": "DB Column",
+      "usedTableHeader": "Table Name"
+    },
+    "matched": {
+      "table": "dbo.employee_contact",
+      "column": "spouse_name",
+      "type": "varchar"
+    },
+    "status": "column_matched",
+    "suggestion": null,
+    "suggestions": null
+  },
+  {
+    "excel": {
+      "table": "employee_contact",
+      "schema": "dbo",
+      "column": "child_name_1",
+      "excelName": "Child Name 1",
+      "usedColumnHeader": "DB Column",
+      "usedTableHeader": "Table Name"
+    },
+    "matched": {
+      "table": "dbo.employee_contact",
+      "column": "child_name_1",
+      "type": "varchar"
+    },
+    "status": "column_matched",
+    "suggestion": null,
+    "suggestions": null
+  },
+  {
+    "excel": {
+      "table": "employee_contact",
+      "schema": "dbo",
+      "column": "child_name_2",
+      "excelName": "Child Name 2",
+      "usedColumnHeader": "DB Column",
+      "usedTableHeader": "Table Name"
+    },
+    "matched": {
+      "table": "dbo.employee_contact",
+      "column": "child_name_2",
+      "type": "varchar"
+    },
+    "status": "column_matched",
+    "suggestion": null,
+    "suggestions": null
+  },
+  {
+    "excel": {
+      "table": "employee_contact",
+      "schema": "dbo",
+      "column": "child_name_3",
+      "excelName": "Child Name 3",
+      "usedColumnHeader": "DB Column",
+      "usedTableHeader": "Table Name"
+    },
+    "matched": {
+      "table": "dbo.employee_contact",
+      "column": "child_name_3",
+      "type": "varchar"
+    },
+    "status": "column_matched",
+    "suggestion": null,
+    "suggestions": null
+  },
+  {
+    "excel": {
+      "table": "employee_core",
+      "schema": "dbo",
+      "column": "religion",
+      "excelName": "Religion",
+      "usedColumnHeader": "DB Column",
+      "usedTableHeader": "Table Name"
+    },
+    "matched": {
+      "table": "dbo.employee_core",
+      "column": "religion",
+      "type": "varchar"
+    },
+    "status": "column_matched",
+    "suggestion": null,
+    "suggestions": null
+  },
+  {
+    "excel": {
+      "table": "employee_core",
+      "schema": "dbo",
+      "column": "nationality",
+      "excelName": "Nationality",
+      "usedColumnHeader": "DB Column",
+      "usedTableHeader": "Table Name"
+    },
+    "matched": {
+      "table": "dbo.employee_core",
+      "column": "nationality",
+      "type": "varchar"
+    },
+    "status": "column_matched",
+    "suggestion": null,
+    "suggestions": null
+  },
+  {
+    "excel": {
+      "table": "employee_core",
+      "schema": "dbo",
+      "column": "blood_type",
+      "excelName": "Blood Type",
+      "usedColumnHeader": "DB Column",
+      "usedTableHeader": "Table Name"
+    },
+    "matched": {
+      "table": "dbo.employee_core",
+      "column": "blood_type",
+      "type": "varchar"
+    },
+    "status": "column_matched",
+    "suggestion": null,
+    "suggestions": null
+  },
+  {
+    "excel": {
+      "table": "employee_contact",
+      "schema": "dbo",
+      "column": "phone_number",
+      "excelName": "Mobile Phone",
+      "usedColumnHeader": "DB Column",
+      "usedTableHeader": "Table Name"
+    },
+    "matched": {
+      "table": "dbo.employee_contact",
+      "column": "phone_number",
+      "type": "varchar"
+    },
+    "status": "column_matched",
+    "suggestion": null,
+    "suggestions": null
+  },
+  {
+    "excel": {
+      "table": "employee_contact",
+      "schema": "dbo",
+      "column": "emergency_contact_name",
+      "excelName": "Emergency Contact Name",
+      "usedColumnHeader": "DB Column",
+      "usedTableHeader": "Table Name"
+    },
+    "matched": {
+      "table": "dbo.employee_contact",
+      "column": "emergency_contact_name",
+      "type": "varchar"
+    },
+    "status": "column_matched",
+    "suggestion": null,
+    "suggestions": null
+  },
+  {
+    "excel": {
+      "table": "employee_contact",
+      "schema": "dbo",
+      "column": "emergency_contact_phone",
+      "excelName": "Emergency Contact Phone",
+      "usedColumnHeader": "DB Column",
+      "usedTableHeader": "Table Name"
+    },
+    "matched": {
+      "table": "dbo.employee_contact",
+      "column": "emergency_contact_phone",
+      "type": "varchar"
+    },
+    "status": "column_matched",
+    "suggestion": null,
+    "suggestions": null
+  },
+  {
+    "excel": {
+      "table": "employee_core",
+      "schema": "dbo",
+      "column": "kartu_keluarga_no",
+      "excelName": "Kartu Keluarga No",
+      "usedColumnHeader": "DB Column",
+      "usedTableHeader": "Table Name"
+    },
+    "matched": {
+      "table": "dbo.employee_core",
+      "column": "kartu_keluarga_no",
+      "type": "varchar"
+    },
+    "status": "column_matched",
+    "suggestion": null,
+    "suggestions": null
+  },
+  {
+    "excel": {
+      "table": "employee_core",
+      "schema": "dbo",
+      "column": "ktp_no",
+      "excelName": "KTP No",
+      "usedColumnHeader": "DB Column",
+      "usedTableHeader": "Table Name"
+    },
+    "matched": {
+      "table": "dbo.employee_core",
+      "column": "ktp_no",
+      "type": "varchar"
+    },
+    "status": "column_matched",
+    "suggestion": null,
+    "suggestions": null
+  },
+  {
+    "excel": {
+      "table": "employee_contact",
+      "schema": "dbo",
+      "column": "address",
+      "excelName": "KTP Address",
+      "usedColumnHeader": "DB Column",
+      "usedTableHeader": "Table Name"
+    },
+    "matched": {
+      "table": "dbo.employee_contact",
+      "column": "address",
+      "type": "varchar"
+    },
+    "status": "column_matched",
+    "suggestion": null,
+    "suggestions": null
+  },
+  {
+    "excel": {
+      "table": "employee_contact",
+      "schema": "dbo",
+      "column": "city",
+      "excelName": "KTP City",
+      "usedColumnHeader": "DB Column",
+      "usedTableHeader": "Table Name"
+    },
+    "matched": {
+      "table": "dbo.employee_contact",
+      "column": "city",
+      "type": "varchar"
+    },
+    "status": "column_matched",
+    "suggestion": null,
+    "suggestions": null
+  },
+  {
+    "excel": {
+      "table": "employee_onboard",
+      "schema": "dbo",
+      "column": "point_of_hire",
+      "excelName": "Poin of Hire",
+      "usedColumnHeader": "DB Column",
+      "usedTableHeader": "Table Name"
+    },
+    "matched": {
+      "table": "dbo.employee_onboard",
+      "column": "point_of_hire",
+      "type": "varchar"
+    },
+    "status": "column_matched",
+    "suggestion": null,
+    "suggestions": null
+  },
+  {
+    "excel": {
+      "table": "employee_onboard",
+      "schema": "dbo",
+      "column": "point_of_origin",
+      "excelName": "Poin of Origin",
+      "usedColumnHeader": "DB Column",
+      "usedTableHeader": "Table Name"
+    },
+    "matched": {
+      "table": "dbo.employee_onboard",
+      "column": "point_of_origin",
+      "type": "varchar"
+    },
+    "status": "column_matched",
+    "suggestion": null,
+    "suggestions": null
+  },
+  {
+    "excel": {
+      "table": "employee_core",
+      "schema": "dbo",
+      "column": "education",
+      "excelName": "Education",
+      "usedColumnHeader": "DB Column",
+      "usedTableHeader": "Table Name"
+    },
+    "matched": {
+      "table": "dbo.employee_core",
+      "column": "education",
+      "type": "varchar"
+    },
+    "status": "column_matched",
+    "suggestion": null,
+    "suggestions": null
+  },
+  {
+    "excel": {
+      "table": "employee_onboard",
+      "schema": "dbo",
+      "column": "schedule_type",
+      "excelName": "Schedule Type",
+      "usedColumnHeader": "DB Column",
+      "usedTableHeader": "Table Name"
+    },
+    "matched": {
+      "table": "dbo.employee_onboard",
+      "column": "schedule_type",
+      "type": "varchar"
+    },
+    "status": "column_matched",
+    "suggestion": null,
+    "suggestions": null
+  },
+  {
+    "excel": {
+      "table": "employee_onboard",
+      "schema": "dbo",
+      "column": "first_join_date_merdeka",
+      "excelName": "First Join Date (Merdeka Group)",
+      "usedColumnHeader": "DB Column",
+      "usedTableHeader": "Table Name"
+    },
+    "matched": {
+      "table": "dbo.employee_onboard",
+      "column": "first_join_date_merdeka",
+      "type": "date"
+    },
+    "status": "column_matched",
+    "suggestion": null,
+    "suggestions": null
+  },
+  {
+    "excel": {
+      "table": "employee_onboard",
+      "schema": "dbo",
+      "column": "transfer_merdeka",
+      "excelName": "Transfer Merdeka Group",
+      "usedColumnHeader": "DB Column",
+      "usedTableHeader": "Table Name"
+    },
+    "matched": {
+      "table": "dbo.employee_onboard",
+      "column": "transfer_merdeka",
+      "type": "date"
+    },
+    "status": "column_matched",
+    "suggestion": null,
+    "suggestions": null
+  },
+  {
+    "excel": {
+      "table": "employee_onboard",
+      "schema": "dbo",
+      "column": "first_join_date",
+      "excelName": "First Join Date",
+      "usedColumnHeader": "DB Column",
+      "usedTableHeader": "Table Name"
+    },
+    "matched": {
+      "table": "dbo.employee_onboard",
+      "column": "first_join_date",
+      "type": "date"
+    },
+    "status": "column_matched",
+    "suggestion": null,
+    "suggestions": null
+  },
+  {
+    "excel": {
+      "table": "employee_onboard",
+      "schema": "dbo",
+      "column": "join_date",
+      "excelName": "Join Date",
+      "usedColumnHeader": "DB Column",
+      "usedTableHeader": "Table Name"
+    },
+    "matched": {
+      "table": "dbo.employee_onboard",
+      "column": "join_date",
+      "type": "date"
+    },
+    "status": "column_matched",
+    "suggestion": null,
+    "suggestions": null
+  },
+  {
+    "excel": {
+      "table": "employee_onboard",
+      "schema": "dbo",
+      "column": "employment_status",
+      "excelName": "Employment Status",
+      "usedColumnHeader": "DB Column",
+      "usedTableHeader": "Table Name"
+    },
+    "matched": {
+      "table": "dbo.employee_onboard",
+      "column": "employment_status",
+      "type": "varchar"
+    },
+    "status": "column_matched",
+    "suggestion": null,
+    "suggestions": null
+  },
+  {
+    "excel": {
+      "table": "employee_onboard",
+      "schema": "dbo",
+      "column": "end_contract",
+      "excelName": "End Contract",
+      "usedColumnHeader": "DB Column",
+      "usedTableHeader": "Table Name"
+    },
+    "matched": {
+      "table": "dbo.employee_onboard",
+      "column": "end_contract",
+      "type": "date"
+    },
+    "status": "column_matched",
+    "suggestion": null,
+    "suggestions": null
+  },
+  {
+    "excel": {
+      "table": "employee_onboard",
+      "schema": "dbo",
+      "column": "years_in_service",
+      "excelName": "Years in Service",
+      "usedColumnHeader": "DB Column",
+      "usedTableHeader": "Table Name"
+    },
+    "matched": {
+      "table": "dbo.employee_onboard",
+      "column": "years_in_service",
+      "type": "int"
+    },
+    "status": "column_matched",
+    "suggestion": null,
+    "suggestions": null
+  },
+  {
+    "excel": {
+      "table": "employee_core",
+      "schema": "dbo",
+      "column": "branch_id",
+      "excelName": "Branch ID",
+      "usedColumnHeader": "DB Column",
+      "usedTableHeader": "Table Name"
+    },
+    "matched": {
+      "table": "dbo.employee_core",
+      "column": "branch_id",
+      "type": "nvarchar"
+    },
+    "status": "column_matched",
+    "suggestion": null,
+    "suggestions": null
+  },
+  {
+    "excel": {
+      "table": "employee_core",
+      "schema": "dbo",
+      "column": "branch",
+      "excelName": "Branch",
+      "usedColumnHeader": "DB Column",
+      "usedTableHeader": "Table Name"
+    },
+    "matched": {
+      "table": "dbo.employee_core",
+      "column": "branch",
+      "type": "nvarchar"
+    },
+    "status": "column_matched",
+    "suggestion": null,
+    "suggestions": null
+  },
+  {
+    "excel": {
+      "table": "employee_employment",
+      "schema": "dbo",
+      "column": "company_office",
+      "excelName": "Company Office",
+      "usedColumnHeader": "DB Column",
+      "usedTableHeader": "Table Name"
+    },
+    "matched": {
+      "table": "dbo.employee_employment",
+      "column": "company_office",
+      "type": "varchar"
+    },
+    "status": "column_matched",
+    "suggestion": null,
+    "suggestions": null
+  },
+  {
+    "excel": {
+      "table": "employee_employment",
+      "schema": "dbo",
+      "column": "work_location",
+      "excelName": "Work Location",
+      "usedColumnHeader": "DB Column",
+      "usedTableHeader": "Table Name"
+    },
+    "matched": {
+      "table": "dbo.employee_employment",
+      "column": "work_location",
+      "type": "varchar"
+    },
+    "status": "column_matched",
+    "suggestion": null,
+    "suggestions": null
+  },
+  {
+    "excel": {
+      "table": "employee_employment",
+      "schema": "dbo",
+      "column": "division",
+      "excelName": "Division",
+      "usedColumnHeader": "DB Column",
+      "usedTableHeader": "Table Name"
+    },
+    "matched": {
+      "table": "dbo.employee_employment",
+      "column": "division",
+      "type": "varchar"
+    },
+    "status": "column_matched",
+    "suggestion": null,
+    "suggestions": null
+  },
+  {
+    "excel": {
+      "table": "employee_employment",
+      "schema": "dbo",
+      "column": "department",
+      "excelName": "Department",
+      "usedColumnHeader": "DB Column",
+      "usedTableHeader": "Table Name"
+    },
+    "matched": {
+      "table": "dbo.employee_employment",
+      "column": "department",
+      "type": "varchar"
+    },
+    "status": "column_matched",
+    "suggestion": null,
+    "suggestions": null
+  },
+  {
+    "excel": {
+      "table": "employee_employment",
+      "schema": "dbo",
+      "column": "section",
+      "excelName": "Section",
+      "usedColumnHeader": "DB Column",
+      "usedTableHeader": "Table Name"
+    },
+    "matched": {
+      "table": "dbo.employee_employment",
+      "column": "section",
+      "type": "varchar"
+    },
+    "status": "column_matched",
+    "suggestion": null,
+    "suggestions": null
+  },
+  {
+    "excel": {
+      "table": "employee_employment",
+      "schema": "dbo",
+      "column": "direct_report",
+      "excelName": "Direct Report",
+      "usedColumnHeader": "DB Column",
+      "usedTableHeader": "Table Name"
+    },
+    "matched": {
+      "table": "dbo.employee_employment",
+      "column": "direct_report",
+      "type": "varchar"
+    },
+    "status": "column_matched",
+    "suggestion": null,
+    "suggestions": null
+  },
+  {
+    "excel": {
+      "table": "employee_employment",
+      "schema": "dbo",
+      "column": "job_title",
+      "excelName": "Job Title",
+      "usedColumnHeader": "DB Column",
+      "usedTableHeader": "Table Name"
+    },
+    "matched": {
+      "table": "dbo.employee_employment",
+      "column": "job_title",
+      "type": "varchar"
+    },
+    "status": "column_matched",
+    "suggestion": null,
+    "suggestions": null
+  },
+  {
+    "excel": {
+      "table": "employee_employment",
+      "schema": "dbo",
+      "column": "grade",
+      "excelName": "Grade",
+      "usedColumnHeader": "DB Column",
+      "usedTableHeader": "Table Name"
+    },
+    "matched": {
+      "table": "dbo.employee_employment",
+      "column": "grade",
+      "type": "varchar"
+    },
+    "status": "column_matched",
+    "suggestion": null,
+    "suggestions": null
+  },
+  {
+    "excel": {
+      "table": "employee_employment",
+      "schema": "dbo",
+      "column": "position_grade",
+      "excelName": "Position Grade",
+      "usedColumnHeader": "DB Column",
+      "usedTableHeader": "Table Name"
+    },
+    "matched": {
+      "table": "dbo.employee_employment",
+      "column": "position_grade",
+      "type": "varchar"
+    },
+    "status": "column_matched",
+    "suggestion": null,
+    "suggestions": null
+  },
+  {
+    "excel": {
+      "table": "employee_employment",
+      "schema": "dbo",
+      "column": "group_job_title",
+      "excelName": "Group Job Title",
+      "usedColumnHeader": "DB Column",
+      "usedTableHeader": "Table Name"
+    },
+    "matched": {
+      "table": "dbo.employee_employment",
+      "column": "group_job_title",
+      "type": "varchar"
+    },
+    "status": "column_matched",
+    "suggestion": null,
+    "suggestions": null
+  },
+  {
+    "excel": {
+      "table": "employee_bank",
+      "schema": "dbo",
+      "column": "bank_name",
+      "excelName": "Bank Name",
+      "usedColumnHeader": "DB Column",
+      "usedTableHeader": "Table Name"
+    },
+    "matched": {
+      "table": "dbo.employee_bank",
+      "column": "bank_name",
+      "type": "varchar"
+    },
+    "status": "column_matched",
+    "suggestion": null,
+    "suggestions": null
+  },
+  {
+    "excel": {
+      "table": "employee_bank",
+      "schema": "dbo",
+      "column": "account_name",
+      "excelName": "Account Name",
+      "usedColumnHeader": "DB Column",
+      "usedTableHeader": "Table Name"
+    },
+    "matched": {
+      "table": "dbo.employee_bank",
+      "column": "account_name",
+      "type": "varchar"
+    },
+    "status": "column_matched",
+    "suggestion": null,
+    "suggestions": null
+  },
+  {
+    "excel": {
+      "table": "employee_bank",
+      "schema": "dbo",
+      "column": "account_no",
+      "excelName": "Account No",
+      "usedColumnHeader": "DB Column",
+      "usedTableHeader": "Table Name"
+    },
+    "matched": {
+      "table": "dbo.employee_bank",
+      "column": "account_no",
+      "type": "varchar"
+    },
+    "status": "column_matched",
+    "suggestion": null,
+    "suggestions": null
+  },
+  {
+    "excel": {
+      "table": "employee_core",
+      "schema": "dbo",
+      "column": "npwp",
+      "excelName": "NPWP",
+      "usedColumnHeader": "DB Column",
+      "usedTableHeader": "Table Name"
+    },
+    "matched": {
+      "table": "dbo.employee_core",
+      "column": "npwp",
+      "type": "varchar"
+    },
+    "status": "column_matched",
+    "suggestion": null,
+    "suggestions": null
+  },
+  {
+    "excel": {
+      "table": "employee_insurance",
+      "schema": "dbo",
+      "column": "bpjs_tk",
+      "excelName": "BPJS TK No",
+      "usedColumnHeader": "DB Column",
+      "usedTableHeader": "Table Name"
+    },
+    "matched": {
+      "table": "dbo.employee_insurance",
+      "column": "bpjs_tk",
+      "type": "varchar"
+    },
+    "status": "column_matched",
+    "suggestion": null,
+    "suggestions": null
+  },
+  {
+    "excel": {
+      "table": "employee_insurance",
+      "schema": "dbo",
+      "column": "bpjs_kes",
+      "excelName": "BPJS KES No",
+      "usedColumnHeader": "DB Column",
+      "usedTableHeader": "Table Name"
+    },
+    "matched": {
+      "table": "dbo.employee_insurance",
+      "column": "bpjs_kes",
+      "type": "varchar"
+    },
+    "status": "column_matched",
+    "suggestion": null,
+    "suggestions": null
+  },
+  {
+    "excel": {
+      "table": "employee_insurance",
+      "schema": "dbo",
+      "column": "status_bpjs_kes",
+      "excelName": "STATUS BPJS Kesehatan",
+      "usedColumnHeader": "DB Column",
+      "usedTableHeader": "Table Name"
+    },
+    "matched": {
+      "table": "dbo.employee_insurance",
+      "column": "status_bpjs_kes",
+      "type": "varchar"
+    },
+    "status": "column_matched",
+    "suggestion": null,
+    "suggestions": null
+  },
+  {
+    "excel": {
+      "table": "employee_travel",
+      "schema": "dbo",
+      "column": "kitas_no",
+      "excelName": "KITAS NO",
+      "usedColumnHeader": "DB Column",
+      "usedTableHeader": "Table Name"
+    },
+    "matched": {
+      "table": "dbo.employee_travel",
+      "column": "kitas_no",
+      "type": "varchar"
+    },
+    "status": "column_matched",
+    "suggestion": null,
+    "suggestions": null
+  },
+  {
+    "excel": {
+      "table": "employee_travel",
+      "schema": "dbo",
+      "column": "passport_no",
+      "excelName": "PASSPORT ID",
+      "usedColumnHeader": "DB Column",
+      "usedTableHeader": "Table Name"
+    },
+    "matched": {
+      "table": "dbo.employee_travel",
+      "column": "passport_no",
+      "type": "varchar"
+    },
+    "status": "column_matched",
+    "suggestion": null,
+    "suggestions": null
+  },
+  {
+    "excel": {
+      "table": "employee_travel",
+      "schema": "dbo",
+      "column": "travel_in",
+      "excelName": "Travel In",
+      "usedColumnHeader": "DB Column",
+      "usedTableHeader": "Table Name"
+    },
+    "matched": {
+      "table": "dbo.employee_travel",
+      "column": "travel_in",
+      "type": "date"
+    },
+    "status": "column_matched",
+    "suggestion": null,
+    "suggestions": null
+  },
+  {
+    "excel": {
+      "table": "employee_travel",
+      "schema": "dbo",
+      "column": "travel_out",
+      "excelName": "Travel Out",
+      "usedColumnHeader": "DB Column",
+      "usedTableHeader": "Table Name"
+    },
+    "matched": {
+      "table": "dbo.employee_travel",
+      "column": "travel_out",
+      "type": "date"
+    },
+    "status": "column_matched",
+    "suggestion": null,
+    "suggestions": null
+  },
+  {
+    "excel": {
+      "table": "employee_insurance",
+      "schema": "dbo",
+      "column": "social_insurance_no_alt",
+      "excelName": "Social Insurance No (alt BPJS TK)",
+      "usedColumnHeader": "DB Column",
+      "usedTableHeader": "Table Name"
+    },
+    "matched": {
+      "table": "dbo.employee_insurance",
+      "column": "social_insurance_no_alt",
+      "type": "nvarchar"
+    },
+    "status": "column_matched",
+    "suggestion": null,
+    "suggestions": null
+  },
+  {
+    "excel": {
+      "table": "employee_insurance",
+      "schema": "dbo",
+      "column": "bpjs_kes_no_alt",
+      "excelName": "BPJS Kesehatan No (alt BPJS KES)",
+      "usedColumnHeader": "DB Column",
+      "usedTableHeader": "Table Name"
+    },
+    "matched": {
+      "table": "dbo.employee_insurance",
+      "column": "bpjs_kes_no_alt",
+      "type": "nvarchar"
+    },
+    "status": "column_matched",
+    "suggestion": null,
+    "suggestions": null
+  },
+  {
+    "excel": {
+      "table": "employee_employment",
+      "schema": "dbo",
+      "column": "terminated_date",
+      "excelName": "Terminated Date",
+      "usedColumnHeader": "DB Column",
+      "usedTableHeader": "Table Name"
+    },
+    "matched": {
+      "table": "dbo.employee_employment",
+      "column": "terminated_date",
+      "type": "date"
+    },
+    "status": "column_matched",
+    "suggestion": null,
+    "suggestions": null
+  },
+  {
+    "excel": {
+      "table": "employee_employment",
+      "schema": "dbo",
+      "column": "terminated_type",
+      "excelName": "Terminated Type",
+      "usedColumnHeader": "DB Column",
+      "usedTableHeader": "Table Name"
+    },
+    "matched": {
+      "table": "dbo.employee_employment",
+      "column": "terminated_type",
+      "type": "varchar"
+    },
+    "status": "column_matched",
+    "suggestion": null,
+    "suggestions": null
+  },
+  {
+    "excel": {
+      "table": "employee_employment",
+      "schema": "dbo",
+      "column": "terminated_reason",
+      "excelName": "Terminated Reason",
+      "usedColumnHeader": "DB Column",
+      "usedTableHeader": "Table Name"
+    },
+    "matched": {
+      "table": "dbo.employee_employment",
+      "column": "terminated_reason",
+      "type": "varchar"
+    },
+    "status": "column_matched",
+    "suggestion": null,
+    "suggestions": null
+  },
+  {
+    "excel": {
+      "table": "employee_employment",
+      "schema": "dbo",
+      "column": "blacklist_mti",
+      "excelName": "Black List MTI",
+      "usedColumnHeader": "DB Column",
+      "usedTableHeader": "Table Name"
+    },
+    "matched": {
+      "table": "dbo.employee_employment",
+      "column": "blacklist_mti",
+      "type": "varchar"
+    },
+    "status": "column_matched",
+    "suggestion": null,
+    "suggestions": null
+  },
+  {
+    "excel": {
+      "table": "employee_employment",
+      "schema": "dbo",
+      "column": "blacklist_imip",
+      "excelName": "Black List IMIP",
+      "usedColumnHeader": "DB Column",
+      "usedTableHeader": "Table Name"
+    },
+    "matched": {
+      "table": "dbo.employee_employment",
+      "column": "blacklist_imip",
+      "type": "varchar"
+    },
+    "status": "column_matched",
+    "suggestion": null,
+    "suggestions": null
+  },
+  {
+    "excel": {
+      "table": "employee_core",
+      "schema": "dbo",
+      "column": "office_email",
+      "excelName": "Office Email",
+      "usedColumnHeader": "DB Column",
+      "usedTableHeader": "Table Name"
+    },
+    "matched": {
+      "table": "dbo.employee_core",
+      "column": "office_email",
+      "type": "nvarchar"
+    },
+    "status": "column_matched",
+    "suggestion": null,
+    "suggestions": null
+  },
+  {
+    "excel": {
+      "table": "employee_employment",
+      "schema": "dbo",
+      "column": "locality_status",
+      "excelName": "Locality Status",
+      "usedColumnHeader": "DB Column",
+      "usedTableHeader": "Table Name"
+    },
+    "matched": {
+      "table": "dbo.employee_employment",
+      "column": "locality_status",
+      "type": "varchar"
+    },
+    "status": "column_matched",
+    "suggestion": null,
+    "suggestions": null
+  },
+  {
+    "excel": {
+      "table": "employee_insurance",
+      "schema": "dbo",
+      "column": "fpg_no",
+      "excelName": "FPG No",
+      "usedColumnHeader": "DB Column",
+      "usedTableHeader": "Table Name"
+    },
+    "matched": {
+      "table": "dbo.employee_insurance",
+      "column": "fpg_no",
+      "type": "nvarchar"
+    },
+    "status": "column_matched",
+    "suggestion": null,
+    "suggestions": null
+  },
+  {
+    "excel": {
+      "table": "employee_insurance",
+      "schema": "dbo",
+      "column": "owlexa_no",
+      "excelName": "OWLEXA No",
+      "usedColumnHeader": "DB Column",
+      "usedTableHeader": "Table Name"
+    },
+    "matched": {
+      "table": "dbo.employee_insurance",
+      "column": "owlexa_no",
+      "type": "nvarchar"
+    },
+    "status": "column_matched",
+    "suggestion": null,
+    "suggestions": null
+  },
+  {
+    "excel": {
+      "table": "employee_core",
+      "schema": "dbo",
+      "column": "month_of_birthday",
+      "excelName": "Month of Birthday",
+      "usedColumnHeader": "DB Column",
+      "usedTableHeader": "Table Name"
+    },
+    "matched": {
+      "table": "dbo.employee_core",
+      "column": "month_of_birthday",
+      "type": "nvarchar"
+    },
+    "status": "column_matched",
+    "suggestion": null,
+    "suggestions": null
+  },
+  {
+    "excel": {
+      "table": "employee_core",
+      "schema": "dbo",
+      "column": "id_card_mti",
+      "excelName": "ID CARD MTI",
+      "usedColumnHeader": "DB Column",
+      "usedTableHeader": "Table Name"
+    },
+    "matched": {
+      "table": "dbo.employee_core",
+      "column": "id_card_mti",
+      "type": "bit"
+    },
+    "status": "column_matched",
+    "suggestion": null,
+    "suggestions": null
+  },
+  {
+    "excel": {
+      "table": "employee_core",
+      "schema": "dbo",
+      "column": "field",
+      "excelName": "Field",
+      "usedColumnHeader": "DB Column",
+      "usedTableHeader": "Table Name"
+    },
+    "matched": {
+      "table": "dbo.employee_core",
+      "column": "field",
+      "type": "nvarchar"
+    },
+    "status": "column_matched",
+    "suggestion": null,
+    "suggestions": null
+  },
+  {
+    "excel": {
+      "table": "employee_bank",
+      "schema": "dbo",
+      "column": "bank_code",
+      "excelName": "Bank Code",
+      "usedColumnHeader": "DB Column",
+      "usedTableHeader": "Table Name"
+    },
+    "matched": {
+      "table": "dbo.employee_bank",
+      "column": "bank_code",
+      "type": "nvarchar"
+    },
+    "status": "column_matched",
+    "suggestion": null,
+    "suggestions": null
+  },
+  {
+    "excel": {
+      "table": "employee_bank",
+      "schema": "dbo",
+      "column": "icbc_bank_account_no",
+      "excelName": "ICBC Bank Account No.",
+      "usedColumnHeader": "DB Column",
+      "usedTableHeader": "Table Name"
+    },
+    "matched": {
+      "table": "dbo.employee_bank",
+      "column": "icbc_bank_account_no",
+      "type": "nvarchar"
+    },
+    "status": "column_matched",
+    "suggestion": null,
+    "suggestions": null
+  },
+  {
+    "excel": {
+      "table": "employee_travel",
+      "schema": "dbo",
+      "column": "name_as_passport",
+      "excelName": "Name as Pasport",
+      "usedColumnHeader": "DB Column",
+      "usedTableHeader": "Table Name"
+    },
+    "matched": {
+      "table": "dbo.employee_travel",
+      "column": "name_as_passport",
+      "type": "nvarchar"
+    },
+    "status": "column_matched",
+    "suggestion": null,
+    "suggestions": null
+  },
+  {
+    "excel": {
+      "table": "employee_contact",
+      "schema": "dbo",
+      "column": "email",
+      "excelName": "Personal email",
+      "usedColumnHeader": "DB Column",
+      "usedTableHeader": "Table Name"
+    },
+    "matched": {
+      "table": "dbo.employee_contact",
+      "column": "email",
+      "type": "varchar"
+    },
+    "status": "column_matched",
+    "suggestion": null,
+    "suggestions": null
+  },
+  {
+    "excel": {
+      "table": "employee_travel",
+      "schema": "dbo",
+      "column": "passport_expiry",
+      "excelName": "Passport Expiry",
+      "usedColumnHeader": "DB Column",
+      "usedTableHeader": "Table Name"
+    },
+    "matched": {
+      "table": "dbo.employee_travel",
+      "column": "passport_expiry",
+      "type": "datetime2"
+    },
+    "status": "column_matched",
+    "suggestion": null,
+    "suggestions": null
+  },
+  {
+    "excel": {
+      "table": "employee_travel",
+      "schema": "dbo",
+      "column": "kitas_expiry",
+      "excelName": "KITAS Expiry",
+      "usedColumnHeader": "DB Column",
+      "usedTableHeader": "Table Name"
+    },
+    "matched": {
+      "table": "dbo.employee_travel",
+      "column": "kitas_expiry",
+      "type": "datetime2"
+    },
+    "status": "column_matched",
+    "suggestion": null,
+    "suggestions": null
+  },
+  {
+    "excel": {
+      "table": "employee_travel",
+      "schema": "dbo",
+      "column": "imta",
+      "excelName": "IMTA",
+      "usedColumnHeader": "DB Column",
+      "usedTableHeader": "Table Name"
+    },
+    "matched": {
+      "table": "dbo.employee_travel",
+      "column": "imta",
+      "type": "nvarchar"
+    },
+    "status": "column_matched",
+    "suggestion": null,
+    "suggestions": null
+  },
+  {
+    "excel": {
+      "table": "employee_travel",
+      "schema": "dbo",
+      "column": "rptka_no",
+      "excelName": "RPTKA No",
+      "usedColumnHeader": "DB Column",
+      "usedTableHeader": "Table Name"
+    },
+    "matched": {
+      "table": "dbo.employee_travel",
+      "column": "rptka_no",
+      "type": "nvarchar"
+    },
+    "status": "column_matched",
+    "suggestion": null,
+    "suggestions": null
+  },
+  {
+    "excel": {
+      "table": "employee_travel",
+      "schema": "dbo",
+      "column": "rptka_position",
+      "excelName": "RPTKA Position",
+      "usedColumnHeader": "DB Column",
+      "usedTableHeader": "Table Name"
+    },
+    "matched": {
+      "table": "dbo.employee_travel",
+      "column": "rptka_position",
+      "type": "nvarchar"
+    },
+    "status": "column_matched",
+    "suggestion": null,
+    "suggestions": null
+  },
+  {
+    "excel": {
+      "table": "employee_travel",
+      "schema": "dbo",
+      "column": "kitas_address",
+      "excelName": "KITAS Address",
+      "usedColumnHeader": "DB Column",
+      "usedTableHeader": "Table Name"
+    },
+    "matched": {
+      "table": "dbo.employee_travel",
+      "column": "kitas_address",
+      "type": "nvarchar"
+    },
+    "status": "column_matched",
+    "suggestion": null,
+    "suggestions": null
+  },
+  {
+    "excel": {
+      "table": "employee_travel",
+      "schema": "dbo",
+      "column": "job_title_kitas",
+      "excelName": "Job Tittle (Based on KITAS)",
+      "usedColumnHeader": "DB Column",
+      "usedTableHeader": "Table Name"
+    },
+    "matched": {
+      "table": "dbo.employee_travel",
+      "column": "job_title_kitas",
+      "type": "nvarchar"
+    },
+    "status": "column_matched",
+    "suggestion": null,
+    "suggestions": null
+  },
+  {
+    "excel": {
+      "table": "employee_bank",
+      "schema": "dbo",
+      "column": "icbc_username",
+      "excelName": "ICBC Username",
+      "usedColumnHeader": "DB Column",
+      "usedTableHeader": "Table Name"
+    },
+    "matched": {
+      "table": "dbo.employee_bank",
+      "column": "icbc_username",
+      "type": "nvarchar"
+    },
+    "status": "column_matched",
+    "suggestion": null,
+    "suggestions": null
+  },
+  {
+    "excel": {
+      "table": "employee_notes",
+      "schema": "dbo",
+      "column": "batch",
+      "excelName": "Batch",
+      "usedColumnHeader": "DB Column",
+      "usedTableHeader": "Table Name"
+    },
+    "matched": {
+      "table": "dbo.employee_notes",
+      "column": "batch",
+      "type": "nvarchar"
+    },
+    "status": "column_matched",
+    "suggestion": null,
+    "suggestions": null
+  },
+  {
+    "excel": {
+      "table": "employee_notes",
+      "schema": "dbo",
+      "column": "note",
+      "excelName": "Cek Document / Note",
+      "usedColumnHeader": "DB Column",
+      "usedTableHeader": "Table Name"
+    },
+    "matched": {
+      "table": "dbo.employee_notes",
+      "column": "note",
+      "type": "varchar"
+    },
+    "status": "column_matched",
+    "suggestion": null,
+    "suggestions": null
+  },
+  {
+    "excel": {
+      "table": "employee_checklist",
+      "schema": "dbo",
+      "column": "paspor_checklist",
+      "excelName": "Paspor (Checklist)",
+      "usedColumnHeader": "DB Column",
+      "usedTableHeader": "Table Name"
+    },
+    "matched": {
+      "table": "dbo.employee_checklist",
+      "column": "paspor_checklist",
+      "type": "bit"
+    },
+    "status": "column_matched",
+    "suggestion": null,
+    "suggestions": null
+  },
+  {
+    "excel": {
+      "table": "employee_checklist",
+      "schema": "dbo",
+      "column": "kitas_checklist",
+      "excelName": "KITAS (Checklist)",
+      "usedColumnHeader": "DB Column",
+      "usedTableHeader": "Table Name"
+    },
+    "matched": {
+      "table": "dbo.employee_checklist",
+      "column": "kitas_checklist",
+      "type": "bit"
+    },
+    "status": "column_matched",
+    "suggestion": null,
+    "suggestions": null
+  },
+  {
+    "excel": {
+      "table": "employee_checklist",
+      "schema": "dbo",
+      "column": "imta_checklist",
+      "excelName": "IMTA (Checklist)",
+      "usedColumnHeader": "DB Column",
+      "usedTableHeader": "Table Name"
+    },
+    "matched": {
+      "table": "dbo.employee_checklist",
+      "column": "imta_checklist",
+      "type": "bit"
+    },
+    "status": "column_matched",
+    "suggestion": null,
+    "suggestions": null
+  },
+  {
+    "excel": {
+      "table": "employee_checklist",
+      "schema": "dbo",
+      "column": "rptka_checklist",
+      "excelName": "RPTKA (Checklist)",
+      "usedColumnHeader": "DB Column",
+      "usedTableHeader": "Table Name"
+    },
+    "matched": {
+      "table": "dbo.employee_checklist",
+      "column": "rptka_checklist",
+      "type": "bit"
+    },
+    "status": "column_matched",
+    "suggestion": null,
+    "suggestions": null
+  },
+  {
+    "excel": {
+      "table": "employee_checklist",
+      "schema": "dbo",
+      "column": "npwp_checklist",
+      "excelName": "NPWP (Checklist)",
+      "usedColumnHeader": "DB Column",
+      "usedTableHeader": "Table Name"
+    },
+    "matched": {
+      "table": "dbo.employee_checklist",
+      "column": "npwp_checklist",
+      "type": "bit"
+    },
+    "status": "column_matched",
+    "suggestion": null,
+    "suggestions": null
+  },
+  {
+    "excel": {
+      "table": "employee_checklist",
+      "schema": "dbo",
+      "column": "bpjs_kes_checklist",
+      "excelName": "BPJS-KES (Checklist)",
+      "usedColumnHeader": "DB Column",
+      "usedTableHeader": "Table Name"
+    },
+    "matched": {
+      "table": "dbo.employee_checklist",
+      "column": "bpjs_kes_checklist",
+      "type": "bit"
+    },
+    "status": "column_matched",
+    "suggestion": null,
+    "suggestions": null
+  },
+  {
+    "excel": {
+      "table": "employee_checklist",
+      "schema": "dbo",
+      "column": "bpjs_tk_checklist",
+      "excelName": "BPJS-TK (Checklist)",
+      "usedColumnHeader": "DB Column",
+      "usedTableHeader": "Table Name"
+    },
+    "matched": {
+      "table": "dbo.employee_checklist",
+      "column": "bpjs_tk_checklist",
+      "type": "bit"
+    },
+    "status": "column_matched",
+    "suggestion": null,
+    "suggestions": null
+  },
+  {
+    "excel": {
+      "table": "employee_checklist",
+      "schema": "dbo",
+      "column": "bank_checklist",
+      "excelName": "Bank (Checklist)",
+      "usedColumnHeader": "DB Column",
+      "usedTableHeader": "Table Name"
+    },
+    "matched": {
+      "table": "dbo.employee_checklist",
+      "column": "bank_checklist",
+      "type": "bit"
+    },
+    "status": "column_matched",
+    "suggestion": null,
+    "suggestions": null
+  },
+  {
+    "excel": {
+      "table": "employee_employment",
+      "schema": "dbo",
+      "column": "status",
+      "excelName": "Employee Status",
+      "usedColumnHeader": "DB Column",
+      "usedTableHeader": "Table Name"
+    },
+    "matched": {
+      "table": "dbo.employee_employment",
+      "column": "status",
+      "type": "varchar"
+    },
+    "status": "column_matched",
+    "suggestion": null,
+    "suggestions": null
+  }
+]

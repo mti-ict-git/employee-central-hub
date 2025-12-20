@@ -1,6 +1,7 @@
 import { useParams, Link } from "react-router-dom";
+import { useEffect, useState } from "react";
 import { MainLayout } from "@/components/layout/MainLayout";
-import { mockEmployees } from "@/data/mockEmployees";
+import type { Employee } from "@/types/employee";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
@@ -47,13 +48,48 @@ const SectionCard = ({ title, icon: Icon, children }: { title: string; icon: Rea
 
 const EmployeeDetail = () => {
   const { id } = useParams();
-  const employee = mockEmployees.find(e => e.core.employee_id === id);
+  const [employee, setEmployee] = useState<Employee | null>(null);
+  const [loading, setLoading] = useState(false);
+  const [error, setError] = useState<string | null>(null);
+
+  useEffect(() => {
+    const ctrl = new AbortController();
+    const run = async () => {
+      if (!id) return;
+      try {
+        setLoading(true);
+        setError(null);
+        const res = await fetch(`http://localhost:${8083}/api/employees/${encodeURIComponent(id)}`, { signal: ctrl.signal, credentials: "include" });
+        if (!res.ok) throw new Error(`HTTP_${res.status}`);
+        const data = await res.json();
+        const normalized: Employee = {
+          core: data.core,
+          contact: data.contact,
+          employment: data.employment,
+          onboard: data.onboard,
+          bank: data.bank,
+          insurance: data.insurance,
+          travel: data.travel,
+          checklist: data.checklist,
+          notes: data.notes,
+          type: data.type,
+        };
+        setEmployee(normalized);
+      } catch (err: any) {
+        setError(err?.message || "FAILED_TO_FETCH_EMPLOYEE");
+      } finally {
+        setLoading(false);
+      }
+    };
+    run();
+    return () => ctrl.abort();
+  }, [id]);
 
   if (!employee) {
     return (
       <MainLayout title="Employee Not Found">
         <div className="text-center py-12">
-          <p className="text-muted-foreground mb-4">The employee you're looking for doesn't exist.</p>
+          <p className="text-muted-foreground mb-4">{error ? `Failed to load employee (${error}).` : "The employee you're looking for doesn't exist."}</p>
           <Button asChild>
             <Link to="/employees">Back to Employee List</Link>
           </Button>

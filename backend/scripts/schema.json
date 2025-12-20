@@ -1,0 +1,2813 @@
+{
+  "database": "MTIMasterEmployeeDB",
+  "schema": {
+    "dbo.audit_trail": {
+      "columns": [
+        {
+          "name": "audit_id",
+          "type": "bigint",
+          "nullable": false,
+          "maxLength": null,
+          "precision": 19,
+          "scale": 0
+        },
+        {
+          "name": "table_name",
+          "type": "nvarchar",
+          "nullable": false,
+          "maxLength": 128,
+          "precision": null,
+          "scale": null
+        },
+        {
+          "name": "record_id",
+          "type": "nvarchar",
+          "nullable": false,
+          "maxLength": 50,
+          "precision": null,
+          "scale": null
+        },
+        {
+          "name": "operation_type",
+          "type": "nvarchar",
+          "nullable": false,
+          "maxLength": 10,
+          "precision": null,
+          "scale": null
+        },
+        {
+          "name": "old_values",
+          "type": "nvarchar",
+          "nullable": true,
+          "maxLength": -1,
+          "precision": null,
+          "scale": null
+        },
+        {
+          "name": "new_values",
+          "type": "nvarchar",
+          "nullable": true,
+          "maxLength": -1,
+          "precision": null,
+          "scale": null
+        },
+        {
+          "name": "changed_fields",
+          "type": "nvarchar",
+          "nullable": true,
+          "maxLength": -1,
+          "precision": null,
+          "scale": null
+        },
+        {
+          "name": "user_id",
+          "type": "nvarchar",
+          "nullable": true,
+          "maxLength": 50,
+          "precision": null,
+          "scale": null
+        },
+        {
+          "name": "user_role",
+          "type": "nvarchar",
+          "nullable": true,
+          "maxLength": 50,
+          "precision": null,
+          "scale": null
+        },
+        {
+          "name": "ip_address",
+          "type": "nvarchar",
+          "nullable": true,
+          "maxLength": 45,
+          "precision": null,
+          "scale": null
+        },
+        {
+          "name": "user_agent",
+          "type": "nvarchar",
+          "nullable": true,
+          "maxLength": 500,
+          "precision": null,
+          "scale": null
+        },
+        {
+          "name": "session_id",
+          "type": "nvarchar",
+          "nullable": true,
+          "maxLength": 128,
+          "precision": null,
+          "scale": null
+        },
+        {
+          "name": "timestamp",
+          "type": "datetime2",
+          "nullable": false,
+          "maxLength": null,
+          "precision": null,
+          "scale": null
+        },
+        {
+          "name": "reason",
+          "type": "nvarchar",
+          "nullable": true,
+          "maxLength": 500,
+          "precision": null,
+          "scale": null
+        }
+      ],
+      "primaryKey": [
+        "audit_id"
+      ],
+      "foreignKeys": []
+    },
+    "dbo.column_catalog": {
+      "columns": [
+        {
+          "name": "id",
+          "type": "int",
+          "nullable": false,
+          "maxLength": null,
+          "precision": 10,
+          "scale": 0
+        },
+        {
+          "name": "table_name",
+          "type": "nvarchar",
+          "nullable": false,
+          "maxLength": 128,
+          "precision": null,
+          "scale": null
+        },
+        {
+          "name": "column_name",
+          "type": "nvarchar",
+          "nullable": false,
+          "maxLength": 128,
+          "precision": null,
+          "scale": null
+        },
+        {
+          "name": "display_label",
+          "type": "nvarchar",
+          "nullable": true,
+          "maxLength": 128,
+          "precision": null,
+          "scale": null
+        },
+        {
+          "name": "data_type",
+          "type": "nvarchar",
+          "nullable": true,
+          "maxLength": 64,
+          "precision": null,
+          "scale": null
+        },
+        {
+          "name": "is_exportable",
+          "type": "bit",
+          "nullable": false,
+          "maxLength": null,
+          "precision": null,
+          "scale": null
+        },
+        {
+          "name": "is_sensitive",
+          "type": "bit",
+          "nullable": false,
+          "maxLength": null,
+          "precision": null,
+          "scale": null
+        },
+        {
+          "name": "is_active",
+          "type": "bit",
+          "nullable": false,
+          "maxLength": null,
+          "precision": null,
+          "scale": null
+        },
+        {
+          "name": "created_at",
+          "type": "datetime2",
+          "nullable": false,
+          "maxLength": null,
+          "precision": null,
+          "scale": null
+        },
+        {
+          "name": "updated_at",
+          "type": "datetime2",
+          "nullable": false,
+          "maxLength": null,
+          "precision": null,
+          "scale": null
+        }
+      ],
+      "primaryKey": [
+        "id"
+      ],
+      "foreignKeys": []
+    },
+    "dbo.dashboard_widgets": {
+      "columns": [
+        {
+          "name": "widget_id",
+          "type": "int",
+          "nullable": false,
+          "maxLength": null,
+          "precision": 10,
+          "scale": 0
+        },
+        {
+          "name": "user_id",
+          "type": "int",
+          "nullable": false,
+          "maxLength": null,
+          "precision": 10,
+          "scale": 0
+        },
+        {
+          "name": "widget_type",
+          "type": "nvarchar",
+          "nullable": false,
+          "maxLength": 50,
+          "precision": null,
+          "scale": null
+        },
+        {
+          "name": "widget_name",
+          "type": "nvarchar",
+          "nullable": false,
+          "maxLength": 100,
+          "precision": null,
+          "scale": null
+        },
+        {
+          "name": "position_x",
+          "type": "int",
+          "nullable": false,
+          "maxLength": null,
+          "precision": 10,
+          "scale": 0
+        },
+        {
+          "name": "position_y",
+          "type": "int",
+          "nullable": false,
+          "maxLength": null,
+          "precision": 10,
+          "scale": 0
+        },
+        {
+          "name": "width",
+          "type": "int",
+          "nullable": false,
+          "maxLength": null,
+          "precision": 10,
+          "scale": 0
+        },
+        {
+          "name": "height",
+          "type": "int",
+          "nullable": false,
+          "maxLength": null,
+          "precision": 10,
+          "scale": 0
+        },
+        {
+          "name": "config",
+          "type": "nvarchar",
+          "nullable": true,
+          "maxLength": -1,
+          "precision": null,
+          "scale": null
+        },
+        {
+          "name": "data_source",
+          "type": "nvarchar",
+          "nullable": true,
+          "maxLength": 100,
+          "precision": null,
+          "scale": null
+        },
+        {
+          "name": "refresh_interval",
+          "type": "int",
+          "nullable": true,
+          "maxLength": null,
+          "precision": 10,
+          "scale": 0
+        },
+        {
+          "name": "is_visible",
+          "type": "bit",
+          "nullable": false,
+          "maxLength": null,
+          "precision": null,
+          "scale": null
+        },
+        {
+          "name": "created_at",
+          "type": "datetime2",
+          "nullable": false,
+          "maxLength": null,
+          "precision": null,
+          "scale": null
+        },
+        {
+          "name": "updated_at",
+          "type": "datetime2",
+          "nullable": true,
+          "maxLength": null,
+          "precision": null,
+          "scale": null
+        }
+      ],
+      "primaryKey": [
+        "widget_id"
+      ],
+      "foreignKeys": []
+    },
+    "dbo.employee_bank": {
+      "columns": [
+        {
+          "name": "employee_id",
+          "type": "varchar",
+          "nullable": false,
+          "maxLength": 20,
+          "precision": null,
+          "scale": null
+        },
+        {
+          "name": "bank_name",
+          "type": "varchar",
+          "nullable": true,
+          "maxLength": 50,
+          "precision": null,
+          "scale": null
+        },
+        {
+          "name": "account_name",
+          "type": "varchar",
+          "nullable": true,
+          "maxLength": 100,
+          "precision": null,
+          "scale": null
+        },
+        {
+          "name": "account_no",
+          "type": "varchar",
+          "nullable": true,
+          "maxLength": 100,
+          "precision": null,
+          "scale": null
+        },
+        {
+          "name": "bank_code",
+          "type": "nvarchar",
+          "nullable": true,
+          "maxLength": 255,
+          "precision": null,
+          "scale": null
+        },
+        {
+          "name": "icbc_bank_account_no",
+          "type": "nvarchar",
+          "nullable": true,
+          "maxLength": 255,
+          "precision": null,
+          "scale": null
+        },
+        {
+          "name": "icbc_username",
+          "type": "nvarchar",
+          "nullable": true,
+          "maxLength": 255,
+          "precision": null,
+          "scale": null
+        }
+      ],
+      "primaryKey": [
+        "employee_id"
+      ],
+      "foreignKeys": [
+        {
+          "name": "FK_employee_bank_employee_core",
+          "column": "employee_id",
+          "references": "dbo.employee_core(employee_id)"
+        },
+        {
+          "name": "FK_employee_bank_employee_core_employee_id",
+          "column": "employee_id",
+          "references": "dbo.employee_core(employee_id)"
+        }
+      ]
+    },
+    "dbo.employee_checklist": {
+      "columns": [
+        {
+          "name": "checklist_id",
+          "type": "int",
+          "nullable": false,
+          "maxLength": null,
+          "precision": 10,
+          "scale": 0
+        },
+        {
+          "name": "employee_id",
+          "type": "varchar",
+          "nullable": false,
+          "maxLength": 255,
+          "precision": null,
+          "scale": null
+        },
+        {
+          "name": "paspor_checklist",
+          "type": "bit",
+          "nullable": true,
+          "maxLength": null,
+          "precision": null,
+          "scale": null
+        },
+        {
+          "name": "kitas_checklist",
+          "type": "bit",
+          "nullable": true,
+          "maxLength": null,
+          "precision": null,
+          "scale": null
+        },
+        {
+          "name": "imta_checklist",
+          "type": "bit",
+          "nullable": true,
+          "maxLength": null,
+          "precision": null,
+          "scale": null
+        },
+        {
+          "name": "rptka_checklist",
+          "type": "bit",
+          "nullable": true,
+          "maxLength": null,
+          "precision": null,
+          "scale": null
+        },
+        {
+          "name": "npwp_checklist",
+          "type": "bit",
+          "nullable": true,
+          "maxLength": null,
+          "precision": null,
+          "scale": null
+        },
+        {
+          "name": "bpjs_kes_checklist",
+          "type": "bit",
+          "nullable": true,
+          "maxLength": null,
+          "precision": null,
+          "scale": null
+        },
+        {
+          "name": "bpjs_tk_checklist",
+          "type": "bit",
+          "nullable": true,
+          "maxLength": null,
+          "precision": null,
+          "scale": null
+        },
+        {
+          "name": "bank_checklist",
+          "type": "bit",
+          "nullable": true,
+          "maxLength": null,
+          "precision": null,
+          "scale": null
+        },
+        {
+          "name": "created_at",
+          "type": "datetime2",
+          "nullable": false,
+          "maxLength": null,
+          "precision": null,
+          "scale": null
+        },
+        {
+          "name": "updated_at",
+          "type": "datetime2",
+          "nullable": false,
+          "maxLength": null,
+          "precision": null,
+          "scale": null
+        }
+      ],
+      "primaryKey": [
+        "checklist_id"
+      ],
+      "foreignKeys": []
+    },
+    "dbo.employee_contact": {
+      "columns": [
+        {
+          "name": "employee_id",
+          "type": "varchar",
+          "nullable": false,
+          "maxLength": 20,
+          "precision": null,
+          "scale": null
+        },
+        {
+          "name": "phone_number",
+          "type": "varchar",
+          "nullable": true,
+          "maxLength": 20,
+          "precision": null,
+          "scale": null
+        },
+        {
+          "name": "email",
+          "type": "varchar",
+          "nullable": true,
+          "maxLength": 100,
+          "precision": null,
+          "scale": null
+        },
+        {
+          "name": "address",
+          "type": "varchar",
+          "nullable": true,
+          "maxLength": 200,
+          "precision": null,
+          "scale": null
+        },
+        {
+          "name": "city",
+          "type": "varchar",
+          "nullable": true,
+          "maxLength": 50,
+          "precision": null,
+          "scale": null
+        },
+        {
+          "name": "emergency_contact_name",
+          "type": "varchar",
+          "nullable": true,
+          "maxLength": 100,
+          "precision": null,
+          "scale": null
+        },
+        {
+          "name": "emergency_contact_phone",
+          "type": "varchar",
+          "nullable": true,
+          "maxLength": 20,
+          "precision": null,
+          "scale": null
+        },
+        {
+          "name": "spouse_name",
+          "type": "varchar",
+          "nullable": true,
+          "maxLength": 100,
+          "precision": null,
+          "scale": null
+        },
+        {
+          "name": "child_name_1",
+          "type": "varchar",
+          "nullable": true,
+          "maxLength": 100,
+          "precision": null,
+          "scale": null
+        },
+        {
+          "name": "child_name_2",
+          "type": "varchar",
+          "nullable": true,
+          "maxLength": 100,
+          "precision": null,
+          "scale": null
+        },
+        {
+          "name": "child_name_3",
+          "type": "varchar",
+          "nullable": true,
+          "maxLength": 100,
+          "precision": null,
+          "scale": null
+        },
+        {
+          "name": "created_at",
+          "type": "datetime2",
+          "nullable": false,
+          "maxLength": null,
+          "precision": null,
+          "scale": null
+        },
+        {
+          "name": "created_by",
+          "type": "nvarchar",
+          "nullable": true,
+          "maxLength": 50,
+          "precision": null,
+          "scale": null
+        },
+        {
+          "name": "updated_at",
+          "type": "datetime2",
+          "nullable": true,
+          "maxLength": null,
+          "precision": null,
+          "scale": null
+        },
+        {
+          "name": "updated_by",
+          "type": "nvarchar",
+          "nullable": true,
+          "maxLength": 50,
+          "precision": null,
+          "scale": null
+        },
+        {
+          "name": "version_number",
+          "type": "int",
+          "nullable": false,
+          "maxLength": null,
+          "precision": 10,
+          "scale": 0
+        }
+      ],
+      "primaryKey": [
+        "employee_id"
+      ],
+      "foreignKeys": [
+        {
+          "name": "FK_employee_contact_employee_core",
+          "column": "employee_id",
+          "references": "dbo.employee_core(employee_id)"
+        },
+        {
+          "name": "FK_employee_contact_employee_core_employee_id",
+          "column": "employee_id",
+          "references": "dbo.employee_core(employee_id)"
+        }
+      ]
+    },
+    "dbo.employee_core": {
+      "columns": [
+        {
+          "name": "employee_id",
+          "type": "varchar",
+          "nullable": false,
+          "maxLength": 20,
+          "precision": null,
+          "scale": null
+        },
+        {
+          "name": "imip_id",
+          "type": "varchar",
+          "nullable": true,
+          "maxLength": 20,
+          "precision": null,
+          "scale": null
+        },
+        {
+          "name": "name",
+          "type": "varchar",
+          "nullable": true,
+          "maxLength": 100,
+          "precision": null,
+          "scale": null
+        },
+        {
+          "name": "gender",
+          "type": "char",
+          "nullable": true,
+          "maxLength": 1,
+          "precision": null,
+          "scale": null
+        },
+        {
+          "name": "place_of_birth",
+          "type": "varchar",
+          "nullable": true,
+          "maxLength": 50,
+          "precision": null,
+          "scale": null
+        },
+        {
+          "name": "date_of_birth",
+          "type": "date",
+          "nullable": true,
+          "maxLength": null,
+          "precision": null,
+          "scale": null
+        },
+        {
+          "name": "nationality",
+          "type": "varchar",
+          "nullable": true,
+          "maxLength": 20,
+          "precision": null,
+          "scale": null
+        },
+        {
+          "name": "blood_type",
+          "type": "varchar",
+          "nullable": true,
+          "maxLength": 3,
+          "precision": null,
+          "scale": null
+        },
+        {
+          "name": "marital_status",
+          "type": "varchar",
+          "nullable": true,
+          "maxLength": 20,
+          "precision": null,
+          "scale": null
+        },
+        {
+          "name": "tax_status",
+          "type": "varchar",
+          "nullable": true,
+          "maxLength": 5,
+          "precision": null,
+          "scale": null
+        },
+        {
+          "name": "religion",
+          "type": "varchar",
+          "nullable": true,
+          "maxLength": 50,
+          "precision": null,
+          "scale": null
+        },
+        {
+          "name": "education",
+          "type": "varchar",
+          "nullable": true,
+          "maxLength": 50,
+          "precision": null,
+          "scale": null
+        },
+        {
+          "name": "age",
+          "type": "int",
+          "nullable": true,
+          "maxLength": null,
+          "precision": 10,
+          "scale": 0
+        },
+        {
+          "name": "kartu_keluarga_no",
+          "type": "varchar",
+          "nullable": true,
+          "maxLength": 50,
+          "precision": null,
+          "scale": null
+        },
+        {
+          "name": "ktp_no",
+          "type": "varchar",
+          "nullable": true,
+          "maxLength": 50,
+          "precision": null,
+          "scale": null
+        },
+        {
+          "name": "npwp",
+          "type": "varchar",
+          "nullable": true,
+          "maxLength": 50,
+          "precision": null,
+          "scale": null
+        },
+        {
+          "name": "created_at",
+          "type": "datetime2",
+          "nullable": false,
+          "maxLength": null,
+          "precision": null,
+          "scale": null
+        },
+        {
+          "name": "created_by",
+          "type": "nvarchar",
+          "nullable": true,
+          "maxLength": 50,
+          "precision": null,
+          "scale": null
+        },
+        {
+          "name": "updated_at",
+          "type": "datetime2",
+          "nullable": true,
+          "maxLength": null,
+          "precision": null,
+          "scale": null
+        },
+        {
+          "name": "updated_by",
+          "type": "nvarchar",
+          "nullable": true,
+          "maxLength": 50,
+          "precision": null,
+          "scale": null
+        },
+        {
+          "name": "version_number",
+          "type": "int",
+          "nullable": false,
+          "maxLength": null,
+          "precision": 10,
+          "scale": 0
+        },
+        {
+          "name": "branch_id",
+          "type": "nvarchar",
+          "nullable": true,
+          "maxLength": 255,
+          "precision": null,
+          "scale": null
+        },
+        {
+          "name": "Branch",
+          "type": "nvarchar",
+          "nullable": true,
+          "maxLength": 255,
+          "precision": null,
+          "scale": null
+        },
+        {
+          "name": "office_email",
+          "type": "nvarchar",
+          "nullable": true,
+          "maxLength": 255,
+          "precision": null,
+          "scale": null
+        },
+        {
+          "name": "month_of_birthday",
+          "type": "nvarchar",
+          "nullable": true,
+          "maxLength": 255,
+          "precision": null,
+          "scale": null
+        },
+        {
+          "name": "id_card_mti",
+          "type": "bit",
+          "nullable": true,
+          "maxLength": null,
+          "precision": null,
+          "scale": null
+        },
+        {
+          "name": "Field",
+          "type": "nvarchar",
+          "nullable": true,
+          "maxLength": 255,
+          "precision": null,
+          "scale": null
+        }
+      ],
+      "primaryKey": [
+        "employee_id"
+      ],
+      "foreignKeys": []
+    },
+    "dbo.employee_employment": {
+      "columns": [
+        {
+          "name": "employee_id",
+          "type": "varchar",
+          "nullable": false,
+          "maxLength": 20,
+          "precision": null,
+          "scale": null
+        },
+        {
+          "name": "company_office",
+          "type": "varchar",
+          "nullable": true,
+          "maxLength": 100,
+          "precision": null,
+          "scale": null
+        },
+        {
+          "name": "work_location",
+          "type": "varchar",
+          "nullable": true,
+          "maxLength": 100,
+          "precision": null,
+          "scale": null
+        },
+        {
+          "name": "division",
+          "type": "varchar",
+          "nullable": true,
+          "maxLength": 100,
+          "precision": null,
+          "scale": null
+        },
+        {
+          "name": "department",
+          "type": "varchar",
+          "nullable": true,
+          "maxLength": 100,
+          "precision": null,
+          "scale": null
+        },
+        {
+          "name": "section",
+          "type": "varchar",
+          "nullable": true,
+          "maxLength": 100,
+          "precision": null,
+          "scale": null
+        },
+        {
+          "name": "direct_report",
+          "type": "varchar",
+          "nullable": true,
+          "maxLength": 100,
+          "precision": null,
+          "scale": null
+        },
+        {
+          "name": "job_title",
+          "type": "varchar",
+          "nullable": true,
+          "maxLength": 100,
+          "precision": null,
+          "scale": null
+        },
+        {
+          "name": "grade",
+          "type": "varchar",
+          "nullable": true,
+          "maxLength": 20,
+          "precision": null,
+          "scale": null
+        },
+        {
+          "name": "position_grade",
+          "type": "varchar",
+          "nullable": true,
+          "maxLength": 20,
+          "precision": null,
+          "scale": null
+        },
+        {
+          "name": "group_job_title",
+          "type": "varchar",
+          "nullable": true,
+          "maxLength": 100,
+          "precision": null,
+          "scale": null
+        },
+        {
+          "name": "terminated_date",
+          "type": "date",
+          "nullable": true,
+          "maxLength": null,
+          "precision": null,
+          "scale": null
+        },
+        {
+          "name": "terminated_type",
+          "type": "varchar",
+          "nullable": true,
+          "maxLength": 50,
+          "precision": null,
+          "scale": null
+        },
+        {
+          "name": "terminated_reason",
+          "type": "varchar",
+          "nullable": true,
+          "maxLength": 200,
+          "precision": null,
+          "scale": null
+        },
+        {
+          "name": "blacklist_mti",
+          "type": "varchar",
+          "nullable": true,
+          "maxLength": 1,
+          "precision": null,
+          "scale": null
+        },
+        {
+          "name": "blacklist_imip",
+          "type": "varchar",
+          "nullable": true,
+          "maxLength": 1,
+          "precision": null,
+          "scale": null
+        },
+        {
+          "name": "status",
+          "type": "varchar",
+          "nullable": true,
+          "maxLength": 50,
+          "precision": null,
+          "scale": null
+        },
+        {
+          "name": "employment_status",
+          "type": "varchar",
+          "nullable": false,
+          "maxLength": 30,
+          "precision": null,
+          "scale": null
+        },
+        {
+          "name": "locality_status",
+          "type": "varchar",
+          "nullable": true,
+          "maxLength": 20,
+          "precision": null,
+          "scale": null
+        }
+      ],
+      "primaryKey": [
+        "employee_id"
+      ],
+      "foreignKeys": [
+        {
+          "name": "FK_employee_employment_employee_core",
+          "column": "employee_id",
+          "references": "dbo.employee_core(employee_id)"
+        },
+        {
+          "name": "FK_employee_employment_employee_core_employee_id",
+          "column": "employee_id",
+          "references": "dbo.employee_core(employee_id)"
+        }
+      ]
+    },
+    "dbo.employee_insurance": {
+      "columns": [
+        {
+          "name": "employee_id",
+          "type": "varchar",
+          "nullable": false,
+          "maxLength": 20,
+          "precision": null,
+          "scale": null
+        },
+        {
+          "name": "insurance_endorsement",
+          "type": "varchar",
+          "nullable": true,
+          "maxLength": 1,
+          "precision": null,
+          "scale": null
+        },
+        {
+          "name": "insurance_owlexa",
+          "type": "varchar",
+          "nullable": true,
+          "maxLength": 1,
+          "precision": null,
+          "scale": null
+        },
+        {
+          "name": "insurance_fpg",
+          "type": "varchar",
+          "nullable": true,
+          "maxLength": 1,
+          "precision": null,
+          "scale": null
+        },
+        {
+          "name": "bpjs_tk",
+          "type": "varchar",
+          "nullable": true,
+          "maxLength": 50,
+          "precision": null,
+          "scale": null
+        },
+        {
+          "name": "bpjs_kes",
+          "type": "varchar",
+          "nullable": true,
+          "maxLength": 50,
+          "precision": null,
+          "scale": null
+        },
+        {
+          "name": "status_bpjs_kes",
+          "type": "varchar",
+          "nullable": true,
+          "maxLength": 50,
+          "precision": null,
+          "scale": null
+        },
+        {
+          "name": "social_insurance_no_alt",
+          "type": "nvarchar",
+          "nullable": true,
+          "maxLength": 255,
+          "precision": null,
+          "scale": null
+        },
+        {
+          "name": "bpjs_kes_no_alt",
+          "type": "nvarchar",
+          "nullable": true,
+          "maxLength": 255,
+          "precision": null,
+          "scale": null
+        },
+        {
+          "name": "fpg_no",
+          "type": "nvarchar",
+          "nullable": true,
+          "maxLength": 255,
+          "precision": null,
+          "scale": null
+        },
+        {
+          "name": "owlexa_no",
+          "type": "nvarchar",
+          "nullable": true,
+          "maxLength": 255,
+          "precision": null,
+          "scale": null
+        }
+      ],
+      "primaryKey": [
+        "employee_id"
+      ],
+      "foreignKeys": [
+        {
+          "name": "FK_employee_insurance_employee_core",
+          "column": "employee_id",
+          "references": "dbo.employee_core(employee_id)"
+        },
+        {
+          "name": "FK_employee_insurance_employee_core_employee_id",
+          "column": "employee_id",
+          "references": "dbo.employee_core(employee_id)"
+        }
+      ]
+    },
+    "dbo.employee_notes": {
+      "columns": [
+        {
+          "name": "note_id",
+          "type": "int",
+          "nullable": false,
+          "maxLength": null,
+          "precision": 10,
+          "scale": 0
+        },
+        {
+          "name": "employee_id",
+          "type": "varchar",
+          "nullable": false,
+          "maxLength": 255,
+          "precision": null,
+          "scale": null
+        },
+        {
+          "name": "Batch",
+          "type": "nvarchar",
+          "nullable": true,
+          "maxLength": 255,
+          "precision": null,
+          "scale": null
+        },
+        {
+          "name": "CekDocumentNote",
+          "type": "nvarchar",
+          "nullable": true,
+          "maxLength": 255,
+          "precision": null,
+          "scale": null
+        },
+        {
+          "name": "created_at",
+          "type": "datetime2",
+          "nullable": false,
+          "maxLength": null,
+          "precision": null,
+          "scale": null
+        },
+        {
+          "name": "updated_at",
+          "type": "datetime2",
+          "nullable": false,
+          "maxLength": null,
+          "precision": null,
+          "scale": null
+        },
+        {
+          "name": "note",
+          "type": "varchar",
+          "nullable": true,
+          "maxLength": -1,
+          "precision": null,
+          "scale": null
+        }
+      ],
+      "primaryKey": [
+        "note_id"
+      ],
+      "foreignKeys": []
+    },
+    "dbo.employee_onboard": {
+      "columns": [
+        {
+          "name": "employee_id",
+          "type": "varchar",
+          "nullable": false,
+          "maxLength": 20,
+          "precision": null,
+          "scale": null
+        },
+        {
+          "name": "point_of_hire",
+          "type": "varchar",
+          "nullable": true,
+          "maxLength": 100,
+          "precision": null,
+          "scale": null
+        },
+        {
+          "name": "point_of_origin",
+          "type": "varchar",
+          "nullable": true,
+          "maxLength": 100,
+          "precision": null,
+          "scale": null
+        },
+        {
+          "name": "schedule_type",
+          "type": "varchar",
+          "nullable": true,
+          "maxLength": 50,
+          "precision": null,
+          "scale": null
+        },
+        {
+          "name": "first_join_date_merdeka",
+          "type": "date",
+          "nullable": true,
+          "maxLength": null,
+          "precision": null,
+          "scale": null
+        },
+        {
+          "name": "transfer_merdeka",
+          "type": "date",
+          "nullable": true,
+          "maxLength": null,
+          "precision": null,
+          "scale": null
+        },
+        {
+          "name": "first_join_date",
+          "type": "date",
+          "nullable": true,
+          "maxLength": null,
+          "precision": null,
+          "scale": null
+        },
+        {
+          "name": "join_date",
+          "type": "date",
+          "nullable": true,
+          "maxLength": null,
+          "precision": null,
+          "scale": null
+        },
+        {
+          "name": "employment_status",
+          "type": "varchar",
+          "nullable": true,
+          "maxLength": 50,
+          "precision": null,
+          "scale": null
+        },
+        {
+          "name": "end_contract",
+          "type": "date",
+          "nullable": true,
+          "maxLength": null,
+          "precision": null,
+          "scale": null
+        },
+        {
+          "name": "years_in_service",
+          "type": "int",
+          "nullable": true,
+          "maxLength": null,
+          "precision": 10,
+          "scale": 0
+        },
+        {
+          "name": "created_at",
+          "type": "datetime2",
+          "nullable": false,
+          "maxLength": null,
+          "precision": null,
+          "scale": null
+        },
+        {
+          "name": "created_by",
+          "type": "nvarchar",
+          "nullable": true,
+          "maxLength": 50,
+          "precision": null,
+          "scale": null
+        },
+        {
+          "name": "updated_at",
+          "type": "datetime2",
+          "nullable": true,
+          "maxLength": null,
+          "precision": null,
+          "scale": null
+        },
+        {
+          "name": "updated_by",
+          "type": "nvarchar",
+          "nullable": true,
+          "maxLength": 50,
+          "precision": null,
+          "scale": null
+        },
+        {
+          "name": "version_number",
+          "type": "int",
+          "nullable": false,
+          "maxLength": null,
+          "precision": 10,
+          "scale": 0
+        }
+      ],
+      "primaryKey": [
+        "employee_id"
+      ],
+      "foreignKeys": [
+        {
+          "name": "FK_employee_onboard_employee_core",
+          "column": "employee_id",
+          "references": "dbo.employee_core(employee_id)"
+        },
+        {
+          "name": "FK_employee_onboard_employee_core_employee_id",
+          "column": "employee_id",
+          "references": "dbo.employee_core(employee_id)"
+        }
+      ]
+    },
+    "dbo.employee_travel": {
+      "columns": [
+        {
+          "name": "employee_id",
+          "type": "varchar",
+          "nullable": false,
+          "maxLength": 20,
+          "precision": null,
+          "scale": null
+        },
+        {
+          "name": "travel_in",
+          "type": "date",
+          "nullable": true,
+          "maxLength": null,
+          "precision": null,
+          "scale": null
+        },
+        {
+          "name": "travel_out",
+          "type": "date",
+          "nullable": true,
+          "maxLength": null,
+          "precision": null,
+          "scale": null
+        },
+        {
+          "name": "passport_no",
+          "type": "varchar",
+          "nullable": true,
+          "maxLength": 50,
+          "precision": null,
+          "scale": null
+        },
+        {
+          "name": "kitas_no",
+          "type": "varchar",
+          "nullable": true,
+          "maxLength": 50,
+          "precision": null,
+          "scale": null
+        },
+        {
+          "name": "name_as_passport",
+          "type": "nvarchar",
+          "nullable": true,
+          "maxLength": 255,
+          "precision": null,
+          "scale": null
+        },
+        {
+          "name": "passport_expiry",
+          "type": "datetime2",
+          "nullable": true,
+          "maxLength": null,
+          "precision": null,
+          "scale": null
+        },
+        {
+          "name": "kitas_expiry",
+          "type": "datetime2",
+          "nullable": true,
+          "maxLength": null,
+          "precision": null,
+          "scale": null
+        },
+        {
+          "name": "IMTA",
+          "type": "nvarchar",
+          "nullable": true,
+          "maxLength": 255,
+          "precision": null,
+          "scale": null
+        },
+        {
+          "name": "rptka_no",
+          "type": "nvarchar",
+          "nullable": true,
+          "maxLength": 255,
+          "precision": null,
+          "scale": null
+        },
+        {
+          "name": "rptka_position",
+          "type": "nvarchar",
+          "nullable": true,
+          "maxLength": 255,
+          "precision": null,
+          "scale": null
+        },
+        {
+          "name": "kitas_address",
+          "type": "nvarchar",
+          "nullable": true,
+          "maxLength": 255,
+          "precision": null,
+          "scale": null
+        },
+        {
+          "name": "job_title_kitas",
+          "type": "nvarchar",
+          "nullable": true,
+          "maxLength": 255,
+          "precision": null,
+          "scale": null
+        }
+      ],
+      "primaryKey": [
+        "employee_id"
+      ],
+      "foreignKeys": [
+        {
+          "name": "FK_employee_travel_employee_core",
+          "column": "employee_id",
+          "references": "dbo.employee_core(employee_id)"
+        },
+        {
+          "name": "FK_employee_travel_employee_core_employee_id",
+          "column": "employee_id",
+          "references": "dbo.employee_core(employee_id)"
+        }
+      ]
+    },
+    "dbo.login": {
+      "columns": [
+        {
+          "name": "Id",
+          "type": "int",
+          "nullable": false,
+          "maxLength": null,
+          "precision": 10,
+          "scale": 0
+        },
+        {
+          "name": "username",
+          "type": "varchar",
+          "nullable": false,
+          "maxLength": 50,
+          "precision": null,
+          "scale": null
+        },
+        {
+          "name": "password",
+          "type": "varchar",
+          "nullable": false,
+          "maxLength": 255,
+          "precision": null,
+          "scale": null
+        },
+        {
+          "name": "Role",
+          "type": "varchar",
+          "nullable": false,
+          "maxLength": 50,
+          "precision": null,
+          "scale": null
+        },
+        {
+          "name": "name",
+          "type": "varchar",
+          "nullable": false,
+          "maxLength": 100,
+          "precision": null,
+          "scale": null
+        },
+        {
+          "name": "department",
+          "type": "varchar",
+          "nullable": false,
+          "maxLength": 100,
+          "precision": null,
+          "scale": null
+        },
+        {
+          "name": "created_at",
+          "type": "datetime2",
+          "nullable": false,
+          "maxLength": null,
+          "precision": null,
+          "scale": null
+        },
+        {
+          "name": "created_by",
+          "type": "nvarchar",
+          "nullable": true,
+          "maxLength": 50,
+          "precision": null,
+          "scale": null
+        },
+        {
+          "name": "updated_at",
+          "type": "datetime2",
+          "nullable": true,
+          "maxLength": null,
+          "precision": null,
+          "scale": null
+        },
+        {
+          "name": "updated_by",
+          "type": "nvarchar",
+          "nullable": true,
+          "maxLength": 50,
+          "precision": null,
+          "scale": null
+        },
+        {
+          "name": "last_login",
+          "type": "datetime2",
+          "nullable": true,
+          "maxLength": null,
+          "precision": null,
+          "scale": null
+        },
+        {
+          "name": "login_count",
+          "type": "int",
+          "nullable": false,
+          "maxLength": null,
+          "precision": 10,
+          "scale": 0
+        },
+        {
+          "name": "account_locked",
+          "type": "bit",
+          "nullable": false,
+          "maxLength": null,
+          "precision": null,
+          "scale": null
+        },
+        {
+          "name": "locked_until",
+          "type": "datetime2",
+          "nullable": true,
+          "maxLength": null,
+          "precision": null,
+          "scale": null
+        },
+        {
+          "name": "password_changed_at",
+          "type": "datetime2",
+          "nullable": true,
+          "maxLength": null,
+          "precision": null,
+          "scale": null
+        },
+        {
+          "name": "must_change_password",
+          "type": "bit",
+          "nullable": false,
+          "maxLength": null,
+          "precision": null,
+          "scale": null
+        },
+        {
+          "name": "auth_type",
+          "type": "nvarchar",
+          "nullable": false,
+          "maxLength": 20,
+          "precision": null,
+          "scale": null
+        },
+        {
+          "name": "domain_username",
+          "type": "nvarchar",
+          "nullable": true,
+          "maxLength": 100,
+          "precision": null,
+          "scale": null
+        },
+        {
+          "name": "last_domain_sync",
+          "type": "datetime2",
+          "nullable": true,
+          "maxLength": null,
+          "precision": null,
+          "scale": null
+        }
+      ],
+      "primaryKey": [
+        "Id"
+      ],
+      "foreignKeys": []
+    },
+    "dbo.login_attempts": {
+      "columns": [
+        {
+          "name": "attempt_id",
+          "type": "bigint",
+          "nullable": false,
+          "maxLength": null,
+          "precision": 19,
+          "scale": 0
+        },
+        {
+          "name": "username",
+          "type": "nvarchar",
+          "nullable": false,
+          "maxLength": 50,
+          "precision": null,
+          "scale": null
+        },
+        {
+          "name": "ip_address",
+          "type": "nvarchar",
+          "nullable": false,
+          "maxLength": 45,
+          "precision": null,
+          "scale": null
+        },
+        {
+          "name": "user_agent",
+          "type": "nvarchar",
+          "nullable": true,
+          "maxLength": 500,
+          "precision": null,
+          "scale": null
+        },
+        {
+          "name": "attempt_time",
+          "type": "datetime2",
+          "nullable": false,
+          "maxLength": null,
+          "precision": null,
+          "scale": null
+        },
+        {
+          "name": "success",
+          "type": "bit",
+          "nullable": false,
+          "maxLength": null,
+          "precision": null,
+          "scale": null
+        },
+        {
+          "name": "failure_reason",
+          "type": "nvarchar",
+          "nullable": true,
+          "maxLength": 200,
+          "precision": null,
+          "scale": null
+        },
+        {
+          "name": "session_id",
+          "type": "nvarchar",
+          "nullable": true,
+          "maxLength": 128,
+          "precision": null,
+          "scale": null
+        }
+      ],
+      "primaryKey": [
+        "attempt_id"
+      ],
+      "foreignKeys": []
+    },
+    "dbo.permissions": {
+      "columns": [
+        {
+          "name": "permission_id",
+          "type": "int",
+          "nullable": false,
+          "maxLength": null,
+          "precision": 10,
+          "scale": 0
+        },
+        {
+          "name": "module_name",
+          "type": "nvarchar",
+          "nullable": false,
+          "maxLength": 50,
+          "precision": null,
+          "scale": null
+        },
+        {
+          "name": "action_name",
+          "type": "nvarchar",
+          "nullable": false,
+          "maxLength": 50,
+          "precision": null,
+          "scale": null
+        },
+        {
+          "name": "permission_key",
+          "type": "nvarchar",
+          "nullable": false,
+          "maxLength": 100,
+          "precision": null,
+          "scale": null
+        },
+        {
+          "name": "description",
+          "type": "nvarchar",
+          "nullable": true,
+          "maxLength": 500,
+          "precision": null,
+          "scale": null
+        },
+        {
+          "name": "is_active",
+          "type": "bit",
+          "nullable": false,
+          "maxLength": null,
+          "precision": null,
+          "scale": null
+        },
+        {
+          "name": "created_at",
+          "type": "datetime2",
+          "nullable": false,
+          "maxLength": null,
+          "precision": null,
+          "scale": null
+        }
+      ],
+      "primaryKey": [
+        "permission_id"
+      ],
+      "foreignKeys": []
+    },
+    "dbo.report_history": {
+      "columns": [
+        {
+          "name": "history_id",
+          "type": "bigint",
+          "nullable": false,
+          "maxLength": null,
+          "precision": 19,
+          "scale": 0
+        },
+        {
+          "name": "report_id",
+          "type": "nvarchar",
+          "nullable": false,
+          "maxLength": 100,
+          "precision": null,
+          "scale": null
+        },
+        {
+          "name": "title",
+          "type": "nvarchar",
+          "nullable": false,
+          "maxLength": 255,
+          "precision": null,
+          "scale": null
+        },
+        {
+          "name": "type",
+          "type": "nvarchar",
+          "nullable": false,
+          "maxLength": 50,
+          "precision": null,
+          "scale": null
+        },
+        {
+          "name": "user_id",
+          "type": "int",
+          "nullable": true,
+          "maxLength": null,
+          "precision": 10,
+          "scale": 0
+        },
+        {
+          "name": "filters",
+          "type": "nvarchar",
+          "nullable": true,
+          "maxLength": -1,
+          "precision": null,
+          "scale": null
+        },
+        {
+          "name": "record_count",
+          "type": "int",
+          "nullable": false,
+          "maxLength": null,
+          "precision": 10,
+          "scale": 0
+        },
+        {
+          "name": "file_path",
+          "type": "nvarchar",
+          "nullable": true,
+          "maxLength": 500,
+          "precision": null,
+          "scale": null
+        },
+        {
+          "name": "file_size",
+          "type": "bigint",
+          "nullable": true,
+          "maxLength": null,
+          "precision": 19,
+          "scale": 0
+        },
+        {
+          "name": "export_format",
+          "type": "nvarchar",
+          "nullable": true,
+          "maxLength": 20,
+          "precision": null,
+          "scale": null
+        },
+        {
+          "name": "status",
+          "type": "nvarchar",
+          "nullable": false,
+          "maxLength": 20,
+          "precision": null,
+          "scale": null
+        },
+        {
+          "name": "error_message",
+          "type": "nvarchar",
+          "nullable": true,
+          "maxLength": -1,
+          "precision": null,
+          "scale": null
+        },
+        {
+          "name": "execution_time_ms",
+          "type": "int",
+          "nullable": true,
+          "maxLength": null,
+          "precision": 10,
+          "scale": 0
+        },
+        {
+          "name": "created_at",
+          "type": "datetime2",
+          "nullable": false,
+          "maxLength": null,
+          "precision": null,
+          "scale": null
+        },
+        {
+          "name": "expires_at",
+          "type": "datetime2",
+          "nullable": true,
+          "maxLength": null,
+          "precision": null,
+          "scale": null
+        }
+      ],
+      "primaryKey": [
+        "history_id"
+      ],
+      "foreignKeys": []
+    },
+    "dbo.report_schedules": {
+      "columns": [
+        {
+          "name": "schedule_id",
+          "type": "int",
+          "nullable": false,
+          "maxLength": null,
+          "precision": 10,
+          "scale": 0
+        },
+        {
+          "name": "schedule_name",
+          "type": "nvarchar",
+          "nullable": false,
+          "maxLength": 100,
+          "precision": null,
+          "scale": null
+        },
+        {
+          "name": "template_id",
+          "type": "int",
+          "nullable": false,
+          "maxLength": null,
+          "precision": 10,
+          "scale": 0
+        },
+        {
+          "name": "user_id",
+          "type": "int",
+          "nullable": false,
+          "maxLength": null,
+          "precision": 10,
+          "scale": 0
+        },
+        {
+          "name": "cron_expression",
+          "type": "nvarchar",
+          "nullable": false,
+          "maxLength": 100,
+          "precision": null,
+          "scale": null
+        },
+        {
+          "name": "filters",
+          "type": "nvarchar",
+          "nullable": true,
+          "maxLength": -1,
+          "precision": null,
+          "scale": null
+        },
+        {
+          "name": "export_format",
+          "type": "nvarchar",
+          "nullable": false,
+          "maxLength": 20,
+          "precision": null,
+          "scale": null
+        },
+        {
+          "name": "email_recipients",
+          "type": "nvarchar",
+          "nullable": true,
+          "maxLength": -1,
+          "precision": null,
+          "scale": null
+        },
+        {
+          "name": "is_active",
+          "type": "bit",
+          "nullable": false,
+          "maxLength": null,
+          "precision": null,
+          "scale": null
+        },
+        {
+          "name": "last_run_at",
+          "type": "datetime2",
+          "nullable": true,
+          "maxLength": null,
+          "precision": null,
+          "scale": null
+        },
+        {
+          "name": "next_run_at",
+          "type": "datetime2",
+          "nullable": true,
+          "maxLength": null,
+          "precision": null,
+          "scale": null
+        },
+        {
+          "name": "run_count",
+          "type": "int",
+          "nullable": false,
+          "maxLength": null,
+          "precision": 10,
+          "scale": 0
+        },
+        {
+          "name": "error_count",
+          "type": "int",
+          "nullable": false,
+          "maxLength": null,
+          "precision": 10,
+          "scale": 0
+        },
+        {
+          "name": "last_error",
+          "type": "nvarchar",
+          "nullable": true,
+          "maxLength": -1,
+          "precision": null,
+          "scale": null
+        },
+        {
+          "name": "created_at",
+          "type": "datetime2",
+          "nullable": false,
+          "maxLength": null,
+          "precision": null,
+          "scale": null
+        },
+        {
+          "name": "updated_at",
+          "type": "datetime2",
+          "nullable": true,
+          "maxLength": null,
+          "precision": null,
+          "scale": null
+        }
+      ],
+      "primaryKey": [
+        "schedule_id"
+      ],
+      "foreignKeys": [
+        {
+          "name": "FK__report_sc__templ__31B762FC",
+          "column": "template_id",
+          "references": "dbo.report_templates(template_id)"
+        }
+      ]
+    },
+    "dbo.report_templates": {
+      "columns": [
+        {
+          "name": "template_id",
+          "type": "int",
+          "nullable": false,
+          "maxLength": null,
+          "precision": 10,
+          "scale": 0
+        },
+        {
+          "name": "template_name",
+          "type": "nvarchar",
+          "nullable": false,
+          "maxLength": 100,
+          "precision": null,
+          "scale": null
+        },
+        {
+          "name": "display_name",
+          "type": "nvarchar",
+          "nullable": false,
+          "maxLength": 255,
+          "precision": null,
+          "scale": null
+        },
+        {
+          "name": "description",
+          "type": "nvarchar",
+          "nullable": true,
+          "maxLength": 500,
+          "precision": null,
+          "scale": null
+        },
+        {
+          "name": "category",
+          "type": "nvarchar",
+          "nullable": false,
+          "maxLength": 50,
+          "precision": null,
+          "scale": null
+        },
+        {
+          "name": "query_template",
+          "type": "nvarchar",
+          "nullable": false,
+          "maxLength": -1,
+          "precision": null,
+          "scale": null
+        },
+        {
+          "name": "default_filters",
+          "type": "nvarchar",
+          "nullable": true,
+          "maxLength": -1,
+          "precision": null,
+          "scale": null
+        },
+        {
+          "name": "available_fields",
+          "type": "nvarchar",
+          "nullable": true,
+          "maxLength": -1,
+          "precision": null,
+          "scale": null
+        },
+        {
+          "name": "chart_config",
+          "type": "nvarchar",
+          "nullable": true,
+          "maxLength": -1,
+          "precision": null,
+          "scale": null
+        },
+        {
+          "name": "is_active",
+          "type": "bit",
+          "nullable": false,
+          "maxLength": null,
+          "precision": null,
+          "scale": null
+        },
+        {
+          "name": "is_system",
+          "type": "bit",
+          "nullable": false,
+          "maxLength": null,
+          "precision": null,
+          "scale": null
+        },
+        {
+          "name": "created_by",
+          "type": "int",
+          "nullable": true,
+          "maxLength": null,
+          "precision": 10,
+          "scale": 0
+        },
+        {
+          "name": "created_at",
+          "type": "datetime2",
+          "nullable": false,
+          "maxLength": null,
+          "precision": null,
+          "scale": null
+        },
+        {
+          "name": "updated_by",
+          "type": "int",
+          "nullable": true,
+          "maxLength": null,
+          "precision": 10,
+          "scale": 0
+        },
+        {
+          "name": "updated_at",
+          "type": "datetime2",
+          "nullable": true,
+          "maxLength": null,
+          "precision": null,
+          "scale": null
+        }
+      ],
+      "primaryKey": [
+        "template_id"
+      ],
+      "foreignKeys": []
+    },
+    "dbo.role_column_access": {
+      "columns": [
+        {
+          "name": "id",
+          "type": "bigint",
+          "nullable": false,
+          "maxLength": null,
+          "precision": 19,
+          "scale": 0
+        },
+        {
+          "name": "role_id",
+          "type": "int",
+          "nullable": false,
+          "maxLength": null,
+          "precision": 10,
+          "scale": 0
+        },
+        {
+          "name": "column_id",
+          "type": "int",
+          "nullable": false,
+          "maxLength": null,
+          "precision": 10,
+          "scale": 0
+        },
+        {
+          "name": "can_view",
+          "type": "bit",
+          "nullable": false,
+          "maxLength": null,
+          "precision": null,
+          "scale": null
+        },
+        {
+          "name": "can_edit",
+          "type": "bit",
+          "nullable": false,
+          "maxLength": null,
+          "precision": null,
+          "scale": null
+        },
+        {
+          "name": "export_allowed",
+          "type": "bit",
+          "nullable": false,
+          "maxLength": null,
+          "precision": null,
+          "scale": null
+        },
+        {
+          "name": "created_at",
+          "type": "datetime2",
+          "nullable": false,
+          "maxLength": null,
+          "precision": null,
+          "scale": null
+        },
+        {
+          "name": "updated_at",
+          "type": "datetime2",
+          "nullable": false,
+          "maxLength": null,
+          "precision": null,
+          "scale": null
+        }
+      ],
+      "primaryKey": [
+        "id"
+      ],
+      "foreignKeys": [
+        {
+          "name": "FK_role_column_access_column",
+          "column": "column_id",
+          "references": "dbo.column_catalog(id)"
+        },
+        {
+          "name": "FK_role_column_access_roles",
+          "column": "role_id",
+          "references": "dbo.roles(role_id)"
+        }
+      ]
+    },
+    "dbo.role_permissions": {
+      "columns": [
+        {
+          "name": "role_permission_id",
+          "type": "int",
+          "nullable": false,
+          "maxLength": null,
+          "precision": 10,
+          "scale": 0
+        },
+        {
+          "name": "role_id",
+          "type": "int",
+          "nullable": false,
+          "maxLength": null,
+          "precision": 10,
+          "scale": 0
+        },
+        {
+          "name": "permission_id",
+          "type": "int",
+          "nullable": false,
+          "maxLength": null,
+          "precision": 10,
+          "scale": 0
+        },
+        {
+          "name": "granted_by",
+          "type": "nvarchar",
+          "nullable": true,
+          "maxLength": 50,
+          "precision": null,
+          "scale": null
+        },
+        {
+          "name": "granted_at",
+          "type": "datetime2",
+          "nullable": false,
+          "maxLength": null,
+          "precision": null,
+          "scale": null
+        }
+      ],
+      "primaryKey": [
+        "role_permission_id"
+      ],
+      "foreignKeys": [
+        {
+          "name": "FK__role_perm__permi__160F4887",
+          "column": "permission_id",
+          "references": "dbo.permissions(permission_id)"
+        },
+        {
+          "name": "FK__role_perm__role___151B244E",
+          "column": "role_id",
+          "references": "dbo.roles(role_id)"
+        }
+      ]
+    },
+    "dbo.roles": {
+      "columns": [
+        {
+          "name": "role_id",
+          "type": "int",
+          "nullable": false,
+          "maxLength": null,
+          "precision": 10,
+          "scale": 0
+        },
+        {
+          "name": "role_name",
+          "type": "nvarchar",
+          "nullable": false,
+          "maxLength": 50,
+          "precision": null,
+          "scale": null
+        },
+        {
+          "name": "role_display_name",
+          "type": "nvarchar",
+          "nullable": false,
+          "maxLength": 100,
+          "precision": null,
+          "scale": null
+        },
+        {
+          "name": "description",
+          "type": "nvarchar",
+          "nullable": true,
+          "maxLength": 500,
+          "precision": null,
+          "scale": null
+        },
+        {
+          "name": "is_active",
+          "type": "bit",
+          "nullable": false,
+          "maxLength": null,
+          "precision": null,
+          "scale": null
+        },
+        {
+          "name": "created_at",
+          "type": "datetime2",
+          "nullable": false,
+          "maxLength": null,
+          "precision": null,
+          "scale": null
+        },
+        {
+          "name": "updated_at",
+          "type": "datetime2",
+          "nullable": false,
+          "maxLength": null,
+          "precision": null,
+          "scale": null
+        }
+      ],
+      "primaryKey": [
+        "role_id"
+      ],
+      "foreignKeys": []
+    },
+    "dbo.system_logs": {
+      "columns": [
+        {
+          "name": "log_id",
+          "type": "bigint",
+          "nullable": false,
+          "maxLength": null,
+          "precision": 19,
+          "scale": 0
+        },
+        {
+          "name": "level",
+          "type": "nvarchar",
+          "nullable": false,
+          "maxLength": 10,
+          "precision": null,
+          "scale": null
+        },
+        {
+          "name": "message",
+          "type": "nvarchar",
+          "nullable": false,
+          "maxLength": -1,
+          "precision": null,
+          "scale": null
+        },
+        {
+          "name": "category",
+          "type": "nvarchar",
+          "nullable": true,
+          "maxLength": 100,
+          "precision": null,
+          "scale": null
+        },
+        {
+          "name": "user_id",
+          "type": "nvarchar",
+          "nullable": true,
+          "maxLength": 50,
+          "precision": null,
+          "scale": null
+        },
+        {
+          "name": "ip_address",
+          "type": "nvarchar",
+          "nullable": true,
+          "maxLength": 45,
+          "precision": null,
+          "scale": null
+        },
+        {
+          "name": "request_id",
+          "type": "nvarchar",
+          "nullable": true,
+          "maxLength": 128,
+          "precision": null,
+          "scale": null
+        },
+        {
+          "name": "stack_trace",
+          "type": "nvarchar",
+          "nullable": true,
+          "maxLength": -1,
+          "precision": null,
+          "scale": null
+        },
+        {
+          "name": "additional_data",
+          "type": "nvarchar",
+          "nullable": true,
+          "maxLength": -1,
+          "precision": null,
+          "scale": null
+        },
+        {
+          "name": "timestamp",
+          "type": "datetime2",
+          "nullable": false,
+          "maxLength": null,
+          "precision": null,
+          "scale": null
+        }
+      ],
+      "primaryKey": [
+        "log_id"
+      ],
+      "foreignKeys": []
+    },
+    "dbo.user_sessions": {
+      "columns": [
+        {
+          "name": "session_id",
+          "type": "nvarchar",
+          "nullable": false,
+          "maxLength": 128,
+          "precision": null,
+          "scale": null
+        },
+        {
+          "name": "user_id",
+          "type": "nvarchar",
+          "nullable": false,
+          "maxLength": 50,
+          "precision": null,
+          "scale": null
+        },
+        {
+          "name": "username",
+          "type": "nvarchar",
+          "nullable": false,
+          "maxLength": 50,
+          "precision": null,
+          "scale": null
+        },
+        {
+          "name": "ip_address",
+          "type": "nvarchar",
+          "nullable": false,
+          "maxLength": 45,
+          "precision": null,
+          "scale": null
+        },
+        {
+          "name": "user_agent",
+          "type": "nvarchar",
+          "nullable": true,
+          "maxLength": 500,
+          "precision": null,
+          "scale": null
+        },
+        {
+          "name": "created_at",
+          "type": "datetime2",
+          "nullable": false,
+          "maxLength": null,
+          "precision": null,
+          "scale": null
+        },
+        {
+          "name": "last_activity",
+          "type": "datetime2",
+          "nullable": false,
+          "maxLength": null,
+          "precision": null,
+          "scale": null
+        },
+        {
+          "name": "expires_at",
+          "type": "datetime2",
+          "nullable": false,
+          "maxLength": null,
+          "precision": null,
+          "scale": null
+        },
+        {
+          "name": "is_active",
+          "type": "bit",
+          "nullable": false,
+          "maxLength": null,
+          "precision": null,
+          "scale": null
+        },
+        {
+          "name": "logout_time",
+          "type": "datetime2",
+          "nullable": true,
+          "maxLength": null,
+          "precision": null,
+          "scale": null
+        }
+      ],
+      "primaryKey": [
+        "session_id"
+      ],
+      "foreignKeys": []
+    },
+    "dbo.vw_report_analytics": {
+      "columns": [
+        {
+          "name": "report_type",
+          "type": "nvarchar",
+          "nullable": false,
+          "maxLength": 50,
+          "precision": null,
+          "scale": null
+        },
+        {
+          "name": "total_reports",
+          "type": "int",
+          "nullable": true,
+          "maxLength": null,
+          "precision": 10,
+          "scale": 0
+        },
+        {
+          "name": "unique_users",
+          "type": "int",
+          "nullable": true,
+          "maxLength": null,
+          "precision": 10,
+          "scale": 0
+        },
+        {
+          "name": "avg_execution_time",
+          "type": "int",
+          "nullable": true,
+          "maxLength": null,
+          "precision": 10,
+          "scale": 0
+        },
+        {
+          "name": "total_records_processed",
+          "type": "int",
+          "nullable": true,
+          "maxLength": null,
+          "precision": 10,
+          "scale": 0
+        },
+        {
+          "name": "last_generated",
+          "type": "datetime2",
+          "nullable": true,
+          "maxLength": null,
+          "precision": null,
+          "scale": null
+        },
+        {
+          "name": "failed_count",
+          "type": "int",
+          "nullable": true,
+          "maxLength": null,
+          "precision": 10,
+          "scale": 0
+        },
+        {
+          "name": "success_count",
+          "type": "int",
+          "nullable": true,
+          "maxLength": null,
+          "precision": 10,
+          "scale": 0
+        }
+      ],
+      "primaryKey": [],
+      "foreignKeys": []
+    },
+    "dbo.vw_role_column_access": {
+      "columns": [
+        {
+          "name": "role_id",
+          "type": "int",
+          "nullable": true,
+          "maxLength": null,
+          "precision": 10,
+          "scale": 0
+        },
+        {
+          "name": "role_name",
+          "type": "nvarchar",
+          "nullable": true,
+          "maxLength": 50,
+          "precision": null,
+          "scale": null
+        },
+        {
+          "name": "column_id",
+          "type": "int",
+          "nullable": false,
+          "maxLength": null,
+          "precision": 10,
+          "scale": 0
+        },
+        {
+          "name": "table_name",
+          "type": "nvarchar",
+          "nullable": false,
+          "maxLength": 128,
+          "precision": null,
+          "scale": null
+        },
+        {
+          "name": "column_name",
+          "type": "nvarchar",
+          "nullable": false,
+          "maxLength": 128,
+          "precision": null,
+          "scale": null
+        },
+        {
+          "name": "display_label",
+          "type": "nvarchar",
+          "nullable": true,
+          "maxLength": 128,
+          "precision": null,
+          "scale": null
+        },
+        {
+          "name": "data_type",
+          "type": "nvarchar",
+          "nullable": true,
+          "maxLength": 64,
+          "precision": null,
+          "scale": null
+        },
+        {
+          "name": "is_exportable",
+          "type": "bit",
+          "nullable": false,
+          "maxLength": null,
+          "precision": null,
+          "scale": null
+        },
+        {
+          "name": "is_sensitive",
+          "type": "bit",
+          "nullable": false,
+          "maxLength": null,
+          "precision": null,
+          "scale": null
+        },
+        {
+          "name": "can_view",
+          "type": "bit",
+          "nullable": true,
+          "maxLength": null,
+          "precision": null,
+          "scale": null
+        },
+        {
+          "name": "can_edit",
+          "type": "bit",
+          "nullable": true,
+          "maxLength": null,
+          "precision": null,
+          "scale": null
+        },
+        {
+          "name": "export_allowed",
+          "type": "bit",
+          "nullable": true,
+          "maxLength": null,
+          "precision": null,
+          "scale": null
+        }
+      ],
+      "primaryKey": [],
+      "foreignKeys": []
+    },
+    "dbo.vw_role_permissions": {
+      "columns": [
+        {
+          "name": "role_name",
+          "type": "nvarchar",
+          "nullable": false,
+          "maxLength": 50,
+          "precision": null,
+          "scale": null
+        },
+        {
+          "name": "role_display_name",
+          "type": "nvarchar",
+          "nullable": false,
+          "maxLength": 100,
+          "precision": null,
+          "scale": null
+        },
+        {
+          "name": "module_name",
+          "type": "nvarchar",
+          "nullable": false,
+          "maxLength": 50,
+          "precision": null,
+          "scale": null
+        },
+        {
+          "name": "action_name",
+          "type": "nvarchar",
+          "nullable": false,
+          "maxLength": 50,
+          "precision": null,
+          "scale": null
+        },
+        {
+          "name": "permission_key",
+          "type": "nvarchar",
+          "nullable": false,
+          "maxLength": 100,
+          "precision": null,
+          "scale": null
+        },
+        {
+          "name": "permission_description",
+          "type": "nvarchar",
+          "nullable": true,
+          "maxLength": 500,
+          "precision": null,
+          "scale": null
+        },
+        {
+          "name": "granted_at",
+          "type": "datetime2",
+          "nullable": false,
+          "maxLength": null,
+          "precision": null,
+          "scale": null
+        },
+        {
+          "name": "granted_by",
+          "type": "nvarchar",
+          "nullable": true,
+          "maxLength": 50,
+          "precision": null,
+          "scale": null
+        }
+      ],
+      "primaryKey": [],
+      "foreignKeys": []
+    }
+  }
+}

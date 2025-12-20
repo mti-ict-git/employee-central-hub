@@ -114,3 +114,63 @@ Wednesday, December 17, 2025 4:24:46 PM - Secured env handling: added .env to .g
 - Ran `npx tsc --noEmit` — compilation passed.
 - Previewed via `http://localhost:8086/` to validate toasts.
 
+## 2025-12-18 11:56:20 — Backend MSSQL Schema Scan
+
+- Added `backend/scripts/scan-schema.ts` to connect to MSSQL using `.env` values (`DB_SERVER`, `DB_DATABASE`, `DB_USER`, `DB_PASSWORD`, `DB_PORT`, `DB_ENCRYPT`, `DB_TRUST_SERVER_CERTIFICATE`).
+
+## 2025-12-18 12:09:11 — Excel → DB Schema Mapping and Typing Fix
+
+- Parsed `public/Comben Master Data Column Assignment.xlsx` (sheet `DB Schema`) and generated mapping to scanned MSSQL schema.
+- Saved outputs:
+  - `backend/scripts/schema-mapping.json`
+  - `backend/scripts/schema-mapping.md`
+- Resolved ESM import for `xlsx` by using `xlsx/xlsx.mjs` and reading the workbook via Node `fs` buffer.
+- Added TypeScript module declaration `backend/scripts/types/xlsx-xlsx-mjs.d.ts` to align typings with `xlsx` package exports.
+- Ran `npm run typecheck` — passed successfully.
+- Next: Use mapping results to drive API scaffolding for tables with `column_matched` status and ask for endpoint preferences (REST/GraphQL, entities, auth, pagination).
+
+## 2025-12-18 15:02:12 — Excel Parser Header Alignment
+
+- Updated `backend/scripts/map-schema-from-excel.ts` to use explicit headers:
+  - `Column Name` (trimmed)
+  - `Mapping to Existing DB Schema`
+  - `Existing Table Name`
+- Parser now derives `schema.table.column` from the mapping header, with fallbacks to existing table + column name, defaulting schema to `dbo` when absent.
+- Re-ran mapping and regenerated outputs:
+  - `backend/scripts/schema-mapping.json`
+  - `backend/scripts/schema-mapping.md`
+- Ran `npm run typecheck` — backend compilation passed.
+- Implemented schema extraction for tables, columns (type, nullability, lengths/precision), primary keys, and foreign keys via `INFORMATION_SCHEMA` queries.
+- Added npm script `scan:schema` in `backend/package.json` using `tsx` to run the scanner.
+- Executed the scan successfully and saved outputs:
+  - `backend/scripts/schema.json`
+  - `backend/scripts/schema-report.md`
+- Ran TypeScript integrity check with `npx tsc --noEmit` at repo root — succeeded with exit code 0.
+
+## 2025-12-18 12:01:20 — Backend MSSQL Typings and Typecheck
+
+- Installed `@types/mssql` as a dev dependency in `backend` to resolve `ts(7016)` missing declaration errors for `mssql`.
+- Updated `backend/tsconfig.json` to include the `scripts` directory so `backend/scripts/scan-schema.ts` is typechecked.
+- Ran backend typecheck with `npm run typecheck` — succeeded with exit code 0.
+- Verified editor warnings cleared for `import sql from "mssql"` in `scan-schema.ts`.
+
+## 2025-12-18 12:03:12 — Scan Script Type Safety Update
+
+- Replaced `Record<string, any>` in `backend/scripts/scan-schema.ts` with explicit interfaces: `ColumnDef`, `ForeignKeyDef`, `TableDef`, and `SchemaMap`.
+- Adjusted markdown generation to iterate keys for type-safe access to table definitions.
+- Ran backend typecheck (`npm run typecheck`) — succeeded with exit code 0.
+- Re-ran schema scan (`npm run scan:schema`) — outputs regenerated successfully with no runtime errors.
+
+## 2025-12-18 15:32:07 +08:00 — Mapping Report Enhancements
+
+- Enhanced `backend/scripts/map-schema-from-excel.ts` to include:
+  - `total_rows_parsed` in summary
+  - Per-status counts (column_matched, column_missing, table_only, table_missing)
+  - Per-table coverage: totals, matched, missing, and table-only
+  - Top 20 unmatched items with nearest suggestions (Levenshtein-based similarity)
+  - Per-row “used headers” for table/column (Mapping vs Column Name vs Existing Table Name)
+- Regenerated outputs:
+  - `backend/scripts/schema-mapping.json`
+  - `backend/scripts/schema-mapping.md`
+- Ran backend typecheck (`npm run typecheck`) — succeeded with exit code 0.
+

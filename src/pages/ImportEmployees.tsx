@@ -196,12 +196,28 @@ const ImportEmployees = () => {
     setIsImporting(true);
 
     try {
-      // Simulate API call
-      await new Promise((resolve) => setTimeout(resolve, 2000));
+      const rows = validRecords.map(v => ({
+        employee_id: v.data.employee_id,
+        name: v.data.name,
+        gender: v.data.gender,
+        nationality: v.data.nationality,
+        department: v.data.department,
+        job_title: v.data.job_title,
+        employment_status: v.data.employment_status,
+        join_date: v.data.join_date,
+      }));
+      const res = await fetch(`http://localhost:${8083}/api/employees/import`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        credentials: "include",
+        body: JSON.stringify(rows),
+      });
+      if (!res.ok) throw new Error(`HTTP_${res.status}`);
+      const json = await res.json();
 
       toast({
         title: "Import successful",
-        description: `${validRecords.length} employees have been imported.`,
+        description: `${json.success} imported, ${json.failed} failed out of ${json.total}.`,
       });
 
       navigate("/employees");

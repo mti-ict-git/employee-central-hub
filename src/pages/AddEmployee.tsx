@@ -107,16 +107,88 @@ const AddEmployee = () => {
   const onSubmit = async (data: EmployeeFormData) => {
     setIsSubmitting(true);
     try {
-      // Simulate API call
-      await new Promise((resolve) => setTimeout(resolve, 1500));
-      
-      console.log("Employee data:", data);
-      
+      const payload = {
+        employee_id: data.employee_id,
+        name: data.name,
+        gender: data.gender,
+        place_of_birth: data.place_of_birth,
+        date_of_birth: data.date_of_birth,
+        marital_status: data.marital_status,
+        religion: data.religion,
+        nationality: data.nationality,
+        blood_type: data.blood_type,
+        education: data.education,
+        imip_id: data.imip_id,
+        phone_number: data.phone_number,
+        email: data.email || null,
+        address: data.address,
+        city: data.city,
+        spouse_name: data.spouse_name,
+        child_name_1: data.child_name_1,
+        child_name_2: data.child_name_2,
+        child_name_3: data.child_name_3,
+        emergency_contact_name: data.emergency_contact_name,
+        emergency_contact_phone: data.emergency_contact_phone,
+        ktp_no: data.ktp_no,
+        kartu_keluarga_no: data.kartu_keluarga_no,
+        employment_status: data.employment_status,
+        company_office: data.company_office,
+        work_location: data.work_location,
+        division: data.division,
+        department: data.department,
+        section: data.section,
+        direct_report: data.direct_report,
+        job_title: data.job_title,
+        grade: data.grade,
+        position_grade: data.position_grade,
+        group_job_title: data.group_job_title,
+        locality_status: data.locality_status,
+        branch: data.branch,
+        branch_id: data.branch_id,
+        field: data.field,
+        point_of_hire: data.point_of_hire,
+        point_of_origin: data.point_of_origin,
+        schedule_type: data.schedule_type,
+        first_join_date_merdeka: data.first_join_date_merdeka,
+        transfer_merdeka: data.transfer_merdeka,
+        first_join_date: data.first_join_date,
+        join_date: data.join_date,
+        end_contract: data.end_contract,
+        bank_name: data.bank_name,
+        account_name: data.account_name,
+        account_no: data.account_no,
+        bank_code: data.bank_code,
+        icbc_bank_account_no: data.icbc_bank_account_no,
+        icbc_username: data.icbc_username,
+        npwp: data.npwp,
+        bpjs_tk: data.bpjs_tk,
+        bpjs_kes: data.bpjs_kes,
+        status_bpjs_kes: data.status_bpjs_kes,
+        insurance_endorsement: data.insurance_endorsement,
+        insurance_owlexa: data.insurance_owlexa,
+        insurance_fpg: data.insurance_fpg,
+        passport_no: data.passport_no,
+        name_as_passport: data.name_as_passport,
+        passport_expiry: data.passport_expiry,
+        kitas_no: data.kitas_no,
+        kitas_expiry: data.kitas_expiry,
+        kitas_address: data.kitas_address,
+        imta: data.imta,
+        rptka_no: data.rptka_no,
+        rptka_position: data.rptka_position,
+        job_title_kitas: data.job_title_kitas,
+      };
+      const res = await fetch(`http://localhost:${8083}/api/employees`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        credentials: "include",
+        body: JSON.stringify(payload),
+      });
+      if (!res.ok) throw new Error(`HTTP_${res.status}`);
       toast({
         title: "Employee Created",
         description: `${data.name} has been successfully added to the system.`,
       });
-      
       navigate("/employees");
     } catch (error) {
       toast({

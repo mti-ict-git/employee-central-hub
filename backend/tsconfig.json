@@ -12,5 +12,5 @@
     "types": ["node"],
     "allowSyntheticDefaultImports": true
   },
-  "include": ["src"]
+  "include": ["src", "scripts"]
 }

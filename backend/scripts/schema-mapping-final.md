@@ -1,0 +1,143 @@
+# Excel → DB Final Mapping
+
+## Summary
+- total: 103
+- accepted: 70
+- auto_mapped: 5
+- table_only: 0
+- unresolved: 28
+
+## Final Mappings
+- [accepted] Excel: dbo.employee_insurance.insurance_endorsement → Final: dbo.employee_insurance.insurance_endorsement | rationale: explicit match from Excel mapping or exact column match
+- [accepted] Excel: dbo.employee_insurance.insurance_owlexa → Final: dbo.employee_insurance.insurance_owlexa | rationale: explicit match from Excel mapping or exact column match
+- [accepted] Excel: dbo.employee_insurance.insurance_fpg → Final: dbo.employee_insurance.insurance_fpg | rationale: explicit match from Excel mapping or exact column match
+- [accepted] Excel: dbo.employee_bank.employee_id → Final: dbo.employee_bank.employee_id | rationale: explicit match from Excel mapping or exact column match
+- [accepted] Excel: dbo.employee_contact.employee_id → Final: dbo.employee_contact.employee_id | rationale: explicit match from Excel mapping or exact column match
+- [accepted] Excel: dbo.employee_core.employee_id → Final: dbo.employee_core.employee_id | rationale: explicit match from Excel mapping or exact column match
+- [accepted] Excel: dbo.employee_employment.employee_id → Final: dbo.employee_employment.employee_id | rationale: explicit match from Excel mapping or exact column match
+- [accepted] Excel: dbo.employee_insurance.employee_id → Final: dbo.employee_insurance.employee_id | rationale: explicit match from Excel mapping or exact column match
+- [accepted] Excel: dbo.employee_onboard.employee_id → Final: dbo.employee_onboard.employee_id | rationale: explicit match from Excel mapping or exact column match
+- [accepted] Excel: dbo.employee_travel.employee_id → Final: dbo.employee_travel.employee_id | rationale: explicit match from Excel mapping or exact column match
+- [accepted] Excel: dbo.employee_core.imip_id → Final: dbo.employee_core.imip_id | rationale: explicit match from Excel mapping or exact column match
+- [accepted] Excel: dbo.employee_core.name → Final: dbo.employee_core.name | rationale: explicit match from Excel mapping or exact column match
+- [accepted] Excel: dbo.employee_core.gender → Final: dbo.employee_core.gender | rationale: explicit match from Excel mapping or exact column match
+- [accepted] Excel: dbo.employee_core.place_of_birth → Final: dbo.employee_core.place_of_birth | rationale: explicit match from Excel mapping or exact column match
+- [accepted] Excel: dbo.employee_core.date_of_birth → Final: dbo.employee_core.date_of_birth | rationale: explicit match from Excel mapping or exact column match
+- [accepted] Excel: dbo.employee_core.age → Final: dbo.employee_core.age | rationale: explicit match from Excel mapping or exact column match
+- [accepted] Excel: dbo.employee_core.marital_status → Final: dbo.employee_core.marital_status | rationale: explicit match from Excel mapping or exact column match
+- [accepted] Excel: dbo.employee_core.tax_status → Final: dbo.employee_core.tax_status | rationale: explicit match from Excel mapping or exact column match
+- [accepted] Excel: dbo.employee_contact.spouse_name → Final: dbo.employee_contact.spouse_name | rationale: explicit match from Excel mapping or exact column match
+- [accepted] Excel: dbo.employee_contact.child_name_1 → Final: dbo.employee_contact.child_name_1 | rationale: explicit match from Excel mapping or exact column match
+- [accepted] Excel: dbo.employee_contact.child_name_2 → Final: dbo.employee_contact.child_name_2 | rationale: explicit match from Excel mapping or exact column match
+- [accepted] Excel: dbo.employee_contact.child_name_3 → Final: dbo.employee_contact.child_name_3 | rationale: explicit match from Excel mapping or exact column match
+- [accepted] Excel: dbo.employee_core.religion → Final: dbo.employee_core.religion | rationale: explicit match from Excel mapping or exact column match
+- [accepted] Excel: dbo.employee_core.nationality → Final: dbo.employee_core.nationality | rationale: explicit match from Excel mapping or exact column match
+- [accepted] Excel: dbo.employee_core.blood_type → Final: dbo.employee_core.blood_type | rationale: explicit match from Excel mapping or exact column match
+- [accepted] Excel: dbo.employee_contact.phone_number → Final: dbo.employee_contact.phone_number | rationale: explicit match from Excel mapping or exact column match
+- [accepted] Excel: dbo.employee_contact.emergency_contact_name → Final: dbo.employee_contact.emergency_contact_name | rationale: explicit match from Excel mapping or exact column match
+- [accepted] Excel: dbo.employee_contact.emergency_contact_phone → Final: dbo.employee_contact.emergency_contact_phone | rationale: explicit match from Excel mapping or exact column match
+- [accepted] Excel: dbo.employee_core.kartu_keluarga_no → Final: dbo.employee_core.kartu_keluarga_no | rationale: explicit match from Excel mapping or exact column match
+- [accepted] Excel: dbo.employee_core.ktp_no → Final: dbo.employee_core.ktp_no | rationale: explicit match from Excel mapping or exact column match
+- [accepted] Excel: dbo.employee_contact.address → Final: dbo.employee_contact.address | rationale: explicit match from Excel mapping or exact column match
+- [accepted] Excel: dbo.employee_contact.city → Final: dbo.employee_contact.city | rationale: explicit match from Excel mapping or exact column match
+- [accepted] Excel: dbo.employee_onboard.point_of_hire → Final: dbo.employee_onboard.point_of_hire | rationale: explicit match from Excel mapping or exact column match
+- [accepted] Excel: dbo.employee_onboard.point_of_origin → Final: dbo.employee_onboard.point_of_origin | rationale: explicit match from Excel mapping or exact column match
+- [accepted] Excel: dbo.employee_core.education → Final: dbo.employee_core.education | rationale: explicit match from Excel mapping or exact column match
+- [accepted] Excel: dbo.employee_onboard.schedule_type → Final: dbo.employee_onboard.schedule_type | rationale: explicit match from Excel mapping or exact column match
+- [accepted] Excel: dbo.employee_onboard.first_join_date_merdeka → Final: dbo.employee_onboard.first_join_date_merdeka | rationale: explicit match from Excel mapping or exact column match
+- [accepted] Excel: dbo.employee_onboard.transfer_merdeka → Final: dbo.employee_onboard.transfer_merdeka | rationale: explicit match from Excel mapping or exact column match
+- [accepted] Excel: dbo.employee_onboard.first_join_date → Final: dbo.employee_onboard.first_join_date | rationale: explicit match from Excel mapping or exact column match
+- [accepted] Excel: dbo.employee_onboard.join_date → Final: dbo.employee_onboard.join_date | rationale: explicit match from Excel mapping or exact column match
+- [accepted] Excel: dbo.employee_onboard.employment_status → Final: dbo.employee_onboard.employment_status | rationale: explicit match from Excel mapping or exact column match
+- [accepted] Excel: dbo.employee_onboard.end_contract → Final: dbo.employee_onboard.end_contract | rationale: explicit match from Excel mapping or exact column match
+- [accepted] Excel: dbo.employee_onboard.years_in_service → Final: dbo.employee_onboard.years_in_service | rationale: explicit match from Excel mapping or exact column match
+- [unresolved] Excel: dbo.null → Final: - | rationale: -
+- [auto_mapped] Excel: dbo.null → Final: dbo.employee_core.Branch | rationale: auto-mapped by exact column name match across schema
+- [accepted] Excel: dbo.employee_employment.company_office → Final: dbo.employee_employment.company_office | rationale: explicit match from Excel mapping or exact column match
+- [accepted] Excel: dbo.employee_employment.work_location → Final: dbo.employee_employment.work_location | rationale: explicit match from Excel mapping or exact column match
+- [accepted] Excel: dbo.employee_employment.division → Final: dbo.employee_employment.division | rationale: explicit match from Excel mapping or exact column match
+- [accepted] Excel: dbo.employee_employment.department → Final: dbo.employee_employment.department | rationale: explicit match from Excel mapping or exact column match
+- [accepted] Excel: dbo.employee_employment.section → Final: dbo.employee_employment.section | rationale: explicit match from Excel mapping or exact column match
+- [accepted] Excel: dbo.employee_employment.direct_report → Final: dbo.employee_employment.direct_report | rationale: explicit match from Excel mapping or exact column match
+- [accepted] Excel: dbo.employee_employment.job_title → Final: dbo.employee_employment.job_title | rationale: explicit match from Excel mapping or exact column match
+- [accepted] Excel: dbo.employee_employment.grade → Final: dbo.employee_employment.grade | rationale: explicit match from Excel mapping or exact column match
+- [accepted] Excel: dbo.employee_employment.position_grade → Final: dbo.employee_employment.position_grade | rationale: explicit match from Excel mapping or exact column match
+- [accepted] Excel: dbo.employee_employment.group_job_title → Final: dbo.employee_employment.group_job_title | rationale: explicit match from Excel mapping or exact column match
+- [accepted] Excel: dbo.employee_bank.bank_name → Final: dbo.employee_bank.bank_name | rationale: explicit match from Excel mapping or exact column match
+- [accepted] Excel: dbo.employee_bank.account_name → Final: dbo.employee_bank.account_name | rationale: explicit match from Excel mapping or exact column match
+- [accepted] Excel: dbo.employee_bank.account_no → Final: dbo.employee_bank.account_no | rationale: explicit match from Excel mapping or exact column match
+- [accepted] Excel: dbo.employee_core.npwp → Final: dbo.employee_core.npwp | rationale: explicit match from Excel mapping or exact column match
+- [accepted] Excel: dbo.employee_insurance.bpjs_tk → Final: dbo.employee_insurance.bpjs_tk | rationale: explicit match from Excel mapping or exact column match
+- [accepted] Excel: dbo.employee_insurance.bpjs_kes → Final: dbo.employee_insurance.bpjs_kes | rationale: explicit match from Excel mapping or exact column match
+- [accepted] Excel: dbo.employee_insurance.status_bpjs_kes → Final: dbo.employee_insurance.status_bpjs_kes | rationale: explicit match from Excel mapping or exact column match
+- [accepted] Excel: dbo.employee_travel.kitas_no → Final: dbo.employee_travel.kitas_no | rationale: explicit match from Excel mapping or exact column match
+- [accepted] Excel: dbo.employee_travel.passport_no → Final: dbo.employee_travel.passport_no | rationale: explicit match from Excel mapping or exact column match
+- [accepted] Excel: dbo.employee_travel.travel_in → Final: dbo.employee_travel.travel_in | rationale: explicit match from Excel mapping or exact column match
+- [accepted] Excel: dbo.employee_travel.travel_out → Final: dbo.employee_travel.travel_out | rationale: explicit match from Excel mapping or exact column match
+- [unresolved] Excel: dbo.null → Final: - | rationale: -
+- [unresolved] Excel: dbo.null → Final: - | rationale: -
+- [accepted] Excel: dbo.employee_employment.terminated_date → Final: dbo.employee_employment.terminated_date | rationale: explicit match from Excel mapping or exact column match
+- [accepted] Excel: dbo.employee_employment.terminated_type → Final: dbo.employee_employment.terminated_type | rationale: explicit match from Excel mapping or exact column match
+- [accepted] Excel: dbo.employee_employment.terminated_reason → Final: dbo.employee_employment.terminated_reason | rationale: explicit match from Excel mapping or exact column match
+- [accepted] Excel: dbo.employee_employment.blacklist_mti → Final: dbo.employee_employment.blacklist_mti | rationale: explicit match from Excel mapping or exact column match
+- [accepted] Excel: dbo.employee_employment.blacklist_imip → Final: dbo.employee_employment.blacklist_imip | rationale: explicit match from Excel mapping or exact column match
+- [unresolved] Excel: dbo.null → Final: - | rationale: -
+- [accepted] Excel: dbo.null.locality_status → Final: dbo.employee_employment.locality_status | rationale: accepted by exact DB column match across schema
+- [unresolved] Excel: dbo.null → Final: - | rationale: -
+- [unresolved] Excel: dbo.null → Final: - | rationale: -
+- [unresolved] Excel: dbo.null → Final: - | rationale: -
+- [unresolved] Excel: dbo.null → Final: - | rationale: -
+- [auto_mapped] Excel: dbo.null → Final: dbo.employee_core.Field | rationale: auto-mapped by exact column name match across schema
+- [unresolved] Excel: dbo.null → Final: - | rationale: -
+- [unresolved] Excel: dbo.null → Final: - | rationale: -
+- [unresolved] Excel: dbo.null → Final: - | rationale: -
+- [accepted] Excel: dbo.employee_contact.email → Final: dbo.employee_contact.email | rationale: explicit match from Excel mapping or exact column match
+- [unresolved] Excel: dbo.null → Final: - | rationale: -
+- [unresolved] Excel: dbo.null → Final: - | rationale: -
+- [auto_mapped] Excel: dbo.null → Final: dbo.employee_travel.IMTA | rationale: auto-mapped by exact column name match across schema
+- [unresolved] Excel: dbo.null → Final: - | rationale: -
+- [unresolved] Excel: dbo.null → Final: - | rationale: -
+- [unresolved] Excel: dbo.null → Final: - | rationale: -
+- [unresolved] Excel: dbo.null → Final: - | rationale: -
+- [unresolved] Excel: dbo.null → Final: - | rationale: -
+- [auto_mapped] Excel: dbo.null → Final: dbo.employee_notes.Batch | rationale: auto-mapped by exact column name match across schema
+- [unresolved] Excel: dbo.null → Final: - | rationale: -
+- [unresolved] Excel: dbo.null → Final: - | rationale: -
+- [unresolved] Excel: dbo.null → Final: - | rationale: -
+- [unresolved] Excel: dbo.null → Final: - | rationale: -
+- [unresolved] Excel: dbo.null → Final: - | rationale: -
+- [unresolved] Excel: dbo.null → Final: - | rationale: -
+- [unresolved] Excel: dbo.null → Final: - | rationale: -
+- [unresolved] Excel: dbo.null → Final: - | rationale: -
+- [unresolved] Excel: dbo.null → Final: - | rationale: -
+- [unresolved] Excel: dbo.null → Final: - | rationale: -
+
+## Unresolved Items
+- Excel: dbo.null | top suggestion: -
+- Excel: dbo.null | top suggestion: -
+- Excel: dbo.null | top suggestion: -
+- Excel: dbo.null | top suggestion: -
+- Excel: dbo.null | top suggestion: -
+- Excel: dbo.null | top suggestion: -
+- Excel: dbo.null | top suggestion: -
+- Excel: dbo.null | top suggestion: -
+- Excel: dbo.null | top suggestion: -
+- Excel: dbo.null | top suggestion: -
+- Excel: dbo.null | top suggestion: -
+- Excel: dbo.null | top suggestion: -
+- Excel: dbo.null | top suggestion: -
+- Excel: dbo.null | top suggestion: -
+- Excel: dbo.null | top suggestion: -
+- Excel: dbo.null | top suggestion: -
+- Excel: dbo.null | top suggestion: -
+- Excel: dbo.null | top suggestion: -
+- Excel: dbo.null | top suggestion: -
+- Excel: dbo.null | top suggestion: -
+- Excel: dbo.null | top suggestion: -
+- Excel: dbo.null | top suggestion: -
+- Excel: dbo.null | top suggestion: -
+- Excel: dbo.null | top suggestion: -
+- Excel: dbo.null | top suggestion: -
+- Excel: dbo.null | top suggestion: -
+- Excel: dbo.null | top suggestion: -
+- Excel: dbo.null | top suggestion: -

@@ -1,0 +1,175 @@
+# Excel → DB Schema Mapping Report
+
+## Summary
+- total_rows_parsed: 103
+- column_matched: 70
+- table_missing: 33
+
+## Per-Table Coverage
+- Bank (Checklist): total=1, matched=0, missing=0, table_only=0
+- Bank Code: total=1, matched=0, missing=0, table_only=0
+- Batch: total=1, matched=0, missing=0, table_only=0
+- BPJS Kesehatan No (alt BPJS KES): total=1, matched=0, missing=0, table_only=0
+- BPJS-KES (Checklist): total=1, matched=0, missing=0, table_only=0
+- BPJS-TK (Checklist): total=1, matched=0, missing=0, table_only=0
+- Branch: total=1, matched=0, missing=0, table_only=0
+- Branch ID: total=1, matched=0, missing=0, table_only=0
+- Cek Document / Note: total=1, matched=0, missing=0, table_only=0
+- dbo.employee_bank: total=4, matched=4, missing=0, table_only=0
+- dbo.employee_contact: total=11, matched=11, missing=0, table_only=0
+- dbo.employee_core: total=16, matched=16, missing=0, table_only=0
+- dbo.employee_employment: total=16, matched=16, missing=0, table_only=0
+- dbo.employee_insurance: total=7, matched=7, missing=0, table_only=0
+- dbo.employee_onboard: total=11, matched=11, missing=0, table_only=0
+- dbo.employee_travel: total=5, matched=5, missing=0, table_only=0
+- Employee Status: total=1, matched=0, missing=0, table_only=0
+- Field: total=1, matched=0, missing=0, table_only=0
+- FPG No: total=1, matched=0, missing=0, table_only=0
+- ICBC Bank Account No.: total=1, matched=0, missing=0, table_only=0
+- ICBC Username: total=1, matched=0, missing=0, table_only=0
+- ID CARD MTI: total=1, matched=0, missing=0, table_only=0
+- IMTA: total=1, matched=0, missing=0, table_only=0
+- IMTA (Checklist): total=1, matched=0, missing=0, table_only=0
+- Job Tittle (Based on KITAS): total=1, matched=0, missing=0, table_only=0
+- KITAS (Checklist): total=1, matched=0, missing=0, table_only=0
+- KITAS Address: total=1, matched=0, missing=0, table_only=0
+- KITAS Expiry: total=1, matched=0, missing=0, table_only=0
+- Locality Status: total=1, matched=0, missing=0, table_only=0
+- Month of Birthday: total=1, matched=0, missing=0, table_only=0
+- Name as Pasport: total=1, matched=0, missing=0, table_only=0
+- NPWP (Checklist): total=1, matched=0, missing=0, table_only=0
+- Office Email: total=1, matched=0, missing=0, table_only=0
+- OWLEXA No: total=1, matched=0, missing=0, table_only=0
+- Paspor (Checklist): total=1, matched=0, missing=0, table_only=0
+- Passport Expiry: total=1, matched=0, missing=0, table_only=0
+- RPTKA (Checklist): total=1, matched=0, missing=0, table_only=0
+- RPTKA No: total=1, matched=0, missing=0, table_only=0
+- RPTKA Position: total=1, matched=0, missing=0, table_only=0
+- Social Insurance No (alt BPJS TK): total=1, matched=0, missing=0, table_only=0
+
+## Top 20 Unmatched with Suggestions
+- [table_missing] Excel: dbo.null | used headers: table=-, column=Column Name | suggestion: -
+- [table_missing] Excel: dbo.null | used headers: table=-, column=Column Name | suggestion: -
+- [table_missing] Excel: dbo.null | used headers: table=-, column=Column Name | suggestion: -
+- [table_missing] Excel: dbo.null | used headers: table=-, column=Column Name | suggestion: -
+- [table_missing] Excel: dbo.null | used headers: table=-, column=Column Name | suggestion: -
+- [table_missing] Excel: dbo.null.locality_status | used headers: table=-, column=Mapping to Existing DB Schema | suggestion: column → dbo.employee_employment.locality_status (score=1)
+- [table_missing] Excel: dbo.null | used headers: table=-, column=Column Name | suggestion: -
+- [table_missing] Excel: dbo.null | used headers: table=-, column=Column Name | suggestion: -
+- [table_missing] Excel: dbo.null | used headers: table=-, column=Column Name | suggestion: -
+- [table_missing] Excel: dbo.null | used headers: table=-, column=Column Name | suggestion: -
+- [table_missing] Excel: dbo.null | used headers: table=-, column=Column Name | suggestion: -
+- [table_missing] Excel: dbo.null | used headers: table=-, column=Column Name | suggestion: -
+- [table_missing] Excel: dbo.null | used headers: table=-, column=Column Name | suggestion: -
+- [table_missing] Excel: dbo.null | used headers: table=-, column=Column Name | suggestion: -
+- [table_missing] Excel: dbo.null | used headers: table=-, column=Column Name | suggestion: -
+- [table_missing] Excel: dbo.null | used headers: table=-, column=Column Name | suggestion: -
+- [table_missing] Excel: dbo.null | used headers: table=-, column=Column Name | suggestion: -
+- [table_missing] Excel: dbo.null | used headers: table=-, column=Column Name | suggestion: -
+- [table_missing] Excel: dbo.null | used headers: table=-, column=Column Name | suggestion: -
+- [table_missing] Excel: dbo.null | used headers: table=-, column=Column Name | suggestion: -
+
+## Details
+- [column_matched] Excel: dbo.employee_insurance.insurance_endorsement → Matched: dbo.employee_insurance.insurance_endorsement | used headers: table=Existing Table Name, column=Mapping to Existing DB Schema
+- [column_matched] Excel: dbo.employee_insurance.insurance_owlexa → Matched: dbo.employee_insurance.insurance_owlexa | used headers: table=Existing Table Name, column=Mapping to Existing DB Schema
+- [column_matched] Excel: dbo.employee_insurance.insurance_fpg → Matched: dbo.employee_insurance.insurance_fpg | used headers: table=Existing Table Name, column=Mapping to Existing DB Schema
+- [column_matched] Excel: dbo.employee_bank.employee_id → Matched: dbo.employee_bank.employee_id | used headers: table=Existing Table Name, column=Mapping to Existing DB Schema
+- [column_matched] Excel: dbo.employee_contact.employee_id → Matched: dbo.employee_contact.employee_id | used headers: table=Existing Table Name, column=Mapping to Existing DB Schema
+- [column_matched] Excel: dbo.employee_core.employee_id → Matched: dbo.employee_core.employee_id | used headers: table=Existing Table Name, column=Mapping to Existing DB Schema
+- [column_matched] Excel: dbo.employee_employment.employee_id → Matched: dbo.employee_employment.employee_id | used headers: table=Existing Table Name, column=Mapping to Existing DB Schema
+- [column_matched] Excel: dbo.employee_insurance.employee_id → Matched: dbo.employee_insurance.employee_id | used headers: table=Existing Table Name, column=Mapping to Existing DB Schema
+- [column_matched] Excel: dbo.employee_onboard.employee_id → Matched: dbo.employee_onboard.employee_id | used headers: table=Existing Table Name, column=Mapping to Existing DB Schema
+- [column_matched] Excel: dbo.employee_travel.employee_id → Matched: dbo.employee_travel.employee_id | used headers: table=Existing Table Name, column=Mapping to Existing DB Schema
+- [column_matched] Excel: dbo.employee_core.imip_id → Matched: dbo.employee_core.imip_id | used headers: table=Existing Table Name, column=Mapping to Existing DB Schema
+- [column_matched] Excel: dbo.employee_core.name → Matched: dbo.employee_core.name | used headers: table=Existing Table Name, column=Mapping to Existing DB Schema
+- [column_matched] Excel: dbo.employee_core.gender → Matched: dbo.employee_core.gender | used headers: table=Existing Table Name, column=Mapping to Existing DB Schema
+- [column_matched] Excel: dbo.employee_core.place_of_birth → Matched: dbo.employee_core.place_of_birth | used headers: table=Existing Table Name, column=Mapping to Existing DB Schema
+- [column_matched] Excel: dbo.employee_core.date_of_birth → Matched: dbo.employee_core.date_of_birth | used headers: table=Existing Table Name, column=Mapping to Existing DB Schema
+- [column_matched] Excel: dbo.employee_core.age → Matched: dbo.employee_core.age | used headers: table=Existing Table Name, column=Mapping to Existing DB Schema
+- [column_matched] Excel: dbo.employee_core.marital_status → Matched: dbo.employee_core.marital_status | used headers: table=Existing Table Name, column=Mapping to Existing DB Schema
+- [column_matched] Excel: dbo.employee_core.tax_status → Matched: dbo.employee_core.tax_status | used headers: table=Existing Table Name, column=Mapping to Existing DB Schema
+- [column_matched] Excel: dbo.employee_contact.spouse_name → Matched: dbo.employee_contact.spouse_name | used headers: table=Existing Table Name, column=Mapping to Existing DB Schema
+- [column_matched] Excel: dbo.employee_contact.child_name_1 → Matched: dbo.employee_contact.child_name_1 | used headers: table=Existing Table Name, column=Mapping to Existing DB Schema
+- [column_matched] Excel: dbo.employee_contact.child_name_2 → Matched: dbo.employee_contact.child_name_2 | used headers: table=Existing Table Name, column=Mapping to Existing DB Schema
+- [column_matched] Excel: dbo.employee_contact.child_name_3 → Matched: dbo.employee_contact.child_name_3 | used headers: table=Existing Table Name, column=Mapping to Existing DB Schema
+- [column_matched] Excel: dbo.employee_core.religion → Matched: dbo.employee_core.religion | used headers: table=Existing Table Name, column=Mapping to Existing DB Schema
+- [column_matched] Excel: dbo.employee_core.nationality → Matched: dbo.employee_core.nationality | used headers: table=Existing Table Name, column=Mapping to Existing DB Schema
+- [column_matched] Excel: dbo.employee_core.blood_type → Matched: dbo.employee_core.blood_type | used headers: table=Existing Table Name, column=Mapping to Existing DB Schema
+- [column_matched] Excel: dbo.employee_contact.phone_number → Matched: dbo.employee_contact.phone_number | used headers: table=Existing Table Name, column=Mapping to Existing DB Schema
+- [column_matched] Excel: dbo.employee_contact.emergency_contact_name → Matched: dbo.employee_contact.emergency_contact_name | used headers: table=Existing Table Name, column=Mapping to Existing DB Schema
+- [column_matched] Excel: dbo.employee_contact.emergency_contact_phone → Matched: dbo.employee_contact.emergency_contact_phone | used headers: table=Existing Table Name, column=Mapping to Existing DB Schema
+- [column_matched] Excel: dbo.employee_core.kartu_keluarga_no → Matched: dbo.employee_core.kartu_keluarga_no | used headers: table=Existing Table Name, column=Mapping to Existing DB Schema
+- [column_matched] Excel: dbo.employee_core.ktp_no → Matched: dbo.employee_core.ktp_no | used headers: table=Existing Table Name, column=Mapping to Existing DB Schema
+- [column_matched] Excel: dbo.employee_contact.address → Matched: dbo.employee_contact.address | used headers: table=Existing Table Name, column=Mapping to Existing DB Schema
+- [column_matched] Excel: dbo.employee_contact.city → Matched: dbo.employee_contact.city | used headers: table=Existing Table Name, column=Mapping to Existing DB Schema
+- [column_matched] Excel: dbo.employee_onboard.point_of_hire → Matched: dbo.employee_onboard.point_of_hire | used headers: table=Existing Table Name, column=Mapping to Existing DB Schema
+- [column_matched] Excel: dbo.employee_onboard.point_of_origin → Matched: dbo.employee_onboard.point_of_origin | used headers: table=Existing Table Name, column=Mapping to Existing DB Schema
+- [column_matched] Excel: dbo.employee_core.education → Matched: dbo.employee_core.education | used headers: table=Existing Table Name, column=Mapping to Existing DB Schema
+- [column_matched] Excel: dbo.employee_onboard.schedule_type → Matched: dbo.employee_onboard.schedule_type | used headers: table=Existing Table Name, column=Mapping to Existing DB Schema
+- [column_matched] Excel: dbo.employee_onboard.first_join_date_merdeka → Matched: dbo.employee_onboard.first_join_date_merdeka | used headers: table=Existing Table Name, column=Mapping to Existing DB Schema
+- [column_matched] Excel: dbo.employee_onboard.transfer_merdeka → Matched: dbo.employee_onboard.transfer_merdeka | used headers: table=Existing Table Name, column=Mapping to Existing DB Schema
+- [column_matched] Excel: dbo.employee_onboard.first_join_date → Matched: dbo.employee_onboard.first_join_date | used headers: table=Existing Table Name, column=Mapping to Existing DB Schema
+- [column_matched] Excel: dbo.employee_onboard.join_date → Matched: dbo.employee_onboard.join_date | used headers: table=Existing Table Name, column=Mapping to Existing DB Schema
+- [column_matched] Excel: dbo.employee_onboard.employment_status → Matched: dbo.employee_onboard.employment_status | used headers: table=Existing Table Name, column=Mapping to Existing DB Schema
+- [column_matched] Excel: dbo.employee_onboard.end_contract → Matched: dbo.employee_onboard.end_contract | used headers: table=Existing Table Name, column=Mapping to Existing DB Schema
+- [column_matched] Excel: dbo.employee_onboard.years_in_service → Matched: dbo.employee_onboard.years_in_service | used headers: table=Existing Table Name, column=Mapping to Existing DB Schema
+- [table_missing] Excel: dbo.null → Matched: - | used headers: table=-, column=Column Name
+- [table_missing] Excel: dbo.null → Matched: - | used headers: table=-, column=Column Name
+- [column_matched] Excel: dbo.employee_employment.company_office → Matched: dbo.employee_employment.company_office | used headers: table=Existing Table Name, column=Mapping to Existing DB Schema
+- [column_matched] Excel: dbo.employee_employment.work_location → Matched: dbo.employee_employment.work_location | used headers: table=Existing Table Name, column=Mapping to Existing DB Schema
+- [column_matched] Excel: dbo.employee_employment.division → Matched: dbo.employee_employment.division | used headers: table=Existing Table Name, column=Mapping to Existing DB Schema
+- [column_matched] Excel: dbo.employee_employment.department → Matched: dbo.employee_employment.department | used headers: table=Existing Table Name, column=Mapping to Existing DB Schema
+- [column_matched] Excel: dbo.employee_employment.section → Matched: dbo.employee_employment.section | used headers: table=Existing Table Name, column=Mapping to Existing DB Schema
+- [column_matched] Excel: dbo.employee_employment.direct_report → Matched: dbo.employee_employment.direct_report | used headers: table=Existing Table Name, column=Mapping to Existing DB Schema
+- [column_matched] Excel: dbo.employee_employment.job_title → Matched: dbo.employee_employment.job_title | used headers: table=Existing Table Name, column=Mapping to Existing DB Schema
+- [column_matched] Excel: dbo.employee_employment.grade → Matched: dbo.employee_employment.grade | used headers: table=Existing Table Name, column=Mapping to Existing DB Schema
+- [column_matched] Excel: dbo.employee_employment.position_grade → Matched: dbo.employee_employment.position_grade | used headers: table=Existing Table Name, column=Mapping to Existing DB Schema
+- [column_matched] Excel: dbo.employee_employment.group_job_title → Matched: dbo.employee_employment.group_job_title | used headers: table=Existing Table Name, column=Mapping to Existing DB Schema
+- [column_matched] Excel: dbo.employee_bank.bank_name → Matched: dbo.employee_bank.bank_name | used headers: table=Existing Table Name, column=Mapping to Existing DB Schema
+- [column_matched] Excel: dbo.employee_bank.account_name → Matched: dbo.employee_bank.account_name | used headers: table=Existing Table Name, column=Mapping to Existing DB Schema
+- [column_matched] Excel: dbo.employee_bank.account_no → Matched: dbo.employee_bank.account_no | used headers: table=Existing Table Name, column=Mapping to Existing DB Schema
+- [column_matched] Excel: dbo.employee_core.npwp → Matched: dbo.employee_core.npwp | used headers: table=Existing Table Name, column=Mapping to Existing DB Schema
+- [column_matched] Excel: dbo.employee_insurance.bpjs_tk → Matched: dbo.employee_insurance.bpjs_tk | used headers: table=Existing Table Name, column=Mapping to Existing DB Schema
+- [column_matched] Excel: dbo.employee_insurance.bpjs_kes → Matched: dbo.employee_insurance.bpjs_kes | used headers: table=Existing Table Name, column=Mapping to Existing DB Schema
+- [column_matched] Excel: dbo.employee_insurance.status_bpjs_kes → Matched: dbo.employee_insurance.status_bpjs_kes | used headers: table=Existing Table Name, column=Mapping to Existing DB Schema
+- [column_matched] Excel: dbo.employee_travel.kitas_no → Matched: dbo.employee_travel.kitas_no | used headers: table=Existing Table Name, column=Mapping to Existing DB Schema
+- [column_matched] Excel: dbo.employee_travel.passport_no → Matched: dbo.employee_travel.passport_no | used headers: table=Existing Table Name, column=Mapping to Existing DB Schema
+- [column_matched] Excel: dbo.employee_travel.travel_in → Matched: dbo.employee_travel.travel_in | used headers: table=Existing Table Name, column=Mapping to Existing DB Schema
+- [column_matched] Excel: dbo.employee_travel.travel_out → Matched: dbo.employee_travel.travel_out | used headers: table=Existing Table Name, column=Mapping to Existing DB Schema
+- [table_missing] Excel: dbo.null → Matched: - | used headers: table=-, column=Column Name
+- [table_missing] Excel: dbo.null → Matched: - | used headers: table=-, column=Column Name
+- [column_matched] Excel: dbo.employee_employment.terminated_date → Matched: dbo.employee_employment.terminated_date | used headers: table=Existing Table Name, column=Mapping to Existing DB Schema
+- [column_matched] Excel: dbo.employee_employment.terminated_type → Matched: dbo.employee_employment.terminated_type | used headers: table=Existing Table Name, column=Mapping to Existing DB Schema
+- [column_matched] Excel: dbo.employee_employment.terminated_reason → Matched: dbo.employee_employment.terminated_reason | used headers: table=Existing Table Name, column=Mapping to Existing DB Schema
+- [column_matched] Excel: dbo.employee_employment.blacklist_mti → Matched: dbo.employee_employment.blacklist_mti | used headers: table=Existing Table Name, column=Mapping to Existing DB Schema
+- [column_matched] Excel: dbo.employee_employment.blacklist_imip → Matched: dbo.employee_employment.blacklist_imip | used headers: table=Existing Table Name, column=Mapping to Existing DB Schema
+- [table_missing] Excel: dbo.null → Matched: - | used headers: table=-, column=Column Name
+- [table_missing] Excel: dbo.null.locality_status → Matched: - | used headers: table=-, column=Mapping to Existing DB Schema
+- [table_missing] Excel: dbo.null → Matched: - | used headers: table=-, column=Column Name
+- [table_missing] Excel: dbo.null → Matched: - | used headers: table=-, column=Column Name
+- [table_missing] Excel: dbo.null → Matched: - | used headers: table=-, column=Column Name
+- [table_missing] Excel: dbo.null → Matched: - | used headers: table=-, column=Column Name
+- [table_missing] Excel: dbo.null → Matched: - | used headers: table=-, column=Column Name
+- [table_missing] Excel: dbo.null → Matched: - | used headers: table=-, column=Column Name
+- [table_missing] Excel: dbo.null → Matched: - | used headers: table=-, column=Column Name
+- [table_missing] Excel: dbo.null → Matched: - | used headers: table=-, column=Column Name
+- [column_matched] Excel: dbo.employee_contact.email → Matched: dbo.employee_contact.email | used headers: table=Existing Table Name, column=Mapping to Existing DB Schema
+- [table_missing] Excel: dbo.null → Matched: - | used headers: table=-, column=Column Name
+- [table_missing] Excel: dbo.null → Matched: - | used headers: table=-, column=Column Name
+- [table_missing] Excel: dbo.null → Matched: - | used headers: table=-, column=Column Name
+- [table_missing] Excel: dbo.null → Matched: - | used headers: table=-, column=Column Name
+- [table_missing] Excel: dbo.null → Matched: - | used headers: table=-, column=Column Name
+- [table_missing] Excel: dbo.null → Matched: - | used headers: table=-, column=Column Name
+- [table_missing] Excel: dbo.null → Matched: - | used headers: table=-, column=Column Name
+- [table_missing] Excel: dbo.null → Matched: - | used headers: table=-, column=Column Name
+- [table_missing] Excel: dbo.null → Matched: - | used headers: table=-, column=Column Name
+- [table_missing] Excel: dbo.null → Matched: - | used headers: table=-, column=Column Name
+- [table_missing] Excel: dbo.null → Matched: - | used headers: table=-, column=Column Name
+- [table_missing] Excel: dbo.null → Matched: - | used headers: table=-, column=Column Name
+- [table_missing] Excel: dbo.null → Matched: - | used headers: table=-, column=Column Name
+- [table_missing] Excel: dbo.null → Matched: - | used headers: table=-, column=Column Name
+- [table_missing] Excel: dbo.null → Matched: - | used headers: table=-, column=Column Name
+- [table_missing] Excel: dbo.null → Matched: - | used headers: table=-, column=Column Name
+- [table_missing] Excel: dbo.null → Matched: - | used headers: table=-, column=Column Name
+- [table_missing] Excel: dbo.null → Matched: - | used headers: table=-, column=Column Name
+- [table_missing] Excel: dbo.null → Matched: - | used headers: table=-, column=Column Name

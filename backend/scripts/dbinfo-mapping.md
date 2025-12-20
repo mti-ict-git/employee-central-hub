@@ -1,0 +1,123 @@
+# DB Information → Scanned Schema Mapping Report
+
+## Summary
+- total_rows_parsed: 97
+- column_matched: 103
+
+## Per-Table Coverage
+- dbo.employee_bank: total=7, matched=7, missing=0, table_only=0
+- dbo.employee_checklist: total=8, matched=8, missing=0, table_only=0
+- dbo.employee_contact: total=11, matched=11, missing=0, table_only=0
+- dbo.employee_core: total=22, matched=22, missing=0, table_only=0
+- dbo.employee_employment: total=18, matched=18, missing=0, table_only=0
+- dbo.employee_insurance: total=11, matched=11, missing=0, table_only=0
+- dbo.employee_notes: total=2, matched=2, missing=0, table_only=0
+- dbo.employee_onboard: total=11, matched=11, missing=0, table_only=0
+- dbo.employee_travel: total=13, matched=13, missing=0, table_only=0
+
+## Top 20 Unmatched with Suggestions
+
+## Details
+- [column_matched] Excel: dbo.employee_insurance.insurance_endorsement → Matched: dbo.employee_insurance.insurance_endorsement | used headers: table=Table Name, column=DB Column
+- [column_matched] Excel: dbo.employee_insurance.insurance_owlexa → Matched: dbo.employee_insurance.insurance_owlexa | used headers: table=Table Name, column=DB Column
+- [column_matched] Excel: dbo.employee_insurance.insurance_fpg → Matched: dbo.employee_insurance.insurance_fpg | used headers: table=Table Name, column=DB Column
+- [column_matched] Excel: dbo.employee_bank.employee_id → Matched: dbo.employee_bank.employee_id | used headers: table=Table Name, column=DB Column
+- [column_matched] Excel: dbo.employee_contact.employee_id → Matched: dbo.employee_contact.employee_id | used headers: table=Table Name, column=DB Column
+- [column_matched] Excel: dbo.employee_core.employee_id → Matched: dbo.employee_core.employee_id | used headers: table=Table Name, column=DB Column
+- [column_matched] Excel: dbo.employee_employment.employee_id → Matched: dbo.employee_employment.employee_id | used headers: table=Table Name, column=DB Column
+- [column_matched] Excel: dbo.employee_insurance.employee_id → Matched: dbo.employee_insurance.employee_id | used headers: table=Table Name, column=DB Column
+- [column_matched] Excel: dbo.employee_onboard.employee_id → Matched: dbo.employee_onboard.employee_id | used headers: table=Table Name, column=DB Column
+- [column_matched] Excel: dbo.employee_travel.employee_id → Matched: dbo.employee_travel.employee_id | used headers: table=Table Name, column=DB Column
+- [column_matched] Excel: dbo.employee_core.imip_id → Matched: dbo.employee_core.imip_id | used headers: table=Table Name, column=DB Column
+- [column_matched] Excel: dbo.employee_core.name → Matched: dbo.employee_core.name | used headers: table=Table Name, column=DB Column
+- [column_matched] Excel: dbo.employee_core.gender → Matched: dbo.employee_core.gender | used headers: table=Table Name, column=DB Column
+- [column_matched] Excel: dbo.employee_core.place_of_birth → Matched: dbo.employee_core.place_of_birth | used headers: table=Table Name, column=DB Column
+- [column_matched] Excel: dbo.employee_core.date_of_birth → Matched: dbo.employee_core.date_of_birth | used headers: table=Table Name, column=DB Column
+- [column_matched] Excel: dbo.employee_core.age → Matched: dbo.employee_core.age | used headers: table=Table Name, column=DB Column
+- [column_matched] Excel: dbo.employee_core.marital_status → Matched: dbo.employee_core.marital_status | used headers: table=Table Name, column=DB Column
+- [column_matched] Excel: dbo.employee_core.tax_status → Matched: dbo.employee_core.tax_status | used headers: table=Table Name, column=DB Column
+- [column_matched] Excel: dbo.employee_contact.spouse_name → Matched: dbo.employee_contact.spouse_name | used headers: table=Table Name, column=DB Column
+- [column_matched] Excel: dbo.employee_contact.child_name_1 → Matched: dbo.employee_contact.child_name_1 | used headers: table=Table Name, column=DB Column
+- [column_matched] Excel: dbo.employee_contact.child_name_2 → Matched: dbo.employee_contact.child_name_2 | used headers: table=Table Name, column=DB Column
+- [column_matched] Excel: dbo.employee_contact.child_name_3 → Matched: dbo.employee_contact.child_name_3 | used headers: table=Table Name, column=DB Column
+- [column_matched] Excel: dbo.employee_core.religion → Matched: dbo.employee_core.religion | used headers: table=Table Name, column=DB Column
+- [column_matched] Excel: dbo.employee_core.nationality → Matched: dbo.employee_core.nationality | used headers: table=Table Name, column=DB Column
+- [column_matched] Excel: dbo.employee_core.blood_type → Matched: dbo.employee_core.blood_type | used headers: table=Table Name, column=DB Column
+- [column_matched] Excel: dbo.employee_contact.phone_number → Matched: dbo.employee_contact.phone_number | used headers: table=Table Name, column=DB Column
+- [column_matched] Excel: dbo.employee_contact.emergency_contact_name → Matched: dbo.employee_contact.emergency_contact_name | used headers: table=Table Name, column=DB Column
+- [column_matched] Excel: dbo.employee_contact.emergency_contact_phone → Matched: dbo.employee_contact.emergency_contact_phone | used headers: table=Table Name, column=DB Column
+- [column_matched] Excel: dbo.employee_core.kartu_keluarga_no → Matched: dbo.employee_core.kartu_keluarga_no | used headers: table=Table Name, column=DB Column
+- [column_matched] Excel: dbo.employee_core.ktp_no → Matched: dbo.employee_core.ktp_no | used headers: table=Table Name, column=DB Column
+- [column_matched] Excel: dbo.employee_contact.address → Matched: dbo.employee_contact.address | used headers: table=Table Name, column=DB Column
+- [column_matched] Excel: dbo.employee_contact.city → Matched: dbo.employee_contact.city | used headers: table=Table Name, column=DB Column
+- [column_matched] Excel: dbo.employee_onboard.point_of_hire → Matched: dbo.employee_onboard.point_of_hire | used headers: table=Table Name, column=DB Column
+- [column_matched] Excel: dbo.employee_onboard.point_of_origin → Matched: dbo.employee_onboard.point_of_origin | used headers: table=Table Name, column=DB Column
+- [column_matched] Excel: dbo.employee_core.education → Matched: dbo.employee_core.education | used headers: table=Table Name, column=DB Column
+- [column_matched] Excel: dbo.employee_onboard.schedule_type → Matched: dbo.employee_onboard.schedule_type | used headers: table=Table Name, column=DB Column
+- [column_matched] Excel: dbo.employee_onboard.first_join_date_merdeka → Matched: dbo.employee_onboard.first_join_date_merdeka | used headers: table=Table Name, column=DB Column
+- [column_matched] Excel: dbo.employee_onboard.transfer_merdeka → Matched: dbo.employee_onboard.transfer_merdeka | used headers: table=Table Name, column=DB Column
+- [column_matched] Excel: dbo.employee_onboard.first_join_date → Matched: dbo.employee_onboard.first_join_date | used headers: table=Table Name, column=DB Column
+- [column_matched] Excel: dbo.employee_onboard.join_date → Matched: dbo.employee_onboard.join_date | used headers: table=Table Name, column=DB Column
+- [column_matched] Excel: dbo.employee_onboard.employment_status → Matched: dbo.employee_onboard.employment_status | used headers: table=Table Name, column=DB Column
+- [column_matched] Excel: dbo.employee_onboard.end_contract → Matched: dbo.employee_onboard.end_contract | used headers: table=Table Name, column=DB Column
+- [column_matched] Excel: dbo.employee_onboard.years_in_service → Matched: dbo.employee_onboard.years_in_service | used headers: table=Table Name, column=DB Column
+- [column_matched] Excel: dbo.employee_core.branch_id → Matched: dbo.employee_core.branch_id | used headers: table=Table Name, column=DB Column
+- [column_matched] Excel: dbo.employee_core.branch → Matched: dbo.employee_core.branch | used headers: table=Table Name, column=DB Column
+- [column_matched] Excel: dbo.employee_employment.company_office → Matched: dbo.employee_employment.company_office | used headers: table=Table Name, column=DB Column
+- [column_matched] Excel: dbo.employee_employment.work_location → Matched: dbo.employee_employment.work_location | used headers: table=Table Name, column=DB Column
+- [column_matched] Excel: dbo.employee_employment.division → Matched: dbo.employee_employment.division | used headers: table=Table Name, column=DB Column
+- [column_matched] Excel: dbo.employee_employment.department → Matched: dbo.employee_employment.department | used headers: table=Table Name, column=DB Column
+- [column_matched] Excel: dbo.employee_employment.section → Matched: dbo.employee_employment.section | used headers: table=Table Name, column=DB Column
+- [column_matched] Excel: dbo.employee_employment.direct_report → Matched: dbo.employee_employment.direct_report | used headers: table=Table Name, column=DB Column
+- [column_matched] Excel: dbo.employee_employment.job_title → Matched: dbo.employee_employment.job_title | used headers: table=Table Name, column=DB Column
+- [column_matched] Excel: dbo.employee_employment.grade → Matched: dbo.employee_employment.grade | used headers: table=Table Name, column=DB Column
+- [column_matched] Excel: dbo.employee_employment.position_grade → Matched: dbo.employee_employment.position_grade | used headers: table=Table Name, column=DB Column
+- [column_matched] Excel: dbo.employee_employment.group_job_title → Matched: dbo.employee_employment.group_job_title | used headers: table=Table Name, column=DB Column
+- [column_matched] Excel: dbo.employee_bank.bank_name → Matched: dbo.employee_bank.bank_name | used headers: table=Table Name, column=DB Column
+- [column_matched] Excel: dbo.employee_bank.account_name → Matched: dbo.employee_bank.account_name | used headers: table=Table Name, column=DB Column
+- [column_matched] Excel: dbo.employee_bank.account_no → Matched: dbo.employee_bank.account_no | used headers: table=Table Name, column=DB Column
+- [column_matched] Excel: dbo.employee_core.npwp → Matched: dbo.employee_core.npwp | used headers: table=Table Name, column=DB Column
+- [column_matched] Excel: dbo.employee_insurance.bpjs_tk → Matched: dbo.employee_insurance.bpjs_tk | used headers: table=Table Name, column=DB Column
+- [column_matched] Excel: dbo.employee_insurance.bpjs_kes → Matched: dbo.employee_insurance.bpjs_kes | used headers: table=Table Name, column=DB Column
+- [column_matched] Excel: dbo.employee_insurance.status_bpjs_kes → Matched: dbo.employee_insurance.status_bpjs_kes | used headers: table=Table Name, column=DB Column
+- [column_matched] Excel: dbo.employee_travel.kitas_no → Matched: dbo.employee_travel.kitas_no | used headers: table=Table Name, column=DB Column
+- [column_matched] Excel: dbo.employee_travel.passport_no → Matched: dbo.employee_travel.passport_no | used headers: table=Table Name, column=DB Column
+- [column_matched] Excel: dbo.employee_travel.travel_in → Matched: dbo.employee_travel.travel_in | used headers: table=Table Name, column=DB Column
+- [column_matched] Excel: dbo.employee_travel.travel_out → Matched: dbo.employee_travel.travel_out | used headers: table=Table Name, column=DB Column
+- [column_matched] Excel: dbo.employee_insurance.social_insurance_no_alt → Matched: dbo.employee_insurance.social_insurance_no_alt | used headers: table=Table Name, column=DB Column
+- [column_matched] Excel: dbo.employee_insurance.bpjs_kes_no_alt → Matched: dbo.employee_insurance.bpjs_kes_no_alt | used headers: table=Table Name, column=DB Column
+- [column_matched] Excel: dbo.employee_employment.terminated_date → Matched: dbo.employee_employment.terminated_date | used headers: table=Table Name, column=DB Column
+- [column_matched] Excel: dbo.employee_employment.terminated_type → Matched: dbo.employee_employment.terminated_type | used headers: table=Table Name, column=DB Column
+- [column_matched] Excel: dbo.employee_employment.terminated_reason → Matched: dbo.employee_employment.terminated_reason | used headers: table=Table Name, column=DB Column
+- [column_matched] Excel: dbo.employee_employment.blacklist_mti → Matched: dbo.employee_employment.blacklist_mti | used headers: table=Table Name, column=DB Column
+- [column_matched] Excel: dbo.employee_employment.blacklist_imip → Matched: dbo.employee_employment.blacklist_imip | used headers: table=Table Name, column=DB Column
+- [column_matched] Excel: dbo.employee_core.office_email → Matched: dbo.employee_core.office_email | used headers: table=Table Name, column=DB Column
+- [column_matched] Excel: dbo.employee_employment.locality_status → Matched: dbo.employee_employment.locality_status | used headers: table=Table Name, column=DB Column
+- [column_matched] Excel: dbo.employee_insurance.fpg_no → Matched: dbo.employee_insurance.fpg_no | used headers: table=Table Name, column=DB Column
+- [column_matched] Excel: dbo.employee_insurance.owlexa_no → Matched: dbo.employee_insurance.owlexa_no | used headers: table=Table Name, column=DB Column
+- [column_matched] Excel: dbo.employee_core.month_of_birthday → Matched: dbo.employee_core.month_of_birthday | used headers: table=Table Name, column=DB Column
+- [column_matched] Excel: dbo.employee_core.id_card_mti → Matched: dbo.employee_core.id_card_mti | used headers: table=Table Name, column=DB Column
+- [column_matched] Excel: dbo.employee_core.field → Matched: dbo.employee_core.field | used headers: table=Table Name, column=DB Column
+- [column_matched] Excel: dbo.employee_bank.bank_code → Matched: dbo.employee_bank.bank_code | used headers: table=Table Name, column=DB Column
+- [column_matched] Excel: dbo.employee_bank.icbc_bank_account_no → Matched: dbo.employee_bank.icbc_bank_account_no | used headers: table=Table Name, column=DB Column
+- [column_matched] Excel: dbo.employee_travel.name_as_passport → Matched: dbo.employee_travel.name_as_passport | used headers: table=Table Name, column=DB Column
+- [column_matched] Excel: dbo.employee_contact.email → Matched: dbo.employee_contact.email | used headers: table=Table Name, column=DB Column
+- [column_matched] Excel: dbo.employee_travel.passport_expiry → Matched: dbo.employee_travel.passport_expiry | used headers: table=Table Name, column=DB Column
+- [column_matched] Excel: dbo.employee_travel.kitas_expiry → Matched: dbo.employee_travel.kitas_expiry | used headers: table=Table Name, column=DB Column
+- [column_matched] Excel: dbo.employee_travel.imta → Matched: dbo.employee_travel.imta | used headers: table=Table Name, column=DB Column
+- [column_matched] Excel: dbo.employee_travel.rptka_no → Matched: dbo.employee_travel.rptka_no | used headers: table=Table Name, column=DB Column
+- [column_matched] Excel: dbo.employee_travel.rptka_position → Matched: dbo.employee_travel.rptka_position | used headers: table=Table Name, column=DB Column
+- [column_matched] Excel: dbo.employee_travel.kitas_address → Matched: dbo.employee_travel.kitas_address | used headers: table=Table Name, column=DB Column
+- [column_matched] Excel: dbo.employee_travel.job_title_kitas → Matched: dbo.employee_travel.job_title_kitas | used headers: table=Table Name, column=DB Column
+- [column_matched] Excel: dbo.employee_bank.icbc_username → Matched: dbo.employee_bank.icbc_username | used headers: table=Table Name, column=DB Column
+- [column_matched] Excel: dbo.employee_notes.batch → Matched: dbo.employee_notes.batch | used headers: table=Table Name, column=DB Column
+- [column_matched] Excel: dbo.employee_notes.note → Matched: dbo.employee_notes.note | used headers: table=Table Name, column=DB Column
+- [column_matched] Excel: dbo.employee_checklist.paspor_checklist → Matched: dbo.employee_checklist.paspor_checklist | used headers: table=Table Name, column=DB Column
+- [column_matched] Excel: dbo.employee_checklist.kitas_checklist → Matched: dbo.employee_checklist.kitas_checklist | used headers: table=Table Name, column=DB Column
+- [column_matched] Excel: dbo.employee_checklist.imta_checklist → Matched: dbo.employee_checklist.imta_checklist | used headers: table=Table Name, column=DB Column
+- [column_matched] Excel: dbo.employee_checklist.rptka_checklist → Matched: dbo.employee_checklist.rptka_checklist | used headers: table=Table Name, column=DB Column
+- [column_matched] Excel: dbo.employee_checklist.npwp_checklist → Matched: dbo.employee_checklist.npwp_checklist | used headers: table=Table Name, column=DB Column
+- [column_matched] Excel: dbo.employee_checklist.bpjs_kes_checklist → Matched: dbo.employee_checklist.bpjs_kes_checklist | used headers: table=Table Name, column=DB Column
+- [column_matched] Excel: dbo.employee_checklist.bpjs_tk_checklist → Matched: dbo.employee_checklist.bpjs_tk_checklist | used headers: table=Table Name, column=DB Column
+- [column_matched] Excel: dbo.employee_checklist.bank_checklist → Matched: dbo.employee_checklist.bank_checklist | used headers: table=Table Name, column=DB Column
+- [column_matched] Excel: dbo.employee_employment.status → Matched: dbo.employee_employment.status | used headers: table=Table Name, column=DB Column
