@@ -110,9 +110,11 @@ const EmployeeDetail = () => {
             Back to List
           </Link>
         </Button>
-        <Button>
-          <Pencil className="mr-2 h-4 w-4" />
-          Edit Employee
+        <Button asChild>
+          <Link to={`/employees/${id}/edit`}>
+            <Pencil className="mr-2 h-4 w-4" />
+            Edit Employee
+          </Link>
         </Button>
       </div>
 
