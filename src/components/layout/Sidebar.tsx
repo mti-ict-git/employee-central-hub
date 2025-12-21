@@ -138,7 +138,7 @@ export function Sidebar() {
         <div className="border-t border-sidebar-border p-4">
           <div className="rounded-lg bg-sidebar-accent p-3">
             <p className="text-xs font-medium text-sidebar-foreground">Version 1.0.0</p>
-            <p className="text-xs text-sidebar-foreground/70">© 2024 Merdeka Group</p>
+            <p className="text-xs text-sidebar-foreground/70">© {new Date().getFullYear()} Merdeka Group</p>
           </div>
         </div>
       </div>
