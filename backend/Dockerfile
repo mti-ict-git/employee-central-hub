@@ -1,10 +1,8 @@
 FROM node:18-alpine AS build
 WORKDIR /app/backend
-
 COPY backend/package.json backend/package-lock.json* ./
 RUN npm ci --no-audit --no-fund
-
-COPY backend/tsconfig.json backend/src ./ 
+COPY backend/ ./
 RUN npm run build
 
 FROM node:18-alpine AS runtime
