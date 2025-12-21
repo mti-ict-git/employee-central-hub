@@ -10,7 +10,8 @@ services:
       - ./.env
     environment:
       BACKEND_PORT: "${BACKEND_PORT:-8083}"
-      FRONTEND_URL: "http://localhost:8080"
+      FRONTEND_URL: "http://localhost:9100"
+      FRONTEND_URLS: "http://localhost:9100,http://127.0.0.1:9100"
     ports:
       - "${BACKEND_PORT:-8083}:8083"
     networks:
@@ -31,11 +32,10 @@ services:
     depends_on:
       - api
     ports:
-      - "8080:80"
+      - "9100:80"
     networks:
       - app-net
 
 networks:
   app-net:
     driver: bridge
-
