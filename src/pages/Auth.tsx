@@ -142,6 +142,7 @@ const Auth = () => {
     <div className="min-h-screen flex items-center justify-center bg-gradient-to-br from-background via-background to-muted/30 p-4">
       <div className="w-full max-w-md">
         <div className="text-center mb-8">
+          <img src="/mti-logo.png" alt="Merdeka Group" className="mx-auto mb-4 h-12" />
           <h1 className="text-3xl font-bold text-foreground mb-2">Employee Master Data</h1>
           <p className="text-muted-foreground">Sign in to manage your workforce</p>
         </div>
