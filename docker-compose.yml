@@ -12,6 +12,7 @@ services:
       BACKEND_PORT: "${BACKEND_PORT:-8083}"
       FRONTEND_URL: "http://localhost:9100"
       FRONTEND_URLS: "http://localhost:9100,http://127.0.0.1:9100"
+      CORS_ALLOW_ALL: "true"
     ports:
       - "${BACKEND_PORT:-8083}:8083"
     networks:

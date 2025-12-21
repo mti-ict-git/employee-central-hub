@@ -12,7 +12,7 @@ app.use(express.json());
 app.use(
   cors({
     origin(origin, callback) {
-      // Allow requests with no origin (like mobile apps or curl)
+      if (CONFIG.CORS_ALLOW_ALL) return callback(null, true);
       if (!origin) return callback(null, true);
       const allowed = new Set([CONFIG.FRONTEND_URL, ...CONFIG.FRONTEND_URLS]);
       if (allowed.has(origin)) return callback(null, true);

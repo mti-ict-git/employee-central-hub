@@ -26,6 +26,7 @@ export const CONFIG = {
       "http://localhost:5173",
       "http://127.0.0.1:5173",
     ]),
+  CORS_ALLOW_ALL: (process.env.CORS_ALLOW_ALL || "false").toLowerCase() === "true",
 
   JWT_SECRET: env("JWT_SECRET"),
   JWT_EXPIRES_IN: process.env.JWT_EXPIRES_IN || "24h",
