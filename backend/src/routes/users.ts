@@ -2,9 +2,12 @@ import { Router } from "express";
 import sql from "mssql";
 import { CONFIG } from "../config";
 import crypto from "crypto";
+import { authMiddleware } from "../middleware/auth";
+import { canManageUsers, canCreateRole } from "../policy";
 
 export const usersRouter = Router();
 
+usersRouter.use(authMiddleware);
 function getPool() {
   return new sql.ConnectionPool({
     server: CONFIG.DB.SERVER,
@@ -65,6 +68,7 @@ usersRouter.get("/", async (req, res) => {
 });
 
 usersRouter.post("/", async (req, res) => {
+  const actorRoles = req.user?.roles || [];
   const body = req.body || {};
   const username = String(body.username || "").trim();
   const displayName = String(body.displayName || body.name || "").trim();
@@ -82,6 +86,9 @@ usersRouter.post("/", async (req, res) => {
   }
   if (source === "LOCAL" && passwordInput.length < 8) {
     return res.status(400).json({ error: "PASSWORD_MIN_LENGTH_8" });
+  }
+  if (!actorRoles.some((r) => canCreateRole(r, role))) {
+    return res.status(403).json({ error: "FORBIDDEN_CREATE_ROLE" });
   }
   const pool = getPool();
   try {
@@ -167,9 +174,13 @@ usersRouter.get("/:id", async (req, res) => {
 });
 
 usersRouter.put("/:id/role", async (req, res) => {
+  const actorRoles = req.user?.roles || [];
   const id = parseInt(String(req.params.id || "0"), 10);
   const role = String((req.body && req.body.role) || "").trim();
   if (!id || !role) return res.status(400).json({ error: "USER_ID_AND_ROLE_REQUIRED" });
+  if (!actorRoles.some((r) => canCreateRole(r, role))) {
+    return res.status(403).json({ error: "FORBIDDEN_UPDATE_ROLE" });
+  }
   const pool = getPool();
   try {
     await pool.connect();
@@ -187,12 +198,16 @@ usersRouter.put("/:id/role", async (req, res) => {
 });
 
 usersRouter.put("/:id", async (req, res) => {
+  const actorRoles = req.user?.roles || [];
   const id = parseInt(String(req.params.id || "0"), 10);
   const body = req.body || {};
   const displayName = String(body.displayName || body.name || "").trim();
   const role = String(body.role || "").trim();
   const department = String(body.department || "").trim();
   const status = String(body.status || "").toLowerCase(); // "active" | "inactive"
+  if (!actorRoles.some((r) => canManageUsers(r))) {
+    return res.status(403).json({ error: "FORBIDDEN_UPDATE_USER" });
+  }
   if (!id) return res.status(400).json({ error: "USER_ID_REQUIRED" });
   const pool = getPool();
   try {
@@ -224,9 +239,13 @@ usersRouter.put("/:id", async (req, res) => {
 });
 
 usersRouter.put("/:id/lock", async (req, res) => {
+  const actorRoles = req.user?.roles || [];
   const id = parseInt(String(req.params.id || "0"), 10);
   const lock = Boolean(req.body && req.body.lock);
   const until = req.body && req.body.locked_until ? new Date(req.body.locked_until) : null;
+  if (!actorRoles.some((r) => canManageUsers(r))) {
+    return res.status(403).json({ error: "FORBIDDEN_UPDATE_LOCK" });
+  }
   if (!id) return res.status(400).json({ error: "USER_ID_REQUIRED" });
   const pool = getPool();
   try {
@@ -246,7 +265,11 @@ usersRouter.put("/:id/lock", async (req, res) => {
 });
 
 usersRouter.delete("/:id", async (req, res) => {
+  const actorRoles = req.user?.roles || [];
   const id = parseInt(String(req.params.id || "0"), 10);
+  if (!actorRoles.some((r) => canManageUsers(r))) {
+    return res.status(403).json({ error: "FORBIDDEN_DELETE_USER" });
+  }
   if (!id) return res.status(400).json({ error: "USER_ID_REQUIRED" });
   const pool = getPool();
   try {
@@ -264,8 +287,12 @@ usersRouter.delete("/:id", async (req, res) => {
 });
 
 usersRouter.post("/:id/reset-password", async (req, res) => {
+  const actorRoles = req.user?.roles || [];
   const id = parseInt(String(req.params.id || "0"), 10);
   const newPassword = String((req.body && req.body.password) || "").trim();
+  if (!actorRoles.some((r) => canManageUsers(r))) {
+    return res.status(403).json({ error: "FORBIDDEN_RESET_PASSWORD" });
+  }
   if (!id || !newPassword) return res.status(400).json({ error: "USER_ID_AND_PASSWORD_REQUIRED" });
   const pool = getPool();
   try {

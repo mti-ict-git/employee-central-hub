@@ -1,9 +1,30 @@
 import { Router } from "express";
 import sql from "mssql";
 import { CONFIG } from "../config";
+import { authMiddleware } from "../middleware/auth";
+import { can, readSectionsFor } from "../policy";
 
 export const employeesRouter = Router();
 
+employeesRouter.use(authMiddleware);
+
+employeesRouter.use((req, res, next) => {
+  const roles = req.user?.roles || [];
+  if (req.method === "GET") return next();
+  if (req.method === "POST") {
+    if (roles.some((r) => can(r, "create", "employees"))) return next();
+    return res.status(403).json({ error: "FORBIDDEN_CREATE_EMPLOYEE" });
+  }
+  if (req.method === "PUT" || req.method === "PATCH") {
+    if (roles.some((r) => can(r, "update", "employees"))) return next();
+    return res.status(403).json({ error: "FORBIDDEN_UPDATE_EMPLOYEE" });
+  }
+  if (req.method === "DELETE") {
+    if (roles.some((r) => can(r, "delete", "employees"))) return next();
+    return res.status(403).json({ error: "FORBIDDEN_DELETE_EMPLOYEE" });
+  }
+  return next();
+});
 function getPool() {
   return new sql.ConnectionPool({
     server: CONFIG.DB.SERVER,
@@ -914,7 +935,14 @@ employeesRouter.get("/:id", async (req, res) => {
       },
       type: (String(r.nationality || "").toLowerCase() === "indonesia" ? "indonesia" : "expatriate") as "indonesia" | "expatriate",
     };
-    return res.json(payload);
+    const roles = req.user?.roles || [];
+    const allowed = new Set<string>();
+    for (const role of roles) for (const s of Array.from(readSectionsFor(role))) allowed.add(s);
+    const filtered: Record<string, unknown> = {};
+    for (const k of Object.keys(payload as Record<string, unknown>)) {
+      if (allowed.has(k)) (filtered as Record<string, unknown>)[k] = (payload as Record<string, unknown>)[k];
+    }
+    return res.json(filtered);
   } catch (err: unknown) {
     const message = err instanceof Error ? err.message : "FAILED_TO_QUERY_EMPLOYEE";
     return res.status(500).json({ error: message });

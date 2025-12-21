@@ -5,6 +5,11 @@ import { authRouter } from "./routes/auth";
 import { mappingRouter } from "./routes/mapping";
 import { employeesRouter } from "./routes/employees";
 import { usersRouter } from "./routes/users";
+import { reportsRouter } from "./routes/reports";
+import { rbacRouter } from "./routes/rbac";
+import { Router } from "express";
+import { authMiddleware, requireRole } from "./middleware/auth";
+import { can } from "./policy";
 
 const app = express();
 
@@ -27,6 +32,8 @@ app.use("/api/auth", authRouter);
 app.use("/api/mapping", mappingRouter);
 app.use("/api/employees", employeesRouter);
 app.use("/api/users", usersRouter);
+app.use("/api/reports", reportsRouter);
+app.use("/api/rbac", rbacRouter);
 
 app.listen(CONFIG.PORT, () => {
   console.log(`Backend server listening on http://localhost:${CONFIG.PORT}`);

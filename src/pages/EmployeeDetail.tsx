@@ -18,6 +18,7 @@ import {
   StickyNote
 } from "lucide-react";
 import { cn } from "@/lib/utils";
+import { useRBAC } from "@/hooks/useRBAC";
 
 const InfoRow = ({ label, value }: { label: string; value?: string | boolean | null }) => {
   if (value === undefined || value === null || value === '') return null;
@@ -48,6 +49,7 @@ const SectionCard = ({ title, icon: Icon, children }: { title: string; icon: Rea
 
 const EmployeeDetail = () => {
   const { id } = useParams();
+  const { caps } = useRBAC();
   const [employee, setEmployee] = useState<Employee | null>(null);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
@@ -110,12 +112,14 @@ const EmployeeDetail = () => {
             Back to List
           </Link>
         </Button>
-        <Button asChild>
-          <Link to={`/employees/${id}/edit`}>
-            <Pencil className="mr-2 h-4 w-4" />
-            Edit Employee
-          </Link>
-        </Button>
+        {caps?.canUpdateEmployees && (
+          <Button asChild>
+            <Link to={`/employees/${id}/edit`}>
+              <Pencil className="mr-2 h-4 w-4" />
+              Edit Employee
+            </Link>
+          </Button>
+        )}
       </div>
 
       {/* Employee Header Card */}

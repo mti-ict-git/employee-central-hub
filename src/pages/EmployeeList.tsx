@@ -7,6 +7,7 @@ import { Plus, Download, Upload } from "lucide-react";
 import { Link, useSearchParams } from "react-router-dom";
 import type { Employee } from "@/types/employee";
 import { toast } from "@/hooks/use-toast";
+import { useRBAC } from "@/hooks/useRBAC";
 
 const EmployeeList = () => {
   const [searchParams] = useSearchParams();
@@ -17,6 +18,7 @@ const EmployeeList = () => {
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [selected, setSelected] = useState<Set<string>>(new Set());
+  const { caps } = useRBAC();
 
   useEffect(() => {
     const ctrl = new AbortController();
@@ -160,18 +162,22 @@ const EmployeeList = () => {
       {/* Header Actions */}
       <div className="flex flex-wrap items-center justify-between gap-4 mb-6">
         <div className="flex items-center gap-2">
-          <Button asChild>
-            <Link to="/employees/new">
-              <Plus className="mr-2 h-4 w-4" />
-              Add Employee
-            </Link>
-          </Button>
-          <Button variant="outline" asChild>
-            <Link to="/employees/import">
-              <Upload className="mr-2 h-4 w-4" />
-              Import
-            </Link>
-          </Button>
+          {caps?.canCreateEmployees && (
+            <>
+              <Button asChild>
+                <Link to="/employees/new">
+                  <Plus className="mr-2 h-4 w-4" />
+                  Add Employee
+                </Link>
+              </Button>
+              <Button variant="outline" asChild>
+                <Link to="/employees/import">
+                  <Upload className="mr-2 h-4 w-4" />
+                  Import
+                </Link>
+              </Button>
+            </>
+          )}
           <Button variant="outline">
             <Download className="mr-2 h-4 w-4" />
             Export
@@ -184,7 +190,7 @@ const EmployeeList = () => {
           <Button variant="outline" onClick={() => setSelected(new Set())}>
             Clear Selection
           </Button>
-          <Button variant="destructive" onClick={handleBulkDelete} disabled={selected.size === 0}>
+          <Button variant="destructive" onClick={handleBulkDelete} disabled={selected.size === 0 || !caps?.canDeleteEmployees}>
             Delete Selected ({selected.size})
           </Button>
         </div>

@@ -13,6 +13,7 @@ import { Eye, Pencil, Trash } from "lucide-react";
 import { Link } from "react-router-dom";
 import { cn } from "@/lib/utils";
 import { Checkbox } from "@/components/ui/checkbox";
+import { useRBAC } from "@/hooks/useRBAC";
 
 interface EmployeeTableProps {
   employees: Employee[];
@@ -24,6 +25,7 @@ interface EmployeeTableProps {
 }
 
 export function EmployeeTable({ employees, onDelete, selectable = false, selected, onToggleSelect, onToggleAll }: EmployeeTableProps) {
+  const { caps } = useRBAC();
   return (
     <div className="rounded-xl border border-border bg-card shadow-card overflow-hidden">
       <Table>
@@ -99,12 +101,14 @@ export function EmployeeTable({ employees, onDelete, selectable = false, selecte
                       <Eye className="h-4 w-4" />
                     </Link>
                   </Button>
-                  <Button variant="ghost" size="icon" asChild>
-                    <Link to={`/employees/${employee.core.employee_id}/edit`}>
-                      <Pencil className="h-4 w-4" />
-                    </Link>
-                  </Button>
-                  {onDelete && (
+                  {caps?.canUpdateEmployees && (
+                    <Button variant="ghost" size="icon" asChild>
+                      <Link to={`/employees/${employee.core.employee_id}/edit`}>
+                        <Pencil className="h-4 w-4" />
+                      </Link>
+                    </Button>
+                  )}
+                  {onDelete && caps?.canDeleteEmployees && (
                     <Button
                       variant="ghost"
                       size="icon"

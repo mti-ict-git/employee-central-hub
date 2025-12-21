@@ -11,6 +11,7 @@ import AddEmployee from "./pages/AddEmployee";
 import ImportEmployees from "./pages/ImportEmployees";
 import Settings from "./pages/Settings";
 import UserManagement from "./pages/UserManagement";
+import AdminPermissions from "./pages/AdminPermissions";
 import Auth from "./pages/Auth";
 import NotFound from "./pages/NotFound";
 import RequireAuth from "./components/auth/RequireAuth";
@@ -88,6 +89,16 @@ const App = () => (
               <RequireAuth>
                 <RequireRole allowed={["admin", "superadmin"]}>
                   <UserManagement />
+                </RequireRole>
+              </RequireAuth>
+            }
+          />
+          <Route
+            path="/settings/admin-permissions"
+            element={
+              <RequireAuth>
+                <RequireRole allowed={["admin", "superadmin"]}>
+                  <AdminPermissions />
                 </RequireRole>
               </RequireAuth>
             }

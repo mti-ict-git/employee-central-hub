@@ -93,6 +93,7 @@ const Auth = () => {
           displayName: mockUser.displayName,
           email: `${mockUser.username}@dev.local`,
           role: mockUser.role,
+          roles: [mockUser.role],
         };
         localStorage.setItem("auth_token", `dev-mock-token-${mockUser.role}`);
         localStorage.setItem("auth_user", JSON.stringify(user));
@@ -121,6 +122,7 @@ const Auth = () => {
       const userWithRole = {
         ...data.user,
         role: primaryRole,
+        roles: Array.isArray(data.user.roles) ? data.user.roles : [primaryRole],
       };
       localStorage.setItem("auth_user", JSON.stringify(userWithRole));
       const roleInfo = ROLE_LABELS[primaryRole];

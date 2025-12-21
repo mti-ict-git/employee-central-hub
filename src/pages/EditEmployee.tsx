@@ -24,6 +24,7 @@ import {
   StickyNote,
   Loader2
 } from "lucide-react";
+import { useRBAC } from "@/hooks/useRBAC";
 
 const FormField = ({ 
   label, 
@@ -88,6 +89,13 @@ const EditEmployee = () => {
   const [loading, setLoading] = useState(false);
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const { caps } = useRBAC();
+  const canWrite = (section: string, column?: string) => {
+    if (!caps) return false;
+    if (column) return caps.canColumn(section, column, "write");
+    return caps.writeSections.has(section);
+  };
+  const canReadSection = (section: string) => caps ? caps.readSections.has(section) : true;
 
   useEffect(() => {
     const ctrl = new AbortController();
@@ -261,7 +269,7 @@ const EditEmployee = () => {
             Back to Details
           </Link>
         </Button>
-        <Button onClick={handleSave} disabled={saving}>
+        <Button onClick={handleSave} disabled={saving || !(caps?.canUpdateEmployees)}>
           {saving ? (
             <Loader2 className="mr-2 h-4 w-4 animate-spin" />
           ) : (
@@ -274,38 +282,54 @@ const EditEmployee = () => {
       {/* Tabs */}
       <Tabs defaultValue="personal" className="animate-fade-in">
         <TabsList className="mb-6 w-full justify-start overflow-x-auto">
+          {canReadSection("core") && (
           <TabsTrigger value="personal" className="gap-2">
             <User className="h-4 w-4" />
             Personal
           </TabsTrigger>
+          )}
+          {canReadSection("contact") && (
           <TabsTrigger value="contact" className="gap-2">
             <Phone className="h-4 w-4" />
             Contact
           </TabsTrigger>
+          )}
+          {canReadSection("employment") && (
           <TabsTrigger value="employment" className="gap-2">
             <Briefcase className="h-4 w-4" />
             Employment
           </TabsTrigger>
+          )}
+          {canReadSection("bank") && (
           <TabsTrigger value="bank" className="gap-2">
             <CreditCard className="h-4 w-4" />
             Bank
           </TabsTrigger>
+          )}
+          {canReadSection("insurance") && (
           <TabsTrigger value="insurance" className="gap-2">
             <Shield className="h-4 w-4" />
             Insurance
           </TabsTrigger>
+          )}
+          {canReadSection("travel") && (
           <TabsTrigger value="travel" className="gap-2">
             <Plane className="h-4 w-4" />
             Travel
           </TabsTrigger>
+          )}
+          {canReadSection("checklist") && (
           <TabsTrigger value="checklist" className="gap-2">
             <CheckSquare className="h-4 w-4" />
             Checklist
           </TabsTrigger>
+          )}
+          {canReadSection("notes") && (
           <TabsTrigger value="notes" className="gap-2">
             <StickyNote className="h-4 w-4" />
             Notes
           </TabsTrigger>
+          )}
         </TabsList>
 
         <TabsContent value="personal">
@@ -317,8 +341,8 @@ const EditEmployee = () => {
               </CardHeader>
               <CardContent className="space-y-4">
                 <FormField label="Employee ID" value={employee.core.employee_id} onChange={(v) => updateCore('employee_id', v)} disabled />
-                <FormField label="IMIP ID" value={employee.core.imip_id} onChange={(v) => updateCore('imip_id', v)} />
-                <FormField label="Name" value={employee.core.name} onChange={(v) => updateCore('name', v)} />
+                <FormField label="IMIP ID" value={employee.core.imip_id} onChange={(v) => updateCore('imip_id', v)} disabled={!canWrite('core','imip_id')} />
+                <FormField label="Name" value={employee.core.name} onChange={(v) => updateCore('name', v)} disabled={!canWrite('core','name')} />
                 <SelectField 
                   label="Gender" 
                   value={employee.core.gender} 
@@ -328,8 +352,8 @@ const EditEmployee = () => {
                     { value: 'Female', label: 'Female' },
                   ]}
                 />
-                <FormField label="Place of Birth" value={employee.core.place_of_birth} onChange={(v) => updateCore('place_of_birth', v)} />
-                <FormField label="Date of Birth" value={employee.core.date_of_birth} onChange={(v) => updateCore('date_of_birth', v)} type="date" />
+                <FormField label="Place of Birth" value={employee.core.place_of_birth} onChange={(v) => updateCore('place_of_birth', v)} disabled={!canWrite('core','place_of_birth')} />
+                <FormField label="Date of Birth" value={employee.core.date_of_birth} onChange={(v) => updateCore('date_of_birth', v)} type="date" disabled={!canWrite('core','date_of_birth')} />
                 <SelectField 
                   label="Marital Status" 
                   value={employee.core.marital_status} 
@@ -341,9 +365,9 @@ const EditEmployee = () => {
                     { value: 'Widowed', label: 'Widowed' },
                   ]}
                 />
-                <FormField label="Religion" value={employee.core.religion} onChange={(v) => updateCore('religion', v)} />
-                <FormField label="Nationality" value={employee.core.nationality} onChange={(v) => updateCore('nationality', v)} />
-                <FormField label="Blood Type" value={employee.core.blood_type} onChange={(v) => updateCore('blood_type', v)} />
+                <FormField label="Religion" value={employee.core.religion} onChange={(v) => updateCore('religion', v)} disabled={!canWrite('core','religion')} />
+                <FormField label="Nationality" value={employee.core.nationality} onChange={(v) => updateCore('nationality', v)} disabled={!canWrite('core','nationality')} />
+                <FormField label="Blood Type" value={employee.core.blood_type} onChange={(v) => updateCore('blood_type', v)} disabled={!canWrite('core','blood_type')} />
               </CardContent>
             </Card>
             <Card>
@@ -352,12 +376,12 @@ const EditEmployee = () => {
                 <CardDescription>ID numbers and documents</CardDescription>
               </CardHeader>
               <CardContent className="space-y-4">
-                <FormField label="KTP No" value={employee.core.ktp_no} onChange={(v) => updateCore('ktp_no', v)} />
-                <FormField label="Kartu Keluarga No" value={employee.core.kartu_keluarga_no} onChange={(v) => updateCore('kartu_keluarga_no', v)} />
-                <FormField label="NPWP" value={employee.core.npwp} onChange={(v) => updateCore('npwp', v)} />
-                <FormField label="Tax Status" value={employee.core.tax_status} onChange={(v) => updateCore('tax_status', v)} />
-                <FormField label="Education" value={employee.core.education} onChange={(v) => updateCore('education', v)} />
-                <FormField label="Office Email" value={employee.core.office_email} onChange={(v) => updateCore('office_email', v)} type="email" />
+                <FormField label="KTP No" value={employee.core.ktp_no} onChange={(v) => updateCore('ktp_no', v)} disabled={!canWrite('core','ktp_no')} />
+                <FormField label="Kartu Keluarga No" value={employee.core.kartu_keluarga_no} onChange={(v) => updateCore('kartu_keluarga_no', v)} disabled={!canWrite('core','kartu_keluarga_no')} />
+                <FormField label="NPWP" value={employee.core.npwp} onChange={(v) => updateCore('npwp', v)} disabled={!canWrite('core','npwp')} />
+                <FormField label="Tax Status" value={employee.core.tax_status} onChange={(v) => updateCore('tax_status', v)} disabled={!canWrite('core','tax_status')} />
+                <FormField label="Education" value={employee.core.education} onChange={(v) => updateCore('education', v)} disabled={!canWrite('core','education')} />
+                <FormField label="Office Email" value={employee.core.office_email} onChange={(v) => updateCore('office_email', v)} type="email" disabled={!canWrite('core','office_email')} />
               </CardContent>
             </Card>
           </div>
@@ -370,10 +394,10 @@ const EditEmployee = () => {
                 <CardTitle>Contact Information</CardTitle>
               </CardHeader>
               <CardContent className="space-y-4">
-                <FormField label="Phone Number" value={employee.contact.phone_number} onChange={(v) => updateContact('phone_number', v)} />
-                <FormField label="Email" value={employee.contact.email} onChange={(v) => updateContact('email', v)} type="email" />
-                <FormField label="Address" value={employee.contact.address} onChange={(v) => updateContact('address', v)} />
-                <FormField label="City" value={employee.contact.city} onChange={(v) => updateContact('city', v)} />
+                <FormField label="Phone Number" value={employee.contact.phone_number} onChange={(v) => updateContact('phone_number', v)} disabled={!canWrite('contact','phone_number')} />
+                <FormField label="Email" value={employee.contact.email} onChange={(v) => updateContact('email', v)} type="email" disabled={!canWrite('contact','email')} />
+                <FormField label="Address" value={employee.contact.address} onChange={(v) => updateContact('address', v)} disabled={!canWrite('contact','address')} />
+                <FormField label="City" value={employee.contact.city} onChange={(v) => updateContact('city', v)} disabled={!canWrite('contact','city')} />
               </CardContent>
             </Card>
             <Card>
@@ -381,12 +405,12 @@ const EditEmployee = () => {
                 <CardTitle>Family & Emergency</CardTitle>
               </CardHeader>
               <CardContent className="space-y-4">
-                <FormField label="Spouse Name" value={employee.contact.spouse_name} onChange={(v) => updateContact('spouse_name', v)} />
-                <FormField label="Child Name 1" value={employee.contact.child_name_1} onChange={(v) => updateContact('child_name_1', v)} />
-                <FormField label="Child Name 2" value={employee.contact.child_name_2} onChange={(v) => updateContact('child_name_2', v)} />
-                <FormField label="Child Name 3" value={employee.contact.child_name_3} onChange={(v) => updateContact('child_name_3', v)} />
-                <FormField label="Emergency Contact Name" value={employee.contact.emergency_contact_name} onChange={(v) => updateContact('emergency_contact_name', v)} />
-                <FormField label="Emergency Contact Phone" value={employee.contact.emergency_contact_phone} onChange={(v) => updateContact('emergency_contact_phone', v)} />
+                <FormField label="Spouse Name" value={employee.contact.spouse_name} onChange={(v) => updateContact('spouse_name', v)} disabled={!canWrite('contact','spouse_name')} />
+                <FormField label="Child Name 1" value={employee.contact.child_name_1} onChange={(v) => updateContact('child_name_1', v)} disabled={!canWrite('contact','child_name_1')} />
+                <FormField label="Child Name 2" value={employee.contact.child_name_2} onChange={(v) => updateContact('child_name_2', v)} disabled={!canWrite('contact','child_name_2')} />
+                <FormField label="Child Name 3" value={employee.contact.child_name_3} onChange={(v) => updateContact('child_name_3', v)} disabled={!canWrite('contact','child_name_3')} />
+                <FormField label="Emergency Contact Name" value={employee.contact.emergency_contact_name} onChange={(v) => updateContact('emergency_contact_name', v)} disabled={!canWrite('contact','emergency_contact_name')} />
+                <FormField label="Emergency Contact Phone" value={employee.contact.emergency_contact_phone} onChange={(v) => updateContact('emergency_contact_phone', v)} disabled={!canWrite('contact','emergency_contact_phone')} />
               </CardContent>
             </Card>
           </div>
@@ -421,11 +445,11 @@ const EditEmployee = () => {
                     { value: 'Terminated', label: 'Terminated' },
                   ]}
                 />
-                <FormField label="Division" value={employee.employment.division} onChange={(v) => updateEmployment('division', v)} />
-                <FormField label="Department" value={employee.employment.department} onChange={(v) => updateEmployment('department', v)} />
-                <FormField label="Section" value={employee.employment.section} onChange={(v) => updateEmployment('section', v)} />
-                <FormField label="Job Title" value={employee.employment.job_title} onChange={(v) => updateEmployment('job_title', v)} />
-                <FormField label="Grade" value={employee.employment.grade} onChange={(v) => updateEmployment('grade', v)} />
+                <FormField label="Division" value={employee.employment.division} onChange={(v) => updateEmployment('division', v)} disabled={!canWrite('employment','division')} />
+                <FormField label="Department" value={employee.employment.department} onChange={(v) => updateEmployment('department', v)} disabled={!canWrite('employment','department')} />
+                <FormField label="Section" value={employee.employment.section} onChange={(v) => updateEmployment('section', v)} disabled={!canWrite('employment','section')} />
+                <FormField label="Job Title" value={employee.employment.job_title} onChange={(v) => updateEmployment('job_title', v)} disabled={!canWrite('employment','job_title')} />
+                <FormField label="Grade" value={employee.employment.grade} onChange={(v) => updateEmployment('grade', v)} disabled={!canWrite('employment','grade')} />
                 <SelectField 
                   label="Position Grade" 
                   value={employee.employment.position_grade} 
@@ -444,8 +468,8 @@ const EditEmployee = () => {
                 <CardTitle>Work Details</CardTitle>
               </CardHeader>
               <CardContent className="space-y-4">
-                <FormField label="Company Office" value={employee.employment.company_office} onChange={(v) => updateEmployment('company_office', v)} />
-                <FormField label="Work Location" value={employee.employment.work_location} onChange={(v) => updateEmployment('work_location', v)} />
+                <FormField label="Company Office" value={employee.employment.company_office} onChange={(v) => updateEmployment('company_office', v)} disabled={!canWrite('employment','company_office')} />
+                <FormField label="Work Location" value={employee.employment.work_location} onChange={(v) => updateEmployment('work_location', v)} disabled={!canWrite('employment','work_location')} />
                 <SelectField 
                   label="Locality Status" 
                   value={employee.employment.locality_status} 
@@ -456,8 +480,8 @@ const EditEmployee = () => {
                     { value: 'Overseas', label: 'Overseas' },
                   ]}
                 />
-                <FormField label="Direct Report" value={employee.employment.direct_report} onChange={(v) => updateEmployment('direct_report', v)} />
-                <FormField label="Group Job Title" value={employee.employment.group_job_title} onChange={(v) => updateEmployment('group_job_title', v)} />
+                <FormField label="Direct Report" value={employee.employment.direct_report} onChange={(v) => updateEmployment('direct_report', v)} disabled={!canWrite('employment','direct_report')} />
+                <FormField label="Group Job Title" value={employee.employment.group_job_title} onChange={(v) => updateEmployment('group_job_title', v)} disabled={!canWrite('employment','group_job_title')} />
               </CardContent>
             </Card>
             <Card>
@@ -465,12 +489,12 @@ const EditEmployee = () => {
                 <CardTitle>Onboarding</CardTitle>
               </CardHeader>
               <CardContent className="space-y-4">
-                <FormField label="Point of Hire" value={employee.onboard.point_of_hire} onChange={(v) => updateOnboard('point_of_hire', v)} />
-                <FormField label="Point of Origin" value={employee.onboard.point_of_origin} onChange={(v) => updateOnboard('point_of_origin', v)} />
-                <FormField label="Schedule Type" value={employee.onboard.schedule_type} onChange={(v) => updateOnboard('schedule_type', v)} />
-                <FormField label="First Join Date" value={employee.onboard.first_join_date} onChange={(v) => updateOnboard('first_join_date', v)} type="date" />
-                <FormField label="Join Date" value={employee.onboard.join_date} onChange={(v) => updateOnboard('join_date', v)} type="date" />
-                <FormField label="End Contract" value={employee.onboard.end_contract} onChange={(v) => updateOnboard('end_contract', v)} type="date" />
+                <FormField label="Point of Hire" value={employee.onboard.point_of_hire} onChange={(v) => updateOnboard('point_of_hire', v)} disabled={!canWrite('onboard','point_of_hire')} />
+                <FormField label="Point of Origin" value={employee.onboard.point_of_origin} onChange={(v) => updateOnboard('point_of_origin', v)} disabled={!canWrite('onboard','point_of_origin')} />
+                <FormField label="Schedule Type" value={employee.onboard.schedule_type} onChange={(v) => updateOnboard('schedule_type', v)} disabled={!canWrite('onboard','schedule_type')} />
+                <FormField label="First Join Date" value={employee.onboard.first_join_date} onChange={(v) => updateOnboard('first_join_date', v)} type="date" disabled={!canWrite('onboard','first_join_date')} />
+                <FormField label="Join Date" value={employee.onboard.join_date} onChange={(v) => updateOnboard('join_date', v)} type="date" disabled={!canWrite('onboard','join_date')} />
+                <FormField label="End Contract" value={employee.onboard.end_contract} onChange={(v) => updateOnboard('end_contract', v)} type="date" disabled={!canWrite('onboard','end_contract')} />
               </CardContent>
             </Card>
           </div>
@@ -483,12 +507,12 @@ const EditEmployee = () => {
               <CardDescription>Bank account details for payroll</CardDescription>
             </CardHeader>
             <CardContent className="space-y-4">
-              <FormField label="Bank Name" value={employee.bank.bank_name} onChange={(v) => updateBank('bank_name', v)} />
-              <FormField label="Account Name" value={employee.bank.account_name} onChange={(v) => updateBank('account_name', v)} />
-              <FormField label="Account No" value={employee.bank.account_no} onChange={(v) => updateBank('account_no', v)} />
-              <FormField label="Bank Code" value={employee.bank.bank_code} onChange={(v) => updateBank('bank_code', v)} />
-              <FormField label="ICBC Account No" value={employee.bank.icbc_bank_account_no} onChange={(v) => updateBank('icbc_bank_account_no', v)} />
-              <FormField label="ICBC Username" value={employee.bank.icbc_username} onChange={(v) => updateBank('icbc_username', v)} />
+              <FormField label="Bank Name" value={employee.bank.bank_name} onChange={(v) => updateBank('bank_name', v)} disabled={!canWrite('bank','bank_name')} />
+              <FormField label="Account Name" value={employee.bank.account_name} onChange={(v) => updateBank('account_name', v)} disabled={!canWrite('bank','account_name')} />
+              <FormField label="Account No" value={employee.bank.account_no} onChange={(v) => updateBank('account_no', v)} disabled={!canWrite('bank','account_no')} />
+              <FormField label="Bank Code" value={employee.bank.bank_code} onChange={(v) => updateBank('bank_code', v)} disabled={!canWrite('bank','bank_code')} />
+              <FormField label="ICBC Account No" value={employee.bank.icbc_bank_account_no} onChange={(v) => updateBank('icbc_bank_account_no', v)} disabled={!canWrite('bank','icbc_bank_account_no')} />
+              <FormField label="ICBC Username" value={employee.bank.icbc_username} onChange={(v) => updateBank('icbc_username', v)} disabled={!canWrite('bank','icbc_username')} />
             </CardContent>
           </Card>
         </TabsContent>
@@ -500,8 +524,8 @@ const EditEmployee = () => {
                 <CardTitle>Insurance Numbers</CardTitle>
               </CardHeader>
               <CardContent className="space-y-4">
-                <FormField label="BPJS TK No" value={employee.insurance.bpjs_tk} onChange={(v) => updateInsurance('bpjs_tk', v)} />
-                <FormField label="BPJS KES No" value={employee.insurance.bpjs_kes} onChange={(v) => updateInsurance('bpjs_kes', v)} />
+                <FormField label="BPJS TK No" value={employee.insurance.bpjs_tk} onChange={(v) => updateInsurance('bpjs_tk', v)} disabled={!canWrite('insurance','bpjs_tk')} />
+                <FormField label="BPJS KES No" value={employee.insurance.bpjs_kes} onChange={(v) => updateInsurance('bpjs_kes', v)} disabled={!canWrite('insurance','bpjs_kes')} />
                 <SelectField 
                   label="Status BPJS KES" 
                   value={employee.insurance.status_bpjs_kes} 
@@ -513,8 +537,8 @@ const EditEmployee = () => {
                     { value: 'Not Registered', label: 'Not Registered' },
                   ]}
                 />
-                <FormField label="FPG No" value={employee.insurance.fpg_no} onChange={(v) => updateInsurance('fpg_no', v)} />
-                <FormField label="Owlexa No" value={employee.insurance.owlexa_no} onChange={(v) => updateInsurance('owlexa_no', v)} />
+                <FormField label="FPG No" value={employee.insurance.fpg_no} onChange={(v) => updateInsurance('fpg_no', v)} disabled={!canWrite('insurance','fpg_no')} />
+                <FormField label="Owlexa No" value={employee.insurance.owlexa_no} onChange={(v) => updateInsurance('owlexa_no', v)} disabled={!canWrite('insurance','owlexa_no')} />
               </CardContent>
             </Card>
             <Card>
@@ -522,8 +546,8 @@ const EditEmployee = () => {
                 <CardTitle>Alternative Numbers</CardTitle>
               </CardHeader>
               <CardContent className="space-y-4">
-                <FormField label="Social Insurance No (Alt)" value={employee.insurance.social_insurance_no_alt} onChange={(v) => updateInsurance('social_insurance_no_alt', v)} />
-                <FormField label="BPJS KES No (Alt)" value={employee.insurance.bpjs_kes_no_alt} onChange={(v) => updateInsurance('bpjs_kes_no_alt', v)} />
+                <FormField label="Social Insurance No (Alt)" value={employee.insurance.social_insurance_no_alt} onChange={(v) => updateInsurance('social_insurance_no_alt', v)} disabled={!canWrite('insurance','social_insurance_no_alt')} />
+                <FormField label="BPJS KES No (Alt)" value={employee.insurance.bpjs_kes_no_alt} onChange={(v) => updateInsurance('bpjs_kes_no_alt', v)} disabled={!canWrite('insurance','bpjs_kes_no_alt')} />
               </CardContent>
             </Card>
           </div>
@@ -536,12 +560,12 @@ const EditEmployee = () => {
                 <CardTitle>Travel Documents</CardTitle>
               </CardHeader>
               <CardContent className="space-y-4">
-                <FormField label="Passport No" value={employee.travel.passport_no} onChange={(v) => updateTravel('passport_no', v)} />
-                <FormField label="Name as Passport" value={employee.travel.name_as_passport} onChange={(v) => updateTravel('name_as_passport', v)} />
-                <FormField label="Passport Expiry" value={employee.travel.passport_expiry} onChange={(v) => updateTravel('passport_expiry', v)} type="date" />
-                <FormField label="KITAS No" value={employee.travel.kitas_no} onChange={(v) => updateTravel('kitas_no', v)} />
-                <FormField label="KITAS Expiry" value={employee.travel.kitas_expiry} onChange={(v) => updateTravel('kitas_expiry', v)} type="date" />
-                <FormField label="KITAS Address" value={employee.travel.kitas_address} onChange={(v) => updateTravel('kitas_address', v)} />
+                <FormField label="Passport No" value={employee.travel.passport_no} onChange={(v) => updateTravel('passport_no', v)} disabled={!canWrite('travel','passport_no')} />
+                <FormField label="Name as Passport" value={employee.travel.name_as_passport} onChange={(v) => updateTravel('name_as_passport', v)} disabled={!canWrite('travel','name_as_passport')} />
+                <FormField label="Passport Expiry" value={employee.travel.passport_expiry} onChange={(v) => updateTravel('passport_expiry', v)} type="date" disabled={!canWrite('travel','passport_expiry')} />
+                <FormField label="KITAS No" value={employee.travel.kitas_no} onChange={(v) => updateTravel('kitas_no', v)} disabled={!canWrite('travel','kitas_no')} />
+                <FormField label="KITAS Expiry" value={employee.travel.kitas_expiry} onChange={(v) => updateTravel('kitas_expiry', v)} type="date" disabled={!canWrite('travel','kitas_expiry')} />
+                <FormField label="KITAS Address" value={employee.travel.kitas_address} onChange={(v) => updateTravel('kitas_address', v)} disabled={!canWrite('travel','kitas_address')} />
               </CardContent>
             </Card>
             <Card>
@@ -549,12 +573,12 @@ const EditEmployee = () => {
                 <CardTitle>Work Permits</CardTitle>
               </CardHeader>
               <CardContent className="space-y-4">
-                <FormField label="IMTA" value={employee.travel.imta} onChange={(v) => updateTravel('imta', v)} />
-                <FormField label="RPTKA No" value={employee.travel.rptka_no} onChange={(v) => updateTravel('rptka_no', v)} />
-                <FormField label="RPTKA Position" value={employee.travel.rptka_position} onChange={(v) => updateTravel('rptka_position', v)} />
-                <FormField label="Job Title (KITAS)" value={employee.travel.job_title_kitas} onChange={(v) => updateTravel('job_title_kitas', v)} />
-                <FormField label="Travel In" value={employee.travel.travel_in} onChange={(v) => updateTravel('travel_in', v)} type="date" />
-                <FormField label="Travel Out" value={employee.travel.travel_out} onChange={(v) => updateTravel('travel_out', v)} type="date" />
+                <FormField label="IMTA" value={employee.travel.imta} onChange={(v) => updateTravel('imta', v)} disabled={!canWrite('travel','imta')} />
+                <FormField label="RPTKA No" value={employee.travel.rptka_no} onChange={(v) => updateTravel('rptka_no', v)} disabled={!canWrite('travel','rptka_no')} />
+                <FormField label="RPTKA Position" value={employee.travel.rptka_position} onChange={(v) => updateTravel('rptka_position', v)} disabled={!canWrite('travel','rptka_position')} />
+                <FormField label="Job Title (KITAS)" value={employee.travel.job_title_kitas} onChange={(v) => updateTravel('job_title_kitas', v)} disabled={!canWrite('travel','job_title_kitas')} />
+                <FormField label="Travel In" value={employee.travel.travel_in} onChange={(v) => updateTravel('travel_in', v)} type="date" disabled={!canWrite('travel','travel_in')} />
+                <FormField label="Travel Out" value={employee.travel.travel_out} onChange={(v) => updateTravel('travel_out', v)} type="date" disabled={!canWrite('travel','travel_out')} />
               </CardContent>
             </Card>
           </div>
@@ -590,7 +614,7 @@ const EditEmployee = () => {
               <CardTitle>Notes & Batch</CardTitle>
             </CardHeader>
             <CardContent className="space-y-4">
-              <FormField label="Batch" value={employee.notes.batch} onChange={(v) => updateNotes('batch', v)} />
+              <FormField label="Batch" value={employee.notes.batch} onChange={(v) => updateNotes('batch', v)} disabled={!canWrite('notes','batch')} />
               <div className="space-y-2">
                 <Label className="text-sm font-medium">Notes</Label>
                 <Textarea 
@@ -599,6 +623,7 @@ const EditEmployee = () => {
                   rows={6}
                   placeholder="Add notes about this employee..."
                   className="bg-background"
+                  disabled={!canWrite('notes','note')}
                 />
               </div>
             </CardContent>

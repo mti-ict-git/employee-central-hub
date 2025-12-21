@@ -10,6 +10,7 @@ import {
 } from "lucide-react";
 import { Link, useLocation } from "react-router-dom";
 import { useEffect, useState, type ComponentType } from "react";
+import { useRBAC } from "@/hooks/useRBAC";
 
 type IconType = ComponentType<{ className?: string }>;
 
@@ -45,6 +46,7 @@ const navigation: NavItem[] = [
 export function Sidebar() {
   const location = useLocation();
   const [role, setRole] = useState<string | null>(null);
+  const { caps } = useRBAC();
 
   useEffect(() => {
     try {
@@ -79,6 +81,7 @@ export function Sidebar() {
             if (!item.children && item.href) {
               const isActive = location.pathname === item.href ||
                 (item.href !== '/' && location.pathname.startsWith(item.href));
+              if (item.name === 'Reports' && caps && !caps.canAccessReport) return null;
               return (
                 <Link
                   key={item.name}
@@ -97,10 +100,17 @@ export function Sidebar() {
             }
 
             // Grouped section
-            const visibleChildren = (item.children || []).filter((child) => {
+            let visibleChildren = (item.children || []).filter((child) => {
               if (!child.roles || child.roles.length === 0) return true;
               return role ? child.roles.includes(role) : false;
             });
+            if (item.name === 'Employee Management' && caps) {
+              visibleChildren = visibleChildren.filter((child) => {
+                if (child.href === '/employees/new') return caps.canCreateEmployees;
+                if (child.href === '/employees/import') return caps.canCreateEmployees;
+                return true;
+              });
+            }
 
             if (visibleChildren.length === 0) return null;
 
