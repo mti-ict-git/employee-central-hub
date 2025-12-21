@@ -4,6 +4,7 @@ COPY package.json package-lock.json* ./
 RUN npm ci --no-audit --no-fund
 
 COPY tsconfig*.json vite.config.ts tailwind.config.ts ./
+COPY index.html ./
 COPY src ./src
 COPY public ./public
 
