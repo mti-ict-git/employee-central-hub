@@ -142,14 +142,13 @@ const Auth = () => {
     <div className="min-h-screen flex items-center justify-center bg-gradient-to-br from-background via-background to-muted/30 p-4">
       <div className="w-full max-w-md">
         <div className="text-center mb-8">
-          <img src="/mti-logo.png" alt="Merdeka Group" className="mx-auto mb-4 h-12" />
           <h1 className="text-3xl font-bold text-foreground mb-2">Employee Master Data</h1>
           <p className="text-muted-foreground">Sign in to manage your workforce</p>
         </div>
 
         <Card className="border-border/50 shadow-xl">
-          <CardHeader className="space-y-1 pb-4">
-            <CardTitle className="text-2xl font-semibold text-center">Welcome Back</CardTitle>
+          <CardHeader className="space-y-3 pb-4">
+            <img src="/mti-logo.png" alt="Merdeka Group" className="mx-auto h-24 md:h-28" />
             <CardDescription className="text-center">
               Enter your credentials to access your account
             </CardDescription>
