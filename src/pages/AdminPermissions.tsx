@@ -1,6 +1,7 @@
 import { MainLayout } from "@/components/layout/MainLayout";
 import { useEffect, useState } from "react";
 import { fetchPermissions, RolePermission } from "@/lib/rbac";
+import { apiFetch } from "@/lib/api";
 import { Button } from "@/components/ui/button";
 
 export default function AdminPermissions() {
@@ -27,7 +28,7 @@ export default function AdminPermissions() {
     const modules: ("employees"|"users"|"reports")[] = action === "manage_users" ? ["users"] : action === "export" ? ["reports"] : ["employees"];
     const allowed = !check(role, action);
     for (const module of modules) {
-      await fetch(`/api/rbac/permissions`, {
+      await apiFetch(`/rbac/permissions`, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         credentials: "include",

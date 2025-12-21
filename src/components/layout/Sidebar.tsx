@@ -39,9 +39,10 @@ const navigation: NavItem[] = [
     children: [
       { name: 'General', href: '/settings', icon: SettingsIcon },
       { name: 'User Management', href: '/settings/users', icon: Users, roles: ['admin', 'superadmin'] },
+      { name: 'Admin Permissions', href: '/settings/admin-permissions', icon: SettingsIcon, roles: ['admin', 'superadmin'] },
     ],
   },
-];
+]; 
 
 export function Sidebar() {
   const location = useLocation();

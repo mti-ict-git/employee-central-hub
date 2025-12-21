@@ -3,6 +3,7 @@ export type ActionName = "read" | "create" | "update" | "delete" | "manage_users
 
 export type RolePermission = { role: string; module: ModuleName; action: ActionName; allowed: boolean };
 export type ColumnAccess = { role: string; section: string; column: string; read: boolean; write: boolean };
+import { apiFetch } from "@/lib/api";
 
 const defaultPermissions: RolePermission[] = [
   { role: "superadmin", module: "employees", action: "read", allowed: true },
@@ -46,7 +47,7 @@ const defaultWriteSections: Record<string, string[]> = {
 
 export async function fetchPermissions(): Promise<RolePermission[]> {
   try {
-    const res = await fetch(`/api/rbac/permissions`, { credentials: "include" });
+    const res = await apiFetch(`/rbac/permissions`, { credentials: "include" });
     if (res.ok) return await res.json();
   } catch (err) {
     return defaultPermissions;
@@ -56,7 +57,7 @@ export async function fetchPermissions(): Promise<RolePermission[]> {
 
 export async function fetchColumnAccess(): Promise<ColumnAccess[]> {
   try {
-    const res = await fetch(`/api/rbac/columns`, { credentials: "include" });
+    const res = await apiFetch(`/rbac/columns`, { credentials: "include" });
     if (res.ok) return await res.json();
   } catch (err) {
     return [];
