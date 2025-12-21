@@ -100,8 +100,11 @@ const EditEmployee = () => {
           signal: ctrl.signal, 
           credentials: "include" 
         });
-        if (!res.ok) throw new Error(`HTTP_${res.status}`);
-        const data = await res.json();
+        const data = await res.json().catch(() => null);
+        if (!res.ok) {
+          const msg = data?.error || `HTTP_${res.status}`;
+          throw new Error(msg);
+        }
         setEmployee({
           core: data.core,
           contact: data.contact,
@@ -114,8 +117,8 @@ const EditEmployee = () => {
           notes: data.notes,
           type: data.type,
         });
-      } catch (err: any) {
-        setError(err?.message || "FAILED_TO_FETCH_EMPLOYEE");
+      } catch (err: unknown) {
+        setError(err instanceof Error ? err.message : "FAILED_TO_FETCH_EMPLOYEE");
       } finally {
         setLoading(false);
       }
@@ -135,18 +138,22 @@ const EditEmployee = () => {
         credentials: 'include',
         body: JSON.stringify(employee),
       });
-      
-      if (!res.ok) throw new Error(`HTTP_${res.status}`);
+      const data = await res.json().catch(() => null);
+      if (!res.ok) {
+        const detail = data?.details ? ` (${JSON.stringify(data.details)})` : "";
+        const msg = (data?.error || `HTTP_${res.status}`) + detail;
+        throw new Error(msg);
+      }
       
       toast({
         title: "Success",
         description: "Employee updated successfully",
       });
       navigate(`/employees/${id}`);
-    } catch (err: any) {
+    } catch (err: unknown) {
       toast({
         title: "Error",
-        description: err?.message || "Failed to save employee",
+        description: err instanceof Error ? err.message : "Failed to save employee",
         variant: "destructive",
       });
     } finally {
@@ -154,37 +161,57 @@ const EditEmployee = () => {
     }
   };
 
-  const updateCore = (key: keyof Employee['core'], value: any) => {
+  const isGender = (v: string): v is Employee['core']['gender'] => v === 'Male' || v === 'Female';
+  const isMaritalStatus = (v: string): v is Employee['core']['marital_status'] => (
+    v === 'Single' || v === 'Married' || v === 'Divorced' || v === 'Widowed'
+  );
+  const isEmploymentStatus = (v: string): v is Employee['employment']['employment_status'] => (
+    v === 'Permanent' || v === 'Contract' || v === 'Probation' || v === 'Internship'
+  );
+  const isEmploymentActiveStatus = (v: string): v is Employee['employment']['status'] => (
+    v === 'Active' || v === 'Inactive' || v === 'Resign' || v === 'Terminated'
+  );
+  const isLocalityStatus = (v: string): v is Employee['employment']['locality_status'] => (
+    v === 'Local' || v === 'Non Local' || v === 'Overseas'
+  );
+  const isPositionGrade = (v: string): v is Employee['employment']['position_grade'] => (
+    v === 'Staff' || v === 'NonStaff' || v === 'Supervisor' || v === 'Manager'
+  );
+  const isBpjsKesStatus = (v: string): v is Employee['insurance']['status_bpjs_kes'] => (
+    v === 'Active' || v === 'Non Active' || v === 'PBI' || v === 'Not Registered'
+  );
+
+  const updateCore = <K extends keyof Employee['core']>(key: K, value: Employee['core'][K]) => {
     if (!employee) return;
     setEmployee({ ...employee, core: { ...employee.core, [key]: value } });
   };
 
-  const updateContact = (key: keyof Employee['contact'], value: any) => {
+  const updateContact = <K extends keyof Employee['contact']>(key: K, value: Employee['contact'][K]) => {
     if (!employee) return;
     setEmployee({ ...employee, contact: { ...employee.contact, [key]: value } });
   };
 
-  const updateEmployment = (key: keyof Employee['employment'], value: any) => {
+  const updateEmployment = <K extends keyof Employee['employment']>(key: K, value: Employee['employment'][K]) => {
     if (!employee) return;
     setEmployee({ ...employee, employment: { ...employee.employment, [key]: value } });
   };
 
-  const updateBank = (key: keyof Employee['bank'], value: any) => {
+  const updateBank = <K extends keyof Employee['bank']>(key: K, value: Employee['bank'][K]) => {
     if (!employee) return;
     setEmployee({ ...employee, bank: { ...employee.bank, [key]: value } });
   };
 
-  const updateInsurance = (key: keyof Employee['insurance'], value: any) => {
+  const updateInsurance = <K extends keyof Employee['insurance']>(key: K, value: Employee['insurance'][K]) => {
     if (!employee) return;
     setEmployee({ ...employee, insurance: { ...employee.insurance, [key]: value } });
   };
 
-  const updateTravel = (key: keyof Employee['travel'], value: any) => {
+  const updateTravel = <K extends keyof Employee['travel']>(key: K, value: Employee['travel'][K]) => {
     if (!employee) return;
     setEmployee({ ...employee, travel: { ...employee.travel, [key]: value } });
   };
 
-  const updateOnboard = (key: keyof Employee['onboard'], value: any) => {
+  const updateOnboard = <K extends keyof Employee['onboard']>(key: K, value: Employee['onboard'][K]) => {
     if (!employee) return;
     setEmployee({ ...employee, onboard: { ...employee.onboard, [key]: value } });
   };
@@ -194,7 +221,7 @@ const EditEmployee = () => {
     setEmployee({ ...employee, checklist: { ...employee.checklist, [key]: value } });
   };
 
-  const updateNotes = (key: keyof Employee['notes'], value: any) => {
+  const updateNotes = <K extends keyof Employee['notes']>(key: K, value: Employee['notes'][K]) => {
     if (!employee) return;
     setEmployee({ ...employee, notes: { ...employee.notes, [key]: value } });
   };
@@ -295,7 +322,7 @@ const EditEmployee = () => {
                 <SelectField 
                   label="Gender" 
                   value={employee.core.gender} 
-                  onChange={(v) => updateCore('gender', v)}
+                  onChange={(v) => updateCore('gender', isGender(v) ? v : employee.core.gender)}
                   options={[
                     { value: 'Male', label: 'Male' },
                     { value: 'Female', label: 'Female' },
@@ -306,7 +333,7 @@ const EditEmployee = () => {
                 <SelectField 
                   label="Marital Status" 
                   value={employee.core.marital_status} 
-                  onChange={(v) => updateCore('marital_status', v)}
+                  onChange={(v) => updateCore('marital_status', isMaritalStatus(v) ? v : employee.core.marital_status)}
                   options={[
                     { value: 'Single', label: 'Single' },
                     { value: 'Married', label: 'Married' },
@@ -375,7 +402,7 @@ const EditEmployee = () => {
                 <SelectField 
                   label="Employment Status" 
                   value={employee.employment.employment_status} 
-                  onChange={(v) => updateEmployment('employment_status', v)}
+                  onChange={(v) => updateEmployment('employment_status', isEmploymentStatus(v) ? v : employee.employment.employment_status)}
                   options={[
                     { value: 'Permanent', label: 'Permanent' },
                     { value: 'Contract', label: 'Contract' },
@@ -386,7 +413,7 @@ const EditEmployee = () => {
                 <SelectField 
                   label="Status" 
                   value={employee.employment.status} 
-                  onChange={(v) => updateEmployment('status', v)}
+                  onChange={(v) => updateEmployment('status', isEmploymentActiveStatus(v) ? v : employee.employment.status)}
                   options={[
                     { value: 'Active', label: 'Active' },
                     { value: 'Inactive', label: 'Inactive' },
@@ -402,7 +429,7 @@ const EditEmployee = () => {
                 <SelectField 
                   label="Position Grade" 
                   value={employee.employment.position_grade} 
-                  onChange={(v) => updateEmployment('position_grade', v)}
+                  onChange={(v) => updateEmployment('position_grade', isPositionGrade(v) ? v : employee.employment.position_grade)}
                   options={[
                     { value: 'Staff', label: 'Staff' },
                     { value: 'NonStaff', label: 'Non-Staff' },
@@ -422,7 +449,7 @@ const EditEmployee = () => {
                 <SelectField 
                   label="Locality Status" 
                   value={employee.employment.locality_status} 
-                  onChange={(v) => updateEmployment('locality_status', v)}
+                  onChange={(v) => updateEmployment('locality_status', isLocalityStatus(v) ? v : employee.employment.locality_status)}
                   options={[
                     { value: 'Local', label: 'Local' },
                     { value: 'Non Local', label: 'Non Local' },
@@ -478,7 +505,7 @@ const EditEmployee = () => {
                 <SelectField 
                   label="Status BPJS KES" 
                   value={employee.insurance.status_bpjs_kes} 
-                  onChange={(v) => updateInsurance('status_bpjs_kes', v)}
+                  onChange={(v) => updateInsurance('status_bpjs_kes', isBpjsKesStatus(v) ? v : employee.insurance.status_bpjs_kes)}
                   options={[
                     { value: 'Active', label: 'Active' },
                     { value: 'Non Active', label: 'Non Active' },

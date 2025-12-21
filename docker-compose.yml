@@ -1,0 +1,41 @@
+version: "3.9"
+
+services:
+  api:
+    build:
+      context: .
+      dockerfile: backend/Dockerfile
+    container_name: employee-hub-api
+    env_file:
+      - ./.env
+    environment:
+      BACKEND_PORT: "${BACKEND_PORT:-8083}"
+      FRONTEND_URL: "http://localhost:8080"
+    ports:
+      - "${BACKEND_PORT:-8083}:8083"
+    networks:
+      - app-net
+    healthcheck:
+      test: ["CMD", "wget", "-qO-", "http://localhost:8083/api/health"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+
+  web:
+    build:
+      context: .
+      dockerfile: Dockerfile.web
+      args:
+        VITE_API_URL: "/api"
+    container_name: employee-hub-web
+    depends_on:
+      - api
+    ports:
+      - "8080:80"
+    networks:
+      - app-net
+
+networks:
+  app-net:
+    driver: bridge
+

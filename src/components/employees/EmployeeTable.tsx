@@ -9,20 +9,34 @@ import {
   TableHeader,
   TableRow,
 } from "@/components/ui/table";
-import { Eye, Pencil } from "lucide-react";
+import { Eye, Pencil, Trash } from "lucide-react";
 import { Link } from "react-router-dom";
 import { cn } from "@/lib/utils";
+import { Checkbox } from "@/components/ui/checkbox";
 
 interface EmployeeTableProps {
   employees: Employee[];
+  onDelete?: (employeeId: string) => void;
+  selectable?: boolean;
+  selected?: Set<string>;
+  onToggleSelect?: (employeeId: string, checked: boolean) => void;
+  onToggleAll?: (checked: boolean) => void;
 }
 
-export function EmployeeTable({ employees }: EmployeeTableProps) {
+export function EmployeeTable({ employees, onDelete, selectable = false, selected, onToggleSelect, onToggleAll }: EmployeeTableProps) {
   return (
     <div className="rounded-xl border border-border bg-card shadow-card overflow-hidden">
       <Table>
         <TableHeader>
           <TableRow className="bg-muted/50">
+            {selectable && (
+              <TableHead className="w-10">
+                <Checkbox
+                  checked={selected && employees.every((e) => selected.has(e.core.employee_id)) && employees.length > 0}
+                  onCheckedChange={(v) => onToggleAll && onToggleAll(Boolean(v))}
+                />
+              </TableHead>
+            )}
             <TableHead className="font-semibold">Employee ID</TableHead>
             <TableHead className="font-semibold">Name</TableHead>
             <TableHead className="font-semibold">Type</TableHead>
@@ -38,6 +52,14 @@ export function EmployeeTable({ employees }: EmployeeTableProps) {
               key={employee.core.employee_id}
               className="transition-colors hover:bg-muted/30"
             >
+              {selectable && (
+                <TableCell>
+                  <Checkbox
+                    checked={selected ? selected.has(employee.core.employee_id) : false}
+                    onCheckedChange={(v) => onToggleSelect && onToggleSelect(employee.core.employee_id, Boolean(v))}
+                  />
+                </TableCell>
+              )}
               <TableCell className="font-medium text-primary">
                 {employee.core.employee_id}
               </TableCell>
@@ -77,9 +99,24 @@ export function EmployeeTable({ employees }: EmployeeTableProps) {
                       <Eye className="h-4 w-4" />
                     </Link>
                   </Button>
-                  <Button variant="ghost" size="icon">
-                    <Pencil className="h-4 w-4" />
+                  <Button variant="ghost" size="icon" asChild>
+                    <Link to={`/employees/${employee.core.employee_id}/edit`}>
+                      <Pencil className="h-4 w-4" />
+                    </Link>
                   </Button>
+                  {onDelete && (
+                    <Button
+                      variant="ghost"
+                      size="icon"
+                      onClick={() => {
+                        const ok = window.confirm(`Delete employee ${employee.core.employee_id}?`);
+                        if (!ok) return;
+                        onDelete(employee.core.employee_id);
+                      }}
+                    >
+                      <Trash className="h-4 w-4" />
+                    </Button>
+                  )}
                 </div>
               </TableCell>
             </TableRow>

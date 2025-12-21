@@ -11,7 +11,7 @@ export default defineConfig(({ mode }) => ({
     strictPort: true,
     proxy: {
       "/api": {
-        target: "http://localhost:8083",
+        target: `http://localhost:${process.env.BACKEND_PORT || process.env.SERVER_PORT || "8083"}`,
         changeOrigin: true,
       },
     },

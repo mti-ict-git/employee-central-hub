@@ -4,6 +4,7 @@ import { CONFIG } from "./config";
 import { authRouter } from "./routes/auth";
 import { mappingRouter } from "./routes/mapping";
 import { employeesRouter } from "./routes/employees";
+import { usersRouter } from "./routes/users";
 
 const app = express();
 
@@ -25,6 +26,7 @@ app.get("/api/health", (_req, res) => res.json({ ok: true }));
 app.use("/api/auth", authRouter);
 app.use("/api/mapping", mappingRouter);
 app.use("/api/employees", employeesRouter);
+app.use("/api/users", usersRouter);
 
 app.listen(CONFIG.PORT, () => {
   console.log(`Backend server listening on http://localhost:${CONFIG.PORT}`);

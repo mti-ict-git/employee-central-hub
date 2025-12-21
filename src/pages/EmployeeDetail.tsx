@@ -59,7 +59,7 @@ const EmployeeDetail = () => {
       try {
         setLoading(true);
         setError(null);
-        const res = await fetch(`http://localhost:${8083}/api/employees/${encodeURIComponent(id)}`, { signal: ctrl.signal, credentials: "include" });
+        const res = await fetch(`/api/employees/${encodeURIComponent(id)}`, { signal: ctrl.signal, credentials: "include" });
         if (!res.ok) throw new Error(`HTTP_${res.status}`);
         const data = await res.json();
         const normalized: Employee = {
@@ -75,8 +75,8 @@ const EmployeeDetail = () => {
           type: data.type,
         };
         setEmployee(normalized);
-      } catch (err: any) {
-        setError(err?.message || "FAILED_TO_FETCH_EMPLOYEE");
+      } catch (err: unknown) {
+        setError(err instanceof Error ? err.message : "FAILED_TO_FETCH_EMPLOYEE");
       } finally {
         setLoading(false);
       }

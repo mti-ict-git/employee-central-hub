@@ -2,13 +2,81 @@ import { MainLayout } from "@/components/layout/MainLayout";
 import { StatCard } from "@/components/dashboard/StatCard";
 import { EmployeeTable } from "@/components/employees/EmployeeTable";
 import { Button } from "@/components/ui/button";
-import { mockEmployees, getEmployeeStats } from "@/data/mockEmployees";
+import { Employee } from "@/types/employee";
+import { useEffect, useState } from "react";
 import { Users, UserCheck, UserX, Globe, MapPin, ArrowRight } from "lucide-react";
 import { Link } from "react-router-dom";
+import { toast } from "@/hooks/use-toast";
 
 const Index = () => {
-  const stats = getEmployeeStats();
-  const recentEmployees = mockEmployees.slice(0, 5);
+  const [employees, setEmployees] = useState<Employee[]>([]);
+  const [stats, setStats] = useState({ total: 0, active: 0, inactive: 0, indonesia: 0, expat: 0 });
+  useEffect(() => {
+    const ctrl = new AbortController();
+    const run = async () => {
+      try {
+        const res = await fetch(`/api/employees?limit=500`, { signal: ctrl.signal, credentials: "include" });
+        if (!res.ok) return;
+        const data = await res.json();
+        const items = Array.isArray(data.items) ? data.items : [];
+        const mapped: Employee[] = items.map((e: { core: { employee_id: string; name: string; nationality?: string | null }; employment: { department?: string | null; status?: string | null }; type?: string }) => ({
+          core: { employee_id: e.core.employee_id, name: e.core.name, nationality: e.core.nationality || "", imip_id: "", branch: "", branch_id: "" },
+          contact: { phone_number: "", email: "", address: "", city: "", spouse_name: "", child_name_1: "", child_name_2: "", child_name_3: "", emergency_contact_name: "", emergency_contact_phone: "" },
+          employment: { employment_status: "", status: e.employment.status || "Active", division: "", department: e.employment.department || "", section: "", job_title: "", grade: "", position_grade: "", group_job_title: "", direct_report: "", company_office: "", work_location: "", locality_status: "", terminated_date: "", terminated_type: "", terminated_reason: "", blacklist_mti: false, blacklist_imip: false },
+          onboard: { point_of_hire: "", point_of_origin: "", schedule_type: "", first_join_date_merdeka: "", transfer_merdeka: "", first_join_date: "", join_date: "", end_contract: "", years_in_service: "" },
+          bank: { employee_id: e.core.employee_id, bank_name: "", account_name: "", account_no: "", bank_code: "", icbc_bank_account_no: "", icbc_username: "" },
+          insurance: { employee_id: e.core.employee_id, insurance_endorsement: false, insurance_owlexa: false, insurance_fpg: false, bpjs_tk: "", bpjs_kes: "", status_bpjs_kes: undefined, social_insurance_no_alt: "", bpjs_kes_no_alt: "", fpg_no: "", owlexa_no: "" },
+          travel: { employee_id: e.core.employee_id, kitas_no: "", passport_no: "", travel_in: "", travel_out: "", name_as_passport: "", passport_expiry: "", kitas_expiry: "", imta: "", rptka_no: "", rptka_position: "", kitas_address: "", job_title_kitas: "" },
+          checklist: { employee_id: e.core.employee_id, passport_checklist: false, kitas_checklist: false, imta_checklist: false, rptka_checklist: false, npwp_checklist: false, bpjs_kes_checklist: false, bpjs_tk_checklist: false, bank_checklist: false },
+          notes: { employee_id: e.core.employee_id, batch: "", note: "" },
+          type: (e.type === "indonesia" ? "indonesia" : "expat"),
+        }));
+        setEmployees(mapped);
+        const total = mapped.length;
+        const active = mapped.filter((m) => m.employment.status === "Active").length;
+        const inactive = total - active;
+        const indonesia = mapped.filter((m) => m.type === "indonesia").length;
+        const expat = total - indonesia;
+        setStats({ total, active, inactive, indonesia, expat });
+      } catch {
+        setEmployees([]);
+        setStats({ total: 0, active: 0, inactive: 0, indonesia: 0, expat: 0 });
+      }
+    };
+    run();
+    return () => ctrl.abort();
+  }, []);
+  const recentEmployees = employees.slice(0, 5);
+  const deptCounts: Record<string, number> = employees.reduce((acc, e) => {
+    const d = (e.employment.department || "-").trim() || "-";
+    acc[d] = (acc[d] || 0) + 1;
+    return acc;
+  }, {} as Record<string, number>);
+  const topDepartments = Object.entries(deptCounts).sort((a, b) => b[1] - a[1]).slice(0, 6);
+  const handleDelete = async (employeeId: string) => {
+    try {
+      const res = await fetch(`/api/employees/${encodeURIComponent(employeeId)}`, {
+        method: "DELETE",
+        credentials: "include",
+      });
+      if (!res.ok) {
+        const data = await res.json().catch(() => null);
+        const msg = data?.error || `HTTP_${res.status}`;
+        throw new Error(msg);
+      }
+      const next = employees.filter((e) => e.core.employee_id !== employeeId);
+      setEmployees(next);
+      const total = next.length;
+      const active = next.filter((m) => m.employment.status === "Active").length;
+      const inactive = total - active;
+      const indonesia = next.filter((m) => m.type === "indonesia").length;
+      const expat = total - indonesia;
+      setStats({ total, active, inactive, indonesia, expat });
+      toast({ title: "Deleted", description: `Employee ${employeeId} deleted` });
+    } catch (err: unknown) {
+      toast({ title: "Error", description: err instanceof Error ? err.message : "Failed to delete", variant: "destructive" });
+    }
+  };
 
   return (
     <MainLayout title="Dashboard" subtitle="Employee Master Data Overview">
@@ -55,7 +123,7 @@ const Index = () => {
               </Link>
             </Button>
           </div>
-          <EmployeeTable employees={recentEmployees} />
+          <EmployeeTable employees={recentEmployees} onDelete={handleDelete} />
         </div>
 
         <div className="space-y-4 animate-fade-in" style={{ animationDelay: '0.2s' }}>
@@ -106,9 +174,8 @@ const Index = () => {
           <div className="rounded-xl border border-border bg-card p-4 shadow-card">
             <h3 className="font-medium mb-3">Department Distribution</h3>
             <div className="space-y-2">
-              {['ICT', 'Engineering', 'Finance', 'Operation'].map((dept) => {
-                const count = mockEmployees.filter(e => e.employment.division === dept).length;
-                const percentage = (count / stats.total) * 100;
+              {topDepartments.map(([dept, count]) => {
+                const percentage = stats.total ? (count / stats.total) * 100 : 0;
                 return (
                   <div key={dept}>
                     <div className="flex justify-between text-sm mb-1">
