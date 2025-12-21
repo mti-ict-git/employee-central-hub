@@ -13,4 +13,4 @@ COPY --from=build /app/backend/node_modules ./node_modules
 COPY --from=build /app/backend/dist ./dist
 
 EXPOSE 8083
-CMD ["node", "dist/server.js"]
+CMD ["node", "dist/src/server.js"]
