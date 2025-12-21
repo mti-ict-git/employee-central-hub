@@ -72,6 +72,7 @@ Docker Deployment
 - Configure environment
   - Copy `.env.example` to `.env` and fill DB, LDAP, and JWT values
   - Key vars: `DB_SERVER`, `DB_DATABASE`, `DB_USER`, `DB_PASSWORD`, `JWT_SECRET`, `LDAP_*`
+  - Do not commit `.env` — it’s ignored by `.gitignore`
 - Build and start
   - `docker compose build`
   - `docker compose up -d`
@@ -91,6 +92,7 @@ Advanced notes
 - To change ports, edit `docker-compose.yml` mappings
 - Frontend calls `/api/...`; Nginx handles proxy to the backend
 - Domain users are auto-provisioned on first AD login based on `LDAP_GROUP_*` settings
+- Never store secrets in the frontend or commit them to the repo; use environment variables at runtime
 
 ## Can I connect a custom domain to my Lovable project?
 

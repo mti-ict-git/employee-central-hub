@@ -1,0 +1,8 @@
+#!/bin/sh
+FILES="$(git diff --cached --name-only)"
+if echo "$FILES" | grep -E '(^|/)\.env($|\.|/)' >/dev/null 2>&1; then
+  echo "Error: .env files are blocked from commits. Use .env.example and runtime env injection."
+  exit 1
+fi
+exit 0
+
