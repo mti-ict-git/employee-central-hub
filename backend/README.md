@@ -1,19 +1,18 @@
 # Backend
 
-This folder is reserved for the server-side codebase.
+Docker Deployment
 
-Proposed stack (confirm your preferences):
-
-- Node.js + Express (TypeScript)
-- ORM: Prisma (against Postgres/Supabase) or Sequelize
-- API: REST or GraphQL
-- Auth: Supabase Auth or JWT (your choice)
-
-Next steps once preferences are confirmed:
-
-- Initialize TypeScript project (`tsconfig.json`), linting, and scripts
-- Define API routes (e.g., `/api/employees`) and validation schemas
-- Configure database connection and schema migrations
-- Add Docker config if needed for dev/prod parity
-
-Please let me know your choices and I’ll scaffold the backend accordingly.
+- Build and run
+  - `docker compose build`
+  - `docker compose up -d`
+- API
+  - Health: `http://localhost:8083/api/health`
+  - CORS is configured to allow `http://localhost:8080`
+- Environment
+  - `.env` in repo root is loaded by the backend container
+  - Required: `DB_SERVER`, `DB_DATABASE`, `DB_USER`, `DB_PASSWORD`
+  - Auth: `JWT_SECRET`, `JWT_EXPIRES_IN`
+  - LDAP: `LDAP_URL`, `LDAP_BASE_DN`, `LDAP_BIND_DN`, `LDAP_BIND_PASSWORD`, `LDAP_GROUP_*`
+- Notes
+  - Domain users are auto-provisioned on successful AD login
+  - Local users can be created from the UI

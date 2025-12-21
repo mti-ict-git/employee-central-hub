@@ -62,7 +62,35 @@ This project is built with:
 
 ## How can I deploy this project?
 
-Simply open [Lovable](https://lovable.dev/projects/REPLACE_WITH_PROJECT_ID) and click on Share -> Publish.
+You can deploy with Docker using the included Compose setup.
+
+Docker Deployment
+
+- Prerequisites
+  - Install Docker Desktop
+  - Ensure your SQL Server and LDAP endpoints are reachable from containers
+- Configure environment
+  - Copy `.env.example` to `.env` and fill DB, LDAP, and JWT values
+  - Key vars: `DB_SERVER`, `DB_DATABASE`, `DB_USER`, `DB_PASSWORD`, `JWT_SECRET`, `LDAP_*`
+- Build and start
+  - `docker compose build`
+  - `docker compose up -d`
+- Access
+  - Web: `http://localhost:8080`
+  - API health: `http://localhost:8083/api/health`
+- Containers
+  - `web`: Nginx serving the built frontend; proxies `/api` to `api:8083`
+  - `api`: Node/Express backend; loads `.env` and connects to SQL Server
+- Logs and control
+  - `docker compose logs -f api`
+  - `docker compose logs -f web`
+  - `docker compose down`
+
+Advanced notes
+
+- To change ports, edit `docker-compose.yml` mappings
+- Frontend calls `/api/...`; Nginx handles proxy to the backend
+- Domain users are auto-provisioned on first AD login based on `LDAP_GROUP_*` settings
 
 ## Can I connect a custom domain to my Lovable project?
 

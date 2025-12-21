@@ -6,7 +6,6 @@ import { BrowserRouter, Routes, Route } from "react-router-dom";
 import Index from "./pages/Index";
 import EmployeeList from "./pages/EmployeeList";
 import EmployeeDetail from "./pages/EmployeeDetail";
-import EditEmployee from "./pages/EditEmployee";
 import AddEmployee from "./pages/AddEmployee";
 import ImportEmployees from "./pages/ImportEmployees";
 import Settings from "./pages/Settings";
@@ -15,6 +14,7 @@ import Auth from "./pages/Auth";
 import NotFound from "./pages/NotFound";
 import RequireAuth from "./components/auth/RequireAuth";
 import RequireRole from "./components/auth/RequireRole";
+
 const queryClient = new QueryClient();
 
 const App = () => (
@@ -62,14 +62,6 @@ const App = () => (
             element={
               <RequireAuth>
                 <EmployeeDetail />
-              </RequireAuth>
-            }
-          />
-          <Route
-            path="/employees/:id/edit"
-            element={
-              <RequireAuth>
-                <EditEmployee />
               </RequireAuth>
             }
           />
