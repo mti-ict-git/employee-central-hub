@@ -7,6 +7,7 @@ import { useEffect, useState } from "react";
 import { Users, UserCheck, UserX, Globe, MapPin, ArrowRight } from "lucide-react";
 import { Link } from "react-router-dom";
 import { toast } from "@/hooks/use-toast";
+import { apiFetch } from "@/lib/api";
 
 const Index = () => {
   const [employees, setEmployees] = useState<Employee[]>([]);
@@ -15,7 +16,7 @@ const Index = () => {
     const ctrl = new AbortController();
     const run = async () => {
       try {
-        const res = await fetch(`/api/employees?limit=500`, { signal: ctrl.signal, credentials: "include" });
+        const res = await apiFetch(`/employees?limit=500`, { signal: ctrl.signal, credentials: "include" });
         if (!res.ok) return;
         const data = await res.json();
         const items = Array.isArray(data.items) ? data.items : [];
@@ -55,7 +56,7 @@ const Index = () => {
   const topDepartments = Object.entries(deptCounts).sort((a, b) => b[1] - a[1]).slice(0, 6);
   const handleDelete = async (employeeId: string) => {
     try {
-      const res = await fetch(`/api/employees/${encodeURIComponent(employeeId)}`, {
+      const res = await apiFetch(`/employees/${encodeURIComponent(employeeId)}`, {
         method: "DELETE",
         credentials: "include",
       });

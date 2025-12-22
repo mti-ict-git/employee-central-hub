@@ -14,15 +14,16 @@ export default function RequireRole({ allowed, children }: RequireRoleProps) {
   try {
     const stored = typeof window !== "undefined" ? localStorage.getItem("auth_user") : null;
     const parsed = stored ? JSON.parse(stored) : null;
-    role = parsed?.role ?? null;
-    roles = Array.isArray(parsed?.roles) ? parsed.roles : (role ? [role] : []);
+    role = parsed?.role ? String(parsed.role).toLowerCase() : null;
+    roles = Array.isArray(parsed?.roles) ? parsed.roles.map((r: string) => String(r).toLowerCase()) : (role ? [role] : []);
   } catch {
     role = null;
     roles = [];
   }
   if (!roles.length) return <Navigate to="/" replace />;
 
-  if (!roles.some((r) => allowed.includes(r))) {
+  const allowedNorm = allowed.map((a) => a.toLowerCase());
+  if (!roles.some((r) => allowedNorm.includes(r))) {
     // Provide a subtle feedback, then redirect
     toast({
       title: "Access denied",

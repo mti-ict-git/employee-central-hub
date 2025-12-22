@@ -21,27 +21,218 @@ function getPool() {
 
 rbacRouter.use(authMiddleware);
 
+async function scanColumns(pool: sql.ConnectionPool, table: string) {
+  const res = await new sql.Request(pool).query(`
+    SELECT COLUMN_NAME
+    FROM INFORMATION_SCHEMA.COLUMNS
+    WHERE TABLE_SCHEMA='dbo' AND TABLE_NAME='${table}'
+  `);
+  return (res.recordset || []).map((r) => String((r as { COLUMN_NAME: string }).COLUMN_NAME).toLowerCase());
+}
+
+function normalizeRoleName(role: string) {
+  const s = String(role || "").trim().toLowerCase();
+  if (s.includes("super")) return "superadmin";
+  if (s === "admin") return "admin";
+  if (s.includes("hr")) return "hr_general";
+  if (s.includes("finance")) return "finance";
+  if (s.includes("dep")) return "dep_rep";
+  if (s.includes("employee")) return "employee";
+  return s;
+}
+
+async function ensureRolePermissionsSchema(pool: sql.ConnectionPool) {
+  const cols = await scanColumns(pool, "role_permissions");
+  const ops: string[] = [];
+  if (!cols.includes("role") && !cols.includes("role_id")) {
+    ops.push("ALTER TABLE dbo.role_permissions ADD [role] NVARCHAR(50) NULL;");
+  }
+  if (!cols.includes("module") && !cols.includes("permission_module")) {
+    ops.push("ALTER TABLE dbo.role_permissions ADD [module] NVARCHAR(50) NULL;");
+  }
+  if (!cols.includes("action") && !cols.includes("permission_action")) {
+    ops.push("ALTER TABLE dbo.role_permissions ADD [action] NVARCHAR(50) NULL;");
+  }
+  if (!cols.includes("allowed") && !cols.includes("is_allowed")) {
+    ops.push("ALTER TABLE dbo.role_permissions ADD [allowed] BIT NULL;");
+  }
+  for (const q of ops) await new sql.Request(pool).query(q);
+}
+
+rbacRouter.get("/roles", async (_req, res) => {
+  const pool = getPool();
+  try {
+    await pool.connect();
+    const cols = await scanColumns(pool, "roles");
+    const pick = (names: string[]) => {
+      for (const n of names) if (cols.includes(n)) return `[${n}]`;
+      return null;
+    };
+    const nameCol = pick(["role","name","role_name","display_name"]);
+    let roles: string[] = [];
+    if (nameCol) {
+      const byRoles = await new sql.Request(pool).query(`
+        SELECT DISTINCT ${nameCol} AS role
+        FROM dbo.roles
+        WHERE ${nameCol} IS NOT NULL AND LTRIM(RTRIM(${nameCol})) <> ''
+        ORDER BY ${nameCol}
+      `);
+      roles = (byRoles.recordset || []).map((r) => String((r as { role: string }).role));
+    }
+    // Fallback to role_permissions if roles table is empty or has no suitable name column
+    if (!roles.length) {
+      const rpCols = await scanColumns(pool, "role_permissions");
+      const roleTextCol = rpCols.includes("role") ? "[role]" : null;
+      const roleIdCol = rpCols.includes("role_id") ? "[role_id]" : null;
+      const moduleCol = rpCols.includes("module") ? "[module]" : (rpCols.includes("permission_module") ? "[permission_module]" : null);
+      const actionCol = rpCols.includes("action") ? "[action]" : (rpCols.includes("permission_action") ? "[permission_action]" : null);
+      if (roleTextCol) {
+        const byText = await new sql.Request(pool).query(`
+          SELECT DISTINCT ${roleTextCol} AS role
+          FROM dbo.role_permissions
+          WHERE ${roleTextCol} IS NOT NULL AND LTRIM(RTRIM(${roleTextCol})) <> ''
+          ORDER BY ${roleTextCol}
+        `);
+        roles = (byText.recordset || []).map((r) => String((r as { role: string }).role));
+      } else if (roleIdCol && nameCol) {
+        const byJoin = await new sql.Request(pool).query(`
+          SELECT DISTINCT r.${nameCol} AS role
+          FROM dbo.role_permissions AS p
+          LEFT JOIN dbo.roles AS r ON r.[role_id] = p.${roleIdCol}
+          WHERE r.${nameCol} IS NOT NULL AND LTRIM(RTRIM(r.${nameCol})) <> ''
+          ORDER BY r.${nameCol}
+        `);
+        roles = (byJoin.recordset || []).map((r) => String((r as { role: string }).role));
+      }
+    }
+    if (!roles.length) {
+      const byLogin = await new sql.Request(pool).query(`
+        SELECT DISTINCT [Role] AS role
+        FROM dbo.login
+        WHERE [Role] IS NOT NULL AND LTRIM(RTRIM([Role])) <> ''
+        ORDER BY [Role]
+      `);
+      roles = (byLogin.recordset || []).map((r) => normalizeRoleName(String((r as { role: string }).role)));
+    }
+    return res.json(roles);
+  } catch (err: unknown) {
+    const message = err instanceof Error ? err.message : "FAILED_TO_QUERY_ROLES";
+    return res.status(500).json({ error: message });
+  } finally {
+    await pool.close();
+  }
+});
+
 rbacRouter.get("/permissions", async (_req, res) => {
   const pool = getPool();
   try {
     await pool.connect();
-    const result = await new sql.Request(pool).query(`
-      SELECT role, module, action, allowed
-      FROM dbo.role_permissions
-    `);
-    const items = (result.recordset || []).map((r) => {
-      const row = r as { role: string; module: string; action: string; allowed: number | boolean };
+    const cols = await scanColumns(pool, "role_permissions");
+    const pick = (names: string[]) => {
+      for (const n of names) if (cols.includes(n)) return `[${n}]`;
+      return null;
+    };
+    const roleIdCol = pick(["role_id"]);
+    const roleTextCol = pick(["role"]);
+    const allowedCol = pick(["is_allowed", "allowed"]);
+    const moduleCol = pick(["module", "permission_module"]);
+    const actionCol = pick(["action", "permission_action"]);
+    const hasRoleId = !!roleIdCol;
+    if (!allowedCol || !moduleCol || !actionCol || (!roleIdCol && !roleTextCol)) {
+      return res.json([]);
+    }
+    let sqlText = "";
+    if (hasRoleId) {
+      const rcols = await scanColumns(pool, "roles");
+      const pickRoleName = (names: string[]) => {
+        for (const n of names) if (rcols.includes(n)) return `[${n}]`;
+        return null;
+      };
+      const rolesNameCol =
+        pickRoleName(["role"]) ||
+        pickRoleName(["name"]) ||
+        pickRoleName(["role_name"]) ||
+        pickRoleName(["role_display_name"]);
+      const rpHasPermissionId = cols.includes("permission_id");
+      const hasPermissionsTableRes = await new sql.Request(pool).query(`
+        SELECT 1 AS ok FROM sys.tables WHERE name = 'permissions'
+      `);
+      const hasPermissionsTable = !!((hasPermissionsTableRes.recordset || [])[0]);
+      const usePermJoin = rpHasPermissionId && hasPermissionsTable;
+      if (rolesNameCol) {
+        sqlText = usePermJoin
+          ? `
+            SELECT r.${rolesNameCol} AS role,
+                   COALESCE(p.${moduleCol}, perms.[module_name]) AS module,
+                   COALESCE(p.${actionCol}, perms.[action_name]) AS action,
+                   p.${allowedCol} AS allowed
+            FROM dbo.role_permissions AS p
+            LEFT JOIN dbo.roles AS r ON r.[role_id] = p.${roleIdCol}
+            LEFT JOIN dbo.permissions AS perms ON perms.[permission_id] = p.[permission_id]
+          `
+          : `
+            SELECT r.${rolesNameCol} AS role, p.${moduleCol} AS module, p.${actionCol} AS action, p.${allowedCol} AS allowed
+            FROM dbo.role_permissions AS p
+            LEFT JOIN dbo.roles AS r ON r.[role_id] = p.${roleIdCol}
+          `;
+      } else {
+        sqlText = usePermJoin
+          ? `
+            SELECT CAST(p.${roleIdCol} AS NVARCHAR(50)) AS role,
+                   COALESCE(p.${moduleCol}, perms.[module_name]) AS module,
+                   COALESCE(p.${actionCol}, perms.[action_name]) AS action,
+                   p.${allowedCol} AS allowed
+            FROM dbo.role_permissions AS p
+            LEFT JOIN dbo.permissions AS perms ON perms.[permission_id] = p.[permission_id]
+          `
+          : `
+            SELECT CAST(p.${roleIdCol} AS NVARCHAR(50)) AS role, p.${moduleCol} AS module, p.${actionCol} AS action, p.${allowedCol} AS allowed
+            FROM dbo.role_permissions AS p
+          `;
+      }
+    } else {
+      const rpHasPermissionId = cols.includes("permission_id");
+      const hasPermissionsTableRes = await new sql.Request(pool).query(`
+        SELECT 1 AS ok FROM sys.tables WHERE name = 'permissions'
+      `);
+      const hasPermissionsTable = !!((hasPermissionsTableRes.recordset || [])[0]);
+      const usePermJoin = rpHasPermissionId && hasPermissionsTable;
+      sqlText = usePermJoin
+        ? `
+          SELECT p.${roleTextCol} AS role,
+                 COALESCE(p.${moduleCol}, perms.[module_name]) AS module,
+                 COALESCE(p.${actionCol}, perms.[action_name]) AS action,
+                 p.${allowedCol} AS allowed
+          FROM dbo.role_permissions AS p
+          LEFT JOIN dbo.permissions AS perms ON perms.[permission_id] = p.[permission_id]
+        `
+        : `
+          SELECT p.${roleTextCol} AS role, p.${moduleCol} AS module, p.${actionCol} AS action, p.${allowedCol} AS allowed
+          FROM dbo.role_permissions AS p
+        `;
+    }
+    const result = await new sql.Request(pool).query(sqlText);
+    const items = (result.recordset || []).map((row) => {
+      const rr = row as { role: unknown; module: unknown; action: unknown; allowed: unknown };
+      const mod = String(rr.module || "");
+      const actRaw = String(rr.action || "");
+      const act = (() => {
+        const a = actRaw.toLowerCase();
+        if (a === "view") return "read";
+        if (a === "edit") return "update";
+        if (mod.toLowerCase() === "users" && a === "manage_roles") return "manage_users";
+        return actRaw;
+      })();
       return {
-        role: String(row.role),
-        module: String(row.module),
-        action: String(row.action),
-        allowed: Boolean(row.allowed),
+        role: String(rr.role),
+        module: mod,
+        action: act,
+        allowed: Boolean(rr.allowed),
       };
     });
     return res.json(items);
   } catch (err: unknown) {
-    const message = err instanceof Error ? err.message : "FAILED_TO_QUERY_ROLE_PERMISSIONS";
-    return res.status(500).json({ error: message });
+    return res.json([]);
   } finally {
     await pool.close();
   }
@@ -57,17 +248,199 @@ rbacRouter.post("/permissions", requireRole(["admin","superadmin"]), async (req,
   const pool = getPool();
   try {
     await pool.connect();
+    await ensureRolePermissionsSchema(pool);
+    const cols = await scanColumns(pool, "role_permissions");
+    const hasRoleId = cols.includes("role_id");
+    const allowedCol = cols.includes("is_allowed") ? "[is_allowed]" : "[allowed]";
+    const moduleCol = cols.includes("module") ? "[module]" : "[permission_module]";
+    const actionCol = cols.includes("action") ? "[action]" : "[permission_action]";
+    let roleIdentifierValue: number | string = role;
+    if (hasRoleId) {
+      const rcols = await scanColumns(pool, "roles");
+      const idCol = rcols.includes("role_id") ? "[role_id]" : rcols.includes("id") ? "[id]" : "[role_id]";
+      const nameCol = rcols.includes("role") ? "[role]" : rcols.includes("name") ? "[name]" : rcols.includes("role_name") ? "[role_name]" : "[role]";
+      const getId = await new sql.Request(pool)
+        .input("name", sql.VarChar(50), role)
+        .query(`SELECT ${idCol} AS id FROM dbo.roles WHERE ${nameCol}=@name`);
+      const found = (getId.recordset || [])[0] as { id?: number };
+      if (!found || typeof found.id !== "number") {
+        const insert = await new sql.Request(pool)
+          .input("name", sql.VarChar(50), role)
+          .query(`INSERT INTO dbo.roles (${nameCol}) VALUES (@name); SELECT CAST(SCOPE_IDENTITY() AS INT) AS id;`);
+        const ins = (insert.recordset || [])[0] as { id?: number };
+        if (!ins || typeof ins.id !== "number") return res.status(400).json({ error: "ROLE_NOT_FOUND" });
+        roleIdentifierValue = ins.id;
+      } else {
+        roleIdentifierValue = found.id;
+      }
+    }
     const request = new sql.Request(pool);
-    request.input("role", sql.VarChar(50), role);
+    let permissionIdColumn = "";
+    let permissionIdValueExpr = "";
+    let permissionIdLiteral: number | null = null;
+    let permissionIdLiteralStr: string | null = null;
+    let usedPermissionMapping = false;
+    try {
+      const hasPermissionsTableRes = await new sql.Request(pool).query(`
+        SELECT 1 AS ok FROM sys.tables WHERE name = 'permissions'
+      `);
+      const hasPermissionsTable = !!((hasPermissionsTableRes.recordset || [])[0]);
+      if (hasPermissionsTable) {
+        const actNorm = (() => {
+          const a = action.toLowerCase();
+          if (a === "read" || a === "view") return "view";
+          if (a === "update" || a === "edit") return "edit";
+          if (a === "manage_users") return "manage_roles";
+          return a;
+        })();
+        const modNorm = module.toLowerCase();
+        const pReq = new sql.Request(pool);
+        pReq.input("module_name", sql.VarChar(50), modNorm);
+        pReq.input("action_name", sql.VarChar(50), actNorm);
+        const pRes = await pReq.query(`
+          SELECT TOP 1 permission_id AS id
+          FROM dbo.permissions
+          WHERE LOWER(module_name) = @module_name AND LOWER(action_name) = @action_name AND is_active = 1
+        `);
+        const pRow = (pRes.recordset || [])[0] as { id?: unknown };
+        if (pRow && pRow.id !== undefined && pRow.id !== null) {
+          if (typeof pRow.id === "number") {
+            permissionIdColumn = "[permission_id]";
+            permissionIdValueExpr = "";
+            permissionIdLiteral = pRow.id;
+            usedPermissionMapping = true;
+          } else {
+            const idStr = String(pRow.id);
+            if (idStr.length >= 32) {
+              permissionIdColumn = "[permission_id]";
+              permissionIdValueExpr = "";
+              permissionIdLiteralStr = idStr;
+              usedPermissionMapping = true;
+            }
+          }
+        }
+      }
+    } catch { usedPermissionMapping = false; }
+    const rpInfoRes = await new sql.Request(pool).query(`
+      SELECT COLUMN_NAME, IS_NULLABLE, DATA_TYPE
+      FROM INFORMATION_SCHEMA.COLUMNS
+      WHERE TABLE_SCHEMA='dbo' AND TABLE_NAME='role_permissions' AND COLUMN_NAME='permission_id'
+    `);
+    const rpInfo = (rpInfoRes.recordset || [])[0] as { COLUMN_NAME?: string; IS_NULLABLE?: string; DATA_TYPE?: string };
+    if (!usedPermissionMapping && rpInfo && String(rpInfo.COLUMN_NAME || "").toLowerCase() === "permission_id") {
+      const identityRes = await new sql.Request(pool).query(`
+        SELECT COLUMNPROPERTY(OBJECT_ID('dbo.role_permissions'), 'permission_id', 'IsIdentity') AS is_identity
+      `);
+      const isIdentity = !!((identityRes.recordset || [])[0] && Number((identityRes.recordset || [])[0].is_identity) === 1);
+      const isNullable = String(rpInfo.IS_NULLABLE || "").toUpperCase() === "YES";
+      const dtype = String(rpInfo.DATA_TYPE || "").toLowerCase();
+      if (!isIdentity && !isNullable) {
+        permissionIdColumn = "[permission_id]";
+        if (dtype === "uniqueidentifier") {
+          permissionIdValueExpr = "NEWID()";
+        } else {
+          const nextIdRes = await new sql.Request(pool).query(`
+            SELECT ISNULL(MAX([permission_id]), 0) + 1 AS nextId
+            FROM dbo.role_permissions
+          `);
+          const nextIdRow = (nextIdRes.recordset || [])[0] as { nextId?: number };
+          const nextId = typeof nextIdRow?.nextId === "number" ? nextIdRow.nextId : 1;
+          permissionIdValueExpr = String(nextId);
+        }
+      }
+    }
+    if (hasRoleId) request.input("role_id", sql.Int, roleIdentifierValue as number);
+    else request.input("role", sql.VarChar(50), roleIdentifierValue as string);
     request.input("module", sql.VarChar(50), module);
     request.input("action", sql.VarChar(50), action);
     request.input("allowed", sql.Bit, allowed ? 1 : 0);
-    await request.query(`
-      IF EXISTS (SELECT 1 FROM dbo.role_permissions WHERE role=@role AND module=@module AND action=@action)
-        UPDATE dbo.role_permissions SET allowed=@allowed WHERE role=@role AND module=@module AND action=@action;
-      ELSE
-        INSERT INTO dbo.role_permissions (role, module, action, allowed) VALUES (@role, @module, @action, @allowed);
-    `);
+    const roleWhere = hasRoleId ? "[role_id]=@role_id" : "[role]=@role";
+    if (usedPermissionMapping && hasRoleId && (typeof permissionIdLiteral === "number" || typeof permissionIdLiteralStr === "string")) {
+      if (typeof permissionIdLiteral === "number") {
+        const existsReq = new sql.Request(pool);
+        existsReq.input("role_id", sql.Int, roleIdentifierValue as number);
+        existsReq.input("permission_id", sql.Int, permissionIdLiteral);
+        const exists = await existsReq.query(`
+          SELECT 1 AS ok FROM dbo.role_permissions WHERE [role_id]=@role_id AND [permission_id]=@permission_id
+        `);
+        if ((exists.recordset || []).length) {
+          const updReq = new sql.Request(pool);
+          updReq.input("role_id", sql.Int, roleIdentifierValue as number);
+          updReq.input("permission_id", sql.Int, permissionIdLiteral);
+          updReq.input("allowed", sql.Bit, allowed ? 1 : 0);
+          await updReq.query(`
+            UPDATE dbo.role_permissions SET ${allowedCol}=@allowed WHERE [role_id]=@role_id AND [permission_id]=@permission_id
+          `);
+        } else {
+          const insReq = new sql.Request(pool);
+          insReq.input("role_id", sql.Int, roleIdentifierValue as number);
+          insReq.input("permission_id", sql.Int, permissionIdLiteral);
+          insReq.input("allowed", sql.Bit, allowed ? 1 : 0);
+          await insReq.query(`
+            INSERT INTO dbo.role_permissions ([role_id], [permission_id], ${allowedCol})
+            VALUES (@role_id, @permission_id, @allowed)
+          `);
+        }
+      } else if (typeof permissionIdLiteralStr === "string") {
+        const existsReq = new sql.Request(pool);
+        existsReq.input("role_id", sql.Int, roleIdentifierValue as number);
+        existsReq.input("permission_id", sql.UniqueIdentifier, permissionIdLiteralStr);
+        const exists = await existsReq.query(`
+          SELECT 1 AS ok FROM dbo.role_permissions WHERE [role_id]=@role_id AND [permission_id]=@permission_id
+        `);
+        if ((exists.recordset || []).length) {
+          const updReq = new sql.Request(pool);
+          updReq.input("role_id", sql.Int, roleIdentifierValue as number);
+          updReq.input("permission_id", sql.UniqueIdentifier, permissionIdLiteralStr);
+          updReq.input("allowed", sql.Bit, allowed ? 1 : 0);
+          await updReq.query(`
+            UPDATE dbo.role_permissions SET ${allowedCol}=@allowed WHERE [role_id]=@role_id AND [permission_id]=@permission_id
+          `);
+        } else {
+          const insReq = new sql.Request(pool);
+          insReq.input("role_id", sql.Int, roleIdentifierValue as number);
+          insReq.input("permission_id", sql.UniqueIdentifier, permissionIdLiteralStr);
+          insReq.input("allowed", sql.Bit, allowed ? 1 : 0);
+          await insReq.query(`
+            INSERT INTO dbo.role_permissions ([role_id], [permission_id], ${allowedCol})
+            VALUES (@role_id, @permission_id, @allowed)
+          `);
+        }
+      }
+    } else {
+      const existsReq = new sql.Request(pool);
+      if (hasRoleId) existsReq.input("role_id", sql.Int, roleIdentifierValue as number);
+      else existsReq.input("role", sql.VarChar(50), roleIdentifierValue as string);
+      existsReq.input("module", sql.VarChar(50), module);
+      existsReq.input("action", sql.VarChar(50), action);
+      const exists = await existsReq.query(`
+        SELECT 1 AS ok FROM dbo.role_permissions WHERE ${roleWhere} AND ${moduleCol}=@module AND ${actionCol}=@action
+      `);
+      if ((exists.recordset || []).length) {
+        const updReq = new sql.Request(pool);
+        if (hasRoleId) updReq.input("role_id", sql.Int, roleIdentifierValue as number);
+        else updReq.input("role", sql.VarChar(50), roleIdentifierValue as string);
+        updReq.input("module", sql.VarChar(50), module);
+        updReq.input("action", sql.VarChar(50), action);
+        updReq.input("allowed", sql.Bit, allowed ? 1 : 0);
+        await updReq.query(`
+          UPDATE dbo.role_permissions SET ${allowedCol}=@allowed WHERE ${roleWhere} AND ${moduleCol}=@module AND ${actionCol}=@action
+        `);
+      } else {
+        const insReq = new sql.Request(pool);
+        if (hasRoleId) insReq.input("role_id", sql.Int, roleIdentifierValue as number);
+        else insReq.input("role", sql.VarChar(50), roleIdentifierValue as string);
+        insReq.input("module", sql.VarChar(50), module);
+        insReq.input("action", sql.VarChar(50), action);
+        insReq.input("allowed", sql.Bit, allowed ? 1 : 0);
+        const insertCols = `${hasRoleId ? "[role_id]" : "[role]"}, ${moduleCol}, ${actionCol}, ${allowedCol}${permissionIdColumn ? `, ${permissionIdColumn}` : ""}`;
+        const insertVals = `${hasRoleId ? "@role_id" : "@role"}, @module, @action, @allowed${permissionIdValueExpr ? `, ${permissionIdValueExpr}` : ""}`;
+        await insReq.query(`
+          INSERT INTO dbo.role_permissions (${insertCols})
+          VALUES (${insertVals})
+        `);
+      }
+    }
     return res.json({ ok: true });
   } catch (err: unknown) {
     const message = err instanceof Error ? err.message : "FAILED_TO_UPSERT_ROLE_PERMISSION";
@@ -82,7 +455,7 @@ rbacRouter.get("/columns", async (_req, res) => {
   try {
     await pool.connect();
     const result = await new sql.Request(pool).query(`
-      SELECT role, section, column, can_read, can_write
+      SELECT [role], [section], [column], [can_read], [can_write]
       FROM dbo.role_column_access
     `);
     const items = (result.recordset || []).map((r) => {
@@ -96,9 +469,8 @@ rbacRouter.get("/columns", async (_req, res) => {
       };
     });
     return res.json(items);
-  } catch (err: unknown) {
-    const message = err instanceof Error ? err.message : "FAILED_TO_QUERY_COLUMN_ACCESS";
-    return res.status(500).json({ error: message });
+  } catch {
+    return res.json([]);
   } finally {
     await pool.close();
   }
@@ -111,6 +483,7 @@ rbacRouter.post("/columns", requireRole(["admin","superadmin"]), async (req, res
   const column = String(body.column || "").trim();
   const read = Boolean(body.read);
   const write = Boolean(body.write);
+  const effectiveRead = write ? true : read;
   if (!role || !section || !column) return res.status(400).json({ error: "ROLE_SECTION_COLUMN_REQUIRED" });
   const pool = getPool();
   try {
@@ -119,7 +492,7 @@ rbacRouter.post("/columns", requireRole(["admin","superadmin"]), async (req, res
     request.input("role", sql.VarChar(50), role);
     request.input("section", sql.VarChar(50), section);
     request.input("column", sql.VarChar(100), column);
-    request.input("can_read", sql.Bit, read ? 1 : 0);
+    request.input("can_read", sql.Bit, effectiveRead ? 1 : 0);
     request.input("can_write", sql.Bit, write ? 1 : 0);
     await request.query(`
       IF EXISTS (SELECT 1 FROM dbo.role_column_access WHERE role=@role AND section=@section AND column=@column)
@@ -130,6 +503,60 @@ rbacRouter.post("/columns", requireRole(["admin","superadmin"]), async (req, res
     return res.json({ ok: true });
   } catch (err: unknown) {
     const message = err instanceof Error ? err.message : "FAILED_TO_UPSERT_COLUMN_ACCESS";
+    return res.status(500).json({ error: message });
+  } finally {
+    await pool.close();
+  }
+});
+
+rbacRouter.get("/schema/role_permissions", requireRole(["admin","superadmin"]), async (_req, res) => {
+  const pool = getPool();
+  try {
+    await pool.connect();
+    const columnsRes = await new sql.Request(pool).query(`
+      SELECT COLUMN_NAME, DATA_TYPE
+      FROM INFORMATION_SCHEMA.COLUMNS
+      WHERE TABLE_SCHEMA = 'dbo' AND TABLE_NAME = 'role_permissions'
+      ORDER BY ORDINAL_POSITION
+    `);
+    const sampleRes = await new sql.Request(pool).query(`
+      SELECT TOP 10 *
+      FROM dbo.role_permissions
+      ORDER BY 1
+    `);
+    return res.json({
+      columns: columnsRes.recordset || [],
+      sample: sampleRes.recordset || [],
+    });
+  } catch (err: unknown) {
+    const message = err instanceof Error ? err.message : "FAILED_TO_QUERY_SCHEMA_ROLE_PERMISSIONS";
+    return res.status(500).json({ error: message });
+  } finally {
+    await pool.close();
+  }
+});
+
+rbacRouter.get("/schema/roles", requireRole(["admin","superadmin"]), async (_req, res) => {
+  const pool = getPool();
+  try {
+    await pool.connect();
+    const columnsRes = await new sql.Request(pool).query(`
+      SELECT COLUMN_NAME, DATA_TYPE
+      FROM INFORMATION_SCHEMA.COLUMNS
+      WHERE TABLE_SCHEMA = 'dbo' AND TABLE_NAME = 'roles'
+      ORDER BY ORDINAL_POSITION
+    `);
+    const sampleRes = await new sql.Request(pool).query(`
+      SELECT TOP 10 *
+      FROM dbo.roles
+      ORDER BY 1
+    `);
+    return res.json({
+      columns: columnsRes.recordset || [],
+      sample: sampleRes.recordset || [],
+    });
+  } catch (err: unknown) {
+    const message = err instanceof Error ? err.message : "FAILED_TO_QUERY_SCHEMA_ROLES";
     return res.status(500).json({ error: message });
   } finally {
     await pool.close();

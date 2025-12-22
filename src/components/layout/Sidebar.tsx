@@ -39,7 +39,8 @@ const navigation: NavItem[] = [
     children: [
       { name: 'General', href: '/settings', icon: SettingsIcon },
       { name: 'User Management', href: '/settings/users', icon: Users, roles: ['admin', 'superadmin'] },
-      { name: 'Admin Permissions', href: '/settings/admin-permissions', icon: SettingsIcon, roles: ['admin', 'superadmin'] },
+      { name: 'Role Matrix Permission', href: '/settings/admin-permissions', icon: SettingsIcon, roles: ['admin', 'superadmin'] },
+      { name: 'RBAC Diagnostics', href: '/settings/rbac-diagnostics', icon: SettingsIcon, roles: ['admin', 'superadmin'] },
     ],
   },
 ]; 
@@ -54,7 +55,7 @@ export function Sidebar() {
       const stored = localStorage.getItem('auth_user');
       if (stored) {
         const parsed = JSON.parse(stored);
-        if (parsed?.role) setRole(parsed.role);
+        if (parsed?.role) setRole(String(parsed.role).toLowerCase());
       }
     } catch {
       // ignore
@@ -80,8 +81,7 @@ export function Sidebar() {
           {navigation.map((item) => {
             // Simple link item
             if (!item.children && item.href) {
-              const isActive = location.pathname === item.href ||
-                (item.href !== '/' && location.pathname.startsWith(item.href));
+              const isActive = location.pathname === item.href;
               if (item.name === 'Reports' && caps && !caps.canAccessReport) return null;
               return (
                 <Link
@@ -101,7 +101,8 @@ export function Sidebar() {
             }
 
             // Grouped section
-            let visibleChildren = (item.children || []).filter((child) => {
+            const allowedRoles = (item.children || []).map((c) => ({ ...c, roles: (c.roles || []).map((r) => String(r).toLowerCase()) }));
+            let visibleChildren = allowedRoles.filter((child) => {
               if (!child.roles || child.roles.length === 0) return true;
               return role ? child.roles.includes(role) : false;
             });
@@ -122,8 +123,7 @@ export function Sidebar() {
                   {item.name}
                 </div>
                 {visibleChildren.map((child) => {
-                  const isActive = location.pathname === child.href ||
-                    (child.href !== '/' && location.pathname.startsWith(child.href));
+                  const isActive = location.pathname === child.href;
                   return (
                     <Link
                       key={child.name}

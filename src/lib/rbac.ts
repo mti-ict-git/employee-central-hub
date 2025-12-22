@@ -50,9 +50,22 @@ export async function fetchPermissions(): Promise<RolePermission[]> {
     const res = await apiFetch(`/rbac/permissions`, { credentials: "include" });
     if (res.ok) return await res.json();
   } catch (err) {
-    return defaultPermissions;
+    return [];
   }
-  return defaultPermissions;
+  return [];
+}
+
+export async function fetchRoles(): Promise<string[]> {
+  try {
+    const res = await apiFetch(`/rbac/roles`, { credentials: "include" });
+    if (res.ok) {
+      const data = await res.json().catch(() => null);
+      if (Array.isArray(data)) return data as string[];
+    }
+    throw new Error("RBAC_ROLES_FAILED");
+  } catch (err) {
+    return [];
+  }
 }
 
 export async function fetchColumnAccess(): Promise<ColumnAccess[]> {

@@ -25,6 +25,7 @@ import {
   Loader2
 } from "lucide-react";
 import { useRBAC } from "@/hooks/useRBAC";
+import { apiFetch } from "@/lib/api";
 
 const FormField = ({ 
   label, 
@@ -104,7 +105,7 @@ const EditEmployee = () => {
       try {
         setLoading(true);
         setError(null);
-        const res = await fetch(`http://localhost:${8083}/api/employees/${encodeURIComponent(id)}`, { 
+        const res = await apiFetch(`/employees/${encodeURIComponent(id)}`, { 
           signal: ctrl.signal, 
           credentials: "include" 
         });

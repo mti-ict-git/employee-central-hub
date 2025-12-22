@@ -19,6 +19,7 @@ import {
 } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { useRBAC } from "@/hooks/useRBAC";
+import { apiFetch } from "@/lib/api";
 
 const InfoRow = ({ label, value }: { label: string; value?: string | boolean | null }) => {
   if (value === undefined || value === null || value === '') return null;
@@ -61,7 +62,7 @@ const EmployeeDetail = () => {
       try {
         setLoading(true);
         setError(null);
-        const res = await fetch(`/api/employees/${encodeURIComponent(id)}`, { signal: ctrl.signal, credentials: "include" });
+        const res = await apiFetch(`/employees/${encodeURIComponent(id)}`, { signal: ctrl.signal, credentials: "include" });
         if (!res.ok) throw new Error(`HTTP_${res.status}`);
         const data = await res.json();
         const normalized: Employee = {

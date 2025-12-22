@@ -12,6 +12,7 @@ import ImportEmployees from "./pages/ImportEmployees";
 import Settings from "./pages/Settings";
 import UserManagement from "./pages/UserManagement";
 import AdminPermissions from "./pages/AdminPermissions";
+import RbacDiagnostics from "./pages/RbacDiagnostics";
 import Auth from "./pages/Auth";
 import NotFound from "./pages/NotFound";
 import RequireAuth from "./components/auth/RequireAuth";
@@ -99,6 +100,16 @@ const App = () => (
               <RequireAuth>
                 <RequireRole allowed={["admin", "superadmin"]}>
                   <AdminPermissions />
+                </RequireRole>
+              </RequireAuth>
+            }
+          />
+          <Route
+            path="/settings/rbac-diagnostics"
+            element={
+              <RequireAuth>
+                <RequireRole allowed={["admin", "superadmin"]}>
+                  <RbacDiagnostics />
                 </RequireRole>
               </RequireAuth>
             }

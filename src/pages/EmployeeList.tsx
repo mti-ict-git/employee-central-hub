@@ -8,6 +8,7 @@ import { Link, useSearchParams } from "react-router-dom";
 import type { Employee } from "@/types/employee";
 import { toast } from "@/hooks/use-toast";
 import { useRBAC } from "@/hooks/useRBAC";
+import { apiFetch } from "@/lib/api";
 
 const EmployeeList = () => {
   const [searchParams] = useSearchParams();
@@ -26,7 +27,7 @@ const EmployeeList = () => {
       try {
         setLoading(true);
         setError(null);
-        const res = await fetch(`/api/employees?limit=500`, { signal: ctrl.signal, credentials: "include" });
+        const res = await apiFetch(`/employees?limit=500`, { signal: ctrl.signal, credentials: "include" });
         if (!res.ok) throw new Error(`HTTP_${res.status}`);
         const data = await res.json();
         const items: Employee[] = (data.items || []).map((e: { core: { employee_id: string; name: string; nationality?: string | null; imip_id?: string | null; branch?: string | null; branch_id?: string | null }; employment: { department?: string | null; status?: string | null }; type?: string }) => ({
@@ -91,7 +92,7 @@ const EmployeeList = () => {
 
   const handleDelete = async (employeeId: string) => {
     try {
-      const res = await fetch(`http://localhost:${8083}/api/employees/${encodeURIComponent(employeeId)}`, {
+      const res = await apiFetch(`/employees/${encodeURIComponent(employeeId)}`, {
         method: "DELETE",
         credentials: "include",
       });
@@ -134,7 +135,7 @@ const EmployeeList = () => {
     let failed = 0;
     for (const id of ids) {
       try {
-        const res = await fetch(`/api/employees/${encodeURIComponent(id)}`, {
+        const res = await apiFetch(`/employees/${encodeURIComponent(id)}`, {
           method: "DELETE",
           credentials: "include",
         });
