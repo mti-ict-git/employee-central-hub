@@ -178,7 +178,25 @@ employeesRouter.get("/", async (req, res) => {
   const pool = getPool();
   try {
     await pool.connect();
+    const userRoles = req.user?.roles || [];
+    const isDepRep = userRoles.includes("department_rep");
+    let userDept: string | null = null;
+    if (isDepRep) {
+      const deptReq = new sql.Request(pool);
+      deptReq.input("username", sql.VarChar(50), String(req.user?.username || ""));
+      const deptRes = await deptReq.query(`
+        SELECT TOP 1 department
+        FROM dbo.login
+        WHERE username = @username
+      `);
+      const deptRow = (deptRes.recordset || [])[0] as { department?: unknown } | undefined;
+      const d = String(deptRow?.department || "").trim();
+      if (!d) return res.status(403).json({ error: "DEPARTMENT_NOT_SET_FOR_USER" });
+      userDept = d;
+    }
     const request = new sql.Request(pool);
+    if (isDepRep && userDept) request.input("department", sql.NVarChar(100), userDept);
+    const whereClause = isDepRep ? "WHERE emp.department IS NOT NULL AND LTRIM(RTRIM(emp.department)) <> '' AND LOWER(emp.department) = LOWER(@department)" : "";
     const result = await request.query<EmployeeListRow>(`
       SELECT core.employee_id,
              core.name,
@@ -187,6 +205,7 @@ employeesRouter.get("/", async (req, res) => {
              emp.status
       FROM dbo.employee_core AS core
       LEFT JOIN dbo.employee_employment AS emp ON emp.employee_id = core.employee_id
+      ${whereClause}
       ORDER BY core.employee_id
       OFFSET ${offset} ROWS FETCH NEXT ${limit} ROWS ONLY;
     `);
@@ -783,8 +802,26 @@ employeesRouter.get("/:id", async (req, res) => {
   const pool = getPool();
   try {
     await pool.connect();
+    const userRoles = req.user?.roles || [];
+    const isDepRep = userRoles.includes("department_rep");
+    let userDept: string | null = null;
+    if (isDepRep) {
+      const deptReq = new sql.Request(pool);
+      deptReq.input("username", sql.VarChar(50), String(req.user?.username || ""));
+      const deptRes = await deptReq.query(`
+        SELECT TOP 1 department
+        FROM dbo.login
+        WHERE username = @username
+      `);
+      const deptRow = (deptRes.recordset || [])[0] as { department?: unknown } | undefined;
+      const d = String(deptRow?.department || "").trim();
+      if (!d) return res.status(403).json({ error: "DEPARTMENT_NOT_SET_FOR_USER" });
+      userDept = d;
+    }
     const request = new sql.Request(pool);
     request.input("id", sql.VarChar(100), id);
+    if (isDepRep && userDept) request.input("department", sql.NVarChar(100), userDept);
+    const extraWhere = isDepRep ? " AND emp.department IS NOT NULL AND LTRIM(RTRIM(emp.department)) <> '' AND LOWER(emp.department) = LOWER(@department)" : "";
     const result = await request.query<EmployeeDetailRow>(`
       SELECT
         core.employee_id, core.name, core.gender, core.place_of_birth, core.date_of_birth, core.marital_status,
@@ -816,7 +853,7 @@ employeesRouter.get("/:id", async (req, res) => {
       LEFT JOIN dbo.employee_travel AS travel ON travel.employee_id = core.employee_id
       LEFT JOIN dbo.employee_checklist AS checklist ON checklist.employee_id = core.employee_id
       LEFT JOIN dbo.employee_notes AS notes ON notes.employee_id = core.employee_id
-      WHERE core.employee_id = @id;
+      WHERE core.employee_id = @id${extraWhere};
     `);
     if (!result.recordset || result.recordset.length === 0) {
       return res.status(404).json({ error: "EMPLOYEE_NOT_FOUND" });

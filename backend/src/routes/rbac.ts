@@ -59,6 +59,34 @@ async function ensureRolePermissionsSchema(pool: sql.ConnectionPool) {
   for (const q of ops) await new sql.Request(pool).query(q);
 }
 
+async function ensureRoleColumnAccessSchema(pool: sql.ConnectionPool) {
+  const hasTableRes = await new sql.Request(pool).query(`
+    SELECT 1 AS ok FROM sys.tables WHERE name = 'role_column_access'
+  `);
+  const hasTable = !!((hasTableRes.recordset || [])[0]);
+  if (!hasTable) {
+    await new sql.Request(pool).query(`
+      CREATE TABLE dbo.role_column_access (
+        [role] NVARCHAR(50) NOT NULL,
+        [section] NVARCHAR(50) NOT NULL,
+        [column] NVARCHAR(100) NOT NULL,
+        [can_read] BIT NOT NULL CONSTRAINT DF_role_column_access_can_read DEFAULT 0,
+        [can_write] BIT NOT NULL CONSTRAINT DF_role_column_access_can_write DEFAULT 0,
+        CONSTRAINT PK_role_column_access PRIMARY KEY CLUSTERED ([role], [section], [column])
+      )
+    `);
+  } else {
+    const cols = await scanColumns(pool, "role_column_access");
+    const ops: string[] = [];
+    if (!cols.includes("role")) ops.push("ALTER TABLE dbo.role_column_access ADD [role] NVARCHAR(50) NOT NULL DEFAULT '';");
+    if (!cols.includes("section")) ops.push("ALTER TABLE dbo.role_column_access ADD [section] NVARCHAR(50) NOT NULL DEFAULT '';");
+    if (!cols.includes("column")) ops.push("ALTER TABLE dbo.role_column_access ADD [column] NVARCHAR(100) NOT NULL DEFAULT '';");
+    if (!cols.includes("can_read")) ops.push("ALTER TABLE dbo.role_column_access ADD [can_read] BIT NOT NULL DEFAULT 0;");
+    if (!cols.includes("can_write")) ops.push("ALTER TABLE dbo.role_column_access ADD [can_write] BIT NOT NULL DEFAULT 0;");
+    for (const q of ops) await new sql.Request(pool).query(q);
+  }
+}
+
 rbacRouter.get("/roles", async (_req, res) => {
   const pool = getPool();
   try {
@@ -454,21 +482,108 @@ rbacRouter.get("/columns", async (_req, res) => {
   const pool = getPool();
   try {
     await pool.connect();
-    const result = await new sql.Request(pool).query(`
-      SELECT [role], [section], [column], [can_read], [can_write]
-      FROM dbo.role_column_access
+    const cols = await scanColumns(pool, "role_column_access");
+    const hasNormalized = cols.includes("role_id") && cols.includes("column_id");
+    if (hasNormalized) {
+      const rcols = await scanColumns(pool, "roles");
+      const ridCol = rcols.includes("role_id") ? "[role_id]" : rcols.includes("id") ? "[id]" : "[role_id]";
+      const rnameCol =
+        rcols.includes("role") ? "[role]" :
+        rcols.includes("name") ? "[name]" :
+        rcols.includes("role_name") ? "[role_name]" :
+        rcols.includes("role_display_name") ? "[role_display_name]" : "[role]";
+      const ccols = await scanColumns(pool, "column_catalog");
+      const cidCol = ccols.includes("column_id") ? "[column_id]" : ccols.includes("id") ? "[id]" : "[column_id]";
+      const tnameCol = ccols.includes("table_name") ? "[table_name]" : "[table]";
+      const cnameCol = ccols.includes("column_name") ? "[column_name]" : "[column]";
+      const readExpr = cols.includes("can_view") && cols.includes("can_read")
+        ? "(CASE WHEN rca.[can_view]=1 OR rca.[can_read]=1 THEN 1 ELSE 0 END)"
+        : (cols.includes("can_view") ? "rca.[can_view]" : "rca.[can_read]");
+      const writeExpr = cols.includes("can_edit") && cols.includes("can_write")
+        ? "(CASE WHEN rca.[can_edit]=1 OR rca.[can_write]=1 THEN 1 ELSE 0 END)"
+        : (cols.includes("can_edit") ? "rca.[can_edit]" : "rca.[can_write]");
+      const result = await new sql.Request(pool).query(`
+        SELECT
+          COALESCE(r.${rnameCol}, CAST(rca.[role_id] AS NVARCHAR(50)), rca.[role]) AS role_name,
+          cc.${tnameCol} AS table_name,
+          cc.${cnameCol} AS column_name,
+          ${readExpr} AS can_read,
+          ${writeExpr} AS can_write
+        FROM dbo.role_column_access AS rca
+        LEFT JOIN dbo.roles AS r ON r.${ridCol} = rca.[role_id]
+        LEFT JOIN dbo.column_catalog AS cc ON cc.${cidCol} = rca.[column_id]
+        WHERE rca.[role_id] IS NOT NULL AND rca.[column_id] IS NOT NULL
+      `);
+      const toLabel = (s: string) =>
+        String(s || "")
+          .replace(/_/g, " ")
+          .split(" ")
+          .filter(Boolean)
+          .map((w) => (w[0] ? w[0].toUpperCase() + w.slice(1) : ""))
+          .join(" ");
+      const items = (result.recordset || []).map((r) => {
+        const row = r as { role_name?: string; table_name?: string; column_name?: string; can_read?: number | boolean; can_write?: number | boolean; role?: string; section?: string; column?: string };
+        const sectionRaw = String(row.table_name || "");
+        const section = sectionRaw ? toLabel(sectionRaw) : String(row.section || "");
+        return {
+          role: String(row.role_name || ""),
+          section,
+          column: String(row.column_name || String(row.column || "")),
+          read: Boolean(row.can_read),
+          write: Boolean(row.can_write),
+        };
+      });
+      return res.json(items);
+    }
+    const hasTextSchema = cols.includes("role") && cols.includes("section") && cols.includes("column");
+    if (hasTextSchema) {
+      const result = await new sql.Request(pool).query(`
+        SELECT [role], [section], [column], [can_read], [can_write]
+        FROM dbo.role_column_access
+      `);
+      const items = (result.recordset || []).map((r) => {
+        const row = r as { role: string; section: string; column: string; can_read: number | boolean; can_write: number | boolean };
+        return {
+          role: String(row.role),
+          section: String(row.section),
+          column: String(row.column),
+          read: Boolean(row.can_read),
+          write: Boolean(row.can_write),
+        };
+      });
+      return res.json(items);
+    }
+    const hasViewRes = await new sql.Request(pool).query(`
+      SELECT 1 AS ok FROM sys.views WHERE name = 'vw_role_column_access'
     `);
-    const items = (result.recordset || []).map((r) => {
-      const row = r as { role: string; section: string; column: string; can_read: number | boolean; can_write: number | boolean };
-      return {
-        role: String(row.role),
-        section: String(row.section),
-        column: String(row.column),
-        read: Boolean(row.can_read),
-        write: Boolean(row.can_write),
-      };
-    });
-    return res.json(items);
+    const hasView = !!((hasViewRes.recordset || [])[0]);
+    if (hasView) {
+      const result = await new sql.Request(pool).query(`
+        SELECT [role_name], [table_name], [column_name], [display_label]
+        FROM dbo.vw_role_column_access
+      `);
+      const toLabel = (s: string) =>
+        String(s || "")
+          .replace(/_/g, " ")
+          .split(" ")
+          .filter(Boolean)
+          .map((w) => (w[0] ? w[0].toUpperCase() + w.slice(1) : ""))
+          .join(" ");
+      const items = (result.recordset || []).map((r) => {
+        const row = r as { role_name?: string; table_name?: string; column_name?: string; display_label?: string };
+        const section = toLabel(String(row.table_name || ""));
+        const label = String(row.display_label || "");
+        return {
+          role: String(row.role_name || ""),
+          section,
+          column: String(row.column_name || ""),
+          read: true,
+          write: false,
+        };
+      });
+      return res.json(items);
+    }
+    return res.json([]);
   } catch {
     return res.json([]);
   } finally {
@@ -488,18 +603,121 @@ rbacRouter.post("/columns", requireRole(["admin","superadmin"]), async (req, res
   const pool = getPool();
   try {
     await pool.connect();
-    const request = new sql.Request(pool);
-    request.input("role", sql.VarChar(50), role);
-    request.input("section", sql.VarChar(50), section);
-    request.input("column", sql.VarChar(100), column);
-    request.input("can_read", sql.Bit, effectiveRead ? 1 : 0);
-    request.input("can_write", sql.Bit, write ? 1 : 0);
-    await request.query(`
-      IF EXISTS (SELECT 1 FROM dbo.role_column_access WHERE role=@role AND section=@section AND column=@column)
-        UPDATE dbo.role_column_access SET can_read=@can_read, can_write=@can_write WHERE role=@role AND section=@section AND column=@column;
-      ELSE
-        INSERT INTO dbo.role_column_access (role, section, column, can_read, can_write) VALUES (@role, @section, @column, @can_read, @can_write);
-    `);
+    const cols = await scanColumns(pool, "role_column_access");
+    const hasNormalized = cols.includes("role_id") && cols.includes("column_id");
+    if (hasNormalized) {
+      const rcols = await scanColumns(pool, "roles");
+      const idCol = rcols.includes("role_id") ? "[role_id]" : rcols.includes("id") ? "[id]" : "[role_id]";
+      const nameCol =
+        rcols.includes("role") ? "[role]" :
+        rcols.includes("name") ? "[name]" :
+        rcols.includes("role_name") ? "[role_name]" :
+        rcols.includes("role_display_name") ? "[role_display_name]" : "[role]";
+      const getId = await new sql.Request(pool)
+        .input("name", sql.VarChar(100), role)
+        .query(`SELECT ${idCol} AS id FROM dbo.roles WHERE ${nameCol}=@name`);
+      const foundRole = (getId.recordset || [])[0] as { id?: number };
+      let roleId: number | null = null;
+      if (!foundRole || typeof foundRole.id !== "number") {
+        const insRole = await new sql.Request(pool)
+          .input("name", sql.VarChar(100), role)
+          .query(`INSERT INTO dbo.roles (${nameCol}) VALUES (@name); SELECT CAST(SCOPE_IDENTITY() AS INT) AS id;`);
+        const insRow = (insRole.recordset || [])[0] as { id?: number };
+        roleId = typeof insRow?.id === "number" ? insRow.id : null;
+      } else {
+        roleId = foundRole.id!;
+      }
+      if (typeof roleId !== "number") {
+        return res.status(400).json({ error: "ROLE_NOT_FOUND" });
+      }
+      const normalizeTable = (s: string) => String(s || "").toLowerCase().replace(/\s+/g, "_");
+      const tableName = normalizeTable(section);
+      const ccols = await scanColumns(pool, "column_catalog");
+      const colIdCol = ccols.includes("column_id") ? "[column_id]" : ccols.includes("id") ? "[id]" : "[column_id]";
+      const tableNameCol = ccols.includes("table_name") ? "[table_name]" : "[table]";
+      const columnNameCol = ccols.includes("column_name") ? "[column_name]" : "[column]";
+      const getColId = await new sql.Request(pool)
+        .input("table_name", sql.NVarChar(128), tableName)
+        .input("column_name", sql.NVarChar(128), column)
+        .query(`
+          SELECT ${colIdCol} AS id
+          FROM dbo.column_catalog
+          WHERE LOWER(${tableNameCol}) = LOWER(@table_name) AND LOWER(${columnNameCol}) = LOWER(@column_name)
+        `);
+      const foundCol = (getColId.recordset || [])[0] as { id?: number };
+      let columnId: number | null = null;
+      if (!foundCol || typeof foundCol.id !== "number") {
+        const insColReq = new sql.Request(pool);
+        insColReq.input("table_name", sql.NVarChar(128), tableName);
+        insColReq.input("column_name", sql.NVarChar(128), column);
+        await insColReq.query(`
+          INSERT INTO dbo.column_catalog (${tableNameCol}, ${columnNameCol})
+          VALUES (@table_name, @column_name)
+        `);
+        const getColId2 = await new sql.Request(pool)
+          .input("table_name", sql.NVarChar(128), tableName)
+          .input("column_name", sql.NVarChar(128), column)
+          .query(`
+            SELECT ${colIdCol} AS id
+            FROM dbo.column_catalog
+            WHERE LOWER(${tableNameCol}) = LOWER(@table_name) AND LOWER(${columnNameCol}) = LOWER(@column_name)
+          `);
+        const insCol = (getColId2.recordset || [])[0] as { id?: number };
+        columnId = typeof insCol?.id === "number" ? insCol.id : null;
+      } else {
+        columnId = foundCol.id!;
+      }
+      if (typeof columnId !== "number") {
+        return res.status(400).json({ error: "COLUMN_NOT_FOUND" });
+      }
+      const request = new sql.Request(pool);
+      request.input("role_id", sql.Int, roleId);
+      request.input("column_id", sql.Int, columnId);
+      request.input("can_read", sql.Bit, effectiveRead ? 1 : 0);
+      request.input("can_write", sql.Bit, write ? 1 : 0);
+      const hasView = cols.includes("can_view");
+      const hasEdit = cols.includes("can_edit");
+      const hasRead = cols.includes("can_read");
+      const hasWrite = cols.includes("can_write");
+      const setBits = [
+        hasView ? "[can_view]=@can_read" : null,
+        hasRead ? "[can_read]=@can_read" : null,
+        hasEdit ? "[can_edit]=@can_write" : null,
+        hasWrite ? "[can_write]=@can_write" : null,
+      ].filter(Boolean).join(", ");
+      const insBitCols = [
+        hasView ? "[can_view]" : null,
+        hasRead ? "[can_read]" : null,
+        hasEdit ? "[can_edit]" : null,
+        hasWrite ? "[can_write]" : null,
+      ].filter(Boolean).join(", ");
+      const insBitVals = [
+        hasView ? "@can_read" : null,
+        hasRead ? "@can_read" : null,
+        hasEdit ? "@can_write" : null,
+        hasWrite ? "@can_write" : null,
+      ].filter(Boolean).join(", ");
+      await request.query(`
+        IF EXISTS (SELECT 1 FROM dbo.role_column_access WHERE [role_id]=@role_id AND [column_id]=@column_id)
+          UPDATE dbo.role_column_access SET ${setBits} WHERE [role_id]=@role_id AND [column_id]=@column_id;
+        ELSE
+          INSERT INTO dbo.role_column_access ([role_id], [column_id], ${insBitCols}) VALUES (@role_id, @column_id, ${insBitVals});
+      `);
+    } else {
+      await ensureRoleColumnAccessSchema(pool);
+      const request = new sql.Request(pool);
+      request.input("role", sql.VarChar(50), role);
+      request.input("section", sql.VarChar(50), section);
+      request.input("column", sql.VarChar(100), column);
+      request.input("can_read", sql.Bit, effectiveRead ? 1 : 0);
+      request.input("can_write", sql.Bit, write ? 1 : 0);
+      await request.query(`
+        IF EXISTS (SELECT 1 FROM dbo.role_column_access WHERE [role]=@role AND [section]=@section AND [column]=@column)
+          UPDATE dbo.role_column_access SET [can_read]=@can_read, [can_write]=@can_write WHERE [role]=@role AND [section]=@section AND [column]=@column;
+        ELSE
+          INSERT INTO dbo.role_column_access ([role], [section], [column], [can_read], [can_write]) VALUES (@role, @section, @column, @can_read, @can_write);
+      `);
+    }
     return res.json({ ok: true });
   } catch (err: unknown) {
     const message = err instanceof Error ? err.message : "FAILED_TO_UPSERT_COLUMN_ACCESS";
@@ -557,6 +775,33 @@ rbacRouter.get("/schema/roles", requireRole(["admin","superadmin"]), async (_req
     });
   } catch (err: unknown) {
     const message = err instanceof Error ? err.message : "FAILED_TO_QUERY_SCHEMA_ROLES";
+    return res.status(500).json({ error: message });
+  } finally {
+    await pool.close();
+  }
+});
+
+rbacRouter.get("/schema/role_column_access", requireRole(["admin","superadmin"]), async (_req, res) => {
+  const pool = getPool();
+  try {
+    await pool.connect();
+    const columnsRes = await new sql.Request(pool).query(`
+      SELECT COLUMN_NAME, DATA_TYPE
+      FROM INFORMATION_SCHEMA.COLUMNS
+      WHERE TABLE_SCHEMA = 'dbo' AND TABLE_NAME = 'role_column_access'
+      ORDER BY ORDINAL_POSITION
+    `);
+    const sampleRes = await new sql.Request(pool).query(`
+      SELECT TOP 10 *
+      FROM dbo.role_column_access
+      ORDER BY 1
+    `);
+    return res.json({
+      columns: columnsRes.recordset || [],
+      sample: sampleRes.recordset || [],
+    });
+  } catch (err: unknown) {
+    const message = err instanceof Error ? err.message : "FAILED_TO_QUERY_SCHEMA_ROLE_COLUMN_ACCESS";
     return res.status(500).json({ error: message });
   } finally {
     await pool.close();
