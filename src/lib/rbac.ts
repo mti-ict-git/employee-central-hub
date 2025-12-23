@@ -5,6 +5,17 @@ export type RolePermission = { role: string; module: ModuleName; action: ActionN
 export type ColumnAccess = { role: string; section: string; column: string; read: boolean; write: boolean };
 import { apiFetch } from "@/lib/api";
 
+function normalizeRoleName(role: string) {
+  const s = String(role || "").trim().toLowerCase();
+  if (s.includes("super")) return "superadmin";
+  if (s === "admin") return "admin";
+  if (s.includes("hr")) return "hr_general";
+  if (s.includes("finance")) return "finance";
+  if (s.includes("dep")) return "department_rep";
+  if (s.includes("employee")) return "employee";
+  return s;
+}
+
 const defaultPermissions: RolePermission[] = [
   { role: "superadmin", module: "employees", action: "read", allowed: true },
   { role: "superadmin", module: "employees", action: "create", allowed: true },
@@ -24,7 +35,7 @@ const defaultPermissions: RolePermission[] = [
 
   { role: "hr_general", module: "employees", action: "read", allowed: true },
   { role: "finance", module: "employees", action: "read", allowed: true },
-  { role: "dep_rep", module: "employees", action: "read", allowed: true },
+  { role: "department_rep", module: "employees", action: "read", allowed: true },
 ];
 
 const defaultReadSections: Record<string, string[]> = {
@@ -32,7 +43,7 @@ const defaultReadSections: Record<string, string[]> = {
   admin: ["core","contact","employment","bank","insurance","onboard","travel","checklist","notes"],
   hr_general: ["core","contact","employment","onboard","checklist","notes"],
   finance: ["core","bank","insurance"],
-  dep_rep: ["core","employment"],
+  department_rep: ["core","employment"],
   employee: ["core"],
 };
 
@@ -41,7 +52,7 @@ const defaultWriteSections: Record<string, string[]> = {
   admin: ["core","contact","employment","bank","insurance","onboard","travel","checklist","notes"],
   hr_general: ["contact","employment","notes"],
   finance: ["bank","insurance"],
-  dep_rep: [],
+  department_rep: [],
   employee: [],
 };
 
@@ -60,7 +71,10 @@ export async function fetchRoles(): Promise<string[]> {
     const res = await apiFetch(`/rbac/roles`, { credentials: "include" });
     if (res.ok) {
       const data = await res.json().catch(() => null);
-      if (Array.isArray(data)) return data as string[];
+      if (Array.isArray(data)) {
+        const roles = (data as string[]).map((r) => normalizeRoleName(r));
+        return Array.from(new Set(roles));
+      }
     }
     throw new Error("RBAC_ROLES_FAILED");
   } catch (err) {
@@ -71,7 +85,11 @@ export async function fetchRoles(): Promise<string[]> {
 export async function fetchColumnAccess(): Promise<ColumnAccess[]> {
   try {
     const res = await apiFetch(`/rbac/columns`, { credentials: "include" });
-    if (res.ok) return await res.json();
+    if (res.ok) {
+      const rows = await res.json();
+      const items = Array.isArray(rows) ? (rows as ColumnAccess[]) : [];
+      return items.map((i) => ({ ...i, role: normalizeRoleName(i.role) }));
+    }
   } catch (err) {
     return [];
   }

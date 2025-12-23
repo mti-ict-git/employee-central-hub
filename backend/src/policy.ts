@@ -5,7 +5,7 @@ const perms: Record<string, { employees: Crud; manageUsers: boolean; reports?: {
   admin: { employees: { read: true, create: true, update: true, delete: false }, manageUsers: true, reports: { access: true, export: true } },
   hr_general: { employees: { read: true, create: false, update: false, delete: false }, manageUsers: false, reports: { access: true, export: false } },
   finance: { employees: { read: true, create: false, update: false, delete: false }, manageUsers: false, reports: { access: true, export: true } },
-  dep_rep: { employees: { read: true, create: false, update: false, delete: false }, manageUsers: false, reports: { access: true, export: false } },
+  department_rep: { employees: { read: true, create: false, update: false, delete: false }, manageUsers: false, reports: { access: true, export: false } },
   employee: { employees: { read: true, create: false, update: false, delete: false }, manageUsers: false, reports: { access: false, export: false } },
 };
 
@@ -14,7 +14,7 @@ const sectionRead: Record<string, string[]> = {
   admin: ["core","contact","employment","bank","insurance","onboard","travel","checklist","notes"],
   hr_general: ["core","contact","employment","onboard","checklist","notes"],
   finance: ["core","bank","insurance"],
-  dep_rep: ["core","employment"],
+  department_rep: ["core","employment"],
   employee: ["core"],
 };
 
@@ -23,7 +23,7 @@ const sectionWrite: Record<string, string[]> = {
   admin: ["core","contact","employment","bank","insurance","onboard","travel","checklist","notes"],
   hr_general: ["contact","employment","notes"],
   finance: ["bank","insurance"],
-  dep_rep: [],
+  department_rep: [],
   employee: [],
 };
 

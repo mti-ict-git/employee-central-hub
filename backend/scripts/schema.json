@@ -2250,6 +2250,46 @@
           "maxLength": null,
           "precision": null,
           "scale": null
+        },
+        {
+          "name": "role",
+          "type": "nvarchar",
+          "nullable": false,
+          "maxLength": 50,
+          "precision": null,
+          "scale": null
+        },
+        {
+          "name": "section",
+          "type": "nvarchar",
+          "nullable": false,
+          "maxLength": 50,
+          "precision": null,
+          "scale": null
+        },
+        {
+          "name": "column",
+          "type": "nvarchar",
+          "nullable": false,
+          "maxLength": 100,
+          "precision": null,
+          "scale": null
+        },
+        {
+          "name": "can_read",
+          "type": "bit",
+          "nullable": false,
+          "maxLength": null,
+          "precision": null,
+          "scale": null
+        },
+        {
+          "name": "can_write",
+          "type": "bit",
+          "nullable": false,
+          "maxLength": null,
+          "precision": null,
+          "scale": null
         }
       ],
       "primaryKey": [
@@ -2306,6 +2346,30 @@
           "name": "granted_at",
           "type": "datetime2",
           "nullable": false,
+          "maxLength": null,
+          "precision": null,
+          "scale": null
+        },
+        {
+          "name": "module",
+          "type": "nvarchar",
+          "nullable": true,
+          "maxLength": 50,
+          "precision": null,
+          "scale": null
+        },
+        {
+          "name": "action",
+          "type": "nvarchar",
+          "nullable": true,
+          "maxLength": 50,
+          "precision": null,
+          "scale": null
+        },
+        {
+          "name": "allowed",
+          "type": "bit",
+          "nullable": true,
           "maxLength": null,
           "precision": null,
           "scale": null

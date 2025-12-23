@@ -126,6 +126,32 @@ export function ColumnAccessContent() {
     setDirty(true);
   };
 
+  const bulkSet = (mode: "read" | "write", on: boolean) => {
+    setAccess((prev) => {
+      const next = [...prev];
+      for (const c of filtered) {
+        const exists = next.find((r) => r.role === selectedRole && toLabel(r.section) === c.section && r.column === c.column);
+        if (exists) {
+          if (mode === "read") {
+            exists.read = on;
+            if (!on) exists.write = false;
+          } else {
+            exists.write = on;
+            if (on && !exists.read) exists.read = true;
+          }
+        } else {
+          if (mode === "read") {
+            if (on) next.push({ role: selectedRole, section: c.section, column: c.column, read: true, write: false });
+          } else {
+            if (on) next.push({ role: selectedRole, section: c.section, column: c.column, read: true, write: true });
+          }
+        }
+      }
+      return next;
+    });
+    setDirty(true);
+  };
+
   const save = async () => {
     try {
       setSaving(true);
@@ -192,6 +218,32 @@ export function ColumnAccessContent() {
           <Button onClick={save} disabled={!dirty || saving}>{saving ? "Saving..." : "Save Changes"}</Button>
         </div>
       </div>
+      {(() => {
+        const allReadOn = filtered.length > 0 && filtered.every((c) => !!draft[selectedRole]?.[c.section]?.[c.column]?.read);
+        const allWriteOn = filtered.length > 0 && filtered.every((c) => !!draft[selectedRole]?.[c.section]?.[c.column]?.write);
+        return (
+          <div className="mb-3 flex flex-wrap items-center justify-end gap-4">
+            <div className="flex items-center gap-2">
+              <span className="text-xs text-muted-foreground">View</span>
+              <Switch
+                className="data-[state=checked]:!bg-success"
+                checked={allReadOn}
+                disabled={filtered.length === 0}
+                onCheckedChange={(checked) => bulkSet("read", checked)}
+              />
+            </div>
+            <div className="flex items-center gap-2">
+              <span className="text-xs text-muted-foreground">Edit</span>
+              <Switch
+                className="data-[state=checked]:!bg-warning"
+                checked={allWriteOn}
+                disabled={filtered.length === 0}
+                onCheckedChange={(checked) => bulkSet("write", checked)}
+              />
+            </div>
+          </div>
+        );
+      })()}
       <div className="grid grid-cols-[1fr_repeat(2,160px)] gap-4">
         <div className="text-sm font-semibold">Column</div>
         <div className="text-sm font-semibold text-center">View</div>

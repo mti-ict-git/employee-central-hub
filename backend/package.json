@@ -22,6 +22,7 @@
     "jsonwebtoken": "^9.0.2",
     "ldapjs": "^2.3.3",
     "mssql": "^12.2.0",
+    "vite_react_shadcn_ts": "file:..",
     "xlsx": "^0.18.5",
     "zod": "^3.25.76"
   },

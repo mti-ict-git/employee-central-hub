@@ -349,6 +349,11 @@ Database: MTIMasterEmployeeDB
   - export_allowed: bit
   - created_at: datetime2
   - updated_at: datetime2
+  - role: nvarchar, len=50
+  - section: nvarchar, len=50
+  - column: nvarchar, len=100
+  - can_read: bit
+  - can_write: bit
 - Primary Key: id
 - Foreign Keys:
   - FK_role_column_access_column: column_id → dbo.column_catalog(id)
@@ -361,6 +366,9 @@ Database: MTIMasterEmployeeDB
   - permission_id: int, precision=10
   - granted_by: nvarchar (nullable), len=50
   - granted_at: datetime2
+  - module: nvarchar (nullable), len=50
+  - action: nvarchar (nullable), len=50
+  - allowed: bit (nullable)
 - Primary Key: role_permission_id
 - Foreign Keys:
   - FK__role_perm__permi__160F4887: permission_id → dbo.permissions(permission_id)
