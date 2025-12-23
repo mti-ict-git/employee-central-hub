@@ -51,7 +51,7 @@ const SectionCard = ({ title, icon: Icon, children }: { title: string; icon: Rea
 
 const EmployeeDetail = () => {
   const { id } = useParams();
-  const { caps } = useRBAC();
+  const { caps, typeAccess } = useRBAC();
   const [employee, setEmployee] = useState<Employee | null>(null);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
@@ -66,6 +66,10 @@ const EmployeeDetail = () => {
   const canReadCol = (section: string, column: string) => {
     if (!caps) return true;
     const labeled = toLabel(section);
+    const t = String(employee?.type || "").toLowerCase();
+    const type = t === "expatriate" ? "expat" : (t === "expat" ? "expat" : "indonesia");
+    const applicable = typeAccess?.[type]?.[labeled]?.[column];
+    if (applicable === false) return false;
     return caps.canColumn(labeled, column, "read") || caps.canColumn(section, column, "read");
   };
 

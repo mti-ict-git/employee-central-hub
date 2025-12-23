@@ -4,6 +4,8 @@ export type ActionName = "read" | "create" | "update" | "delete" | "manage_users
 export type RolePermission = { role: string; module: ModuleName; action: ActionName; allowed: boolean };
 export type ColumnAccess = { role: string; section: string; column: string; read: boolean; write: boolean };
 import { apiFetch } from "@/lib/api";
+export type TypeName = "indonesia" | "expat";
+export type TypeColumnAccess = { type: TypeName; section: string; column: string; accessible: boolean };
 
 function normalizeRoleName(role: string) {
   const s = String(role || "").trim().toLowerCase();
@@ -95,6 +97,42 @@ export async function fetchColumnAccess(): Promise<ColumnAccess[]> {
   }
   const out: ColumnAccess[] = [];
   return out;
+}
+
+export async function fetchTypeColumnAccess(): Promise<TypeColumnAccess[]> {
+  try {
+    const res = await apiFetch(`/rbac/type_columns`, { credentials: "include" });
+    if (res.ok) {
+      const rows = await res.json();
+      const items = Array.isArray(rows) ? (rows as TypeColumnAccess[]) : [];
+      return items.map((i) => ({
+        type: i.type === "expatriate" ? "expat" : (i.type === "expat" ? "expat" : "indonesia"),
+        section: i.section,
+        column: i.column,
+        accessible: !!i.accessible,
+      }));
+    }
+  } catch {
+    return [];
+  }
+  return [];
+}
+
+export function buildTypeAccessIndex(items: TypeColumnAccess[]) {
+  const index: Record<TypeName, Record<string, Record<string, boolean>>> = { indonesia: {}, expat: {} };
+  for (const it of items) {
+    const section = String(it.section || "");
+    const column = String(it.column || "");
+    const type = it.type === "expat" ? "expat" : "indonesia";
+    if (!index[type][section]) index[type][section] = {};
+    index[type][section][column] = !!it.accessible;
+    const alias = section.startsWith("Employee ") ? section.slice("Employee ".length) : null;
+    if (alias) {
+      if (!index[type][alias]) index[type][alias] = {};
+      index[type][alias][column] = !!it.accessible;
+    }
+  }
+  return index;
 }
 
 function computeColumnMaps(roles: string[], cols: ColumnAccess[]) {

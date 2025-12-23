@@ -970,7 +970,7 @@ employeesRouter.get("/:id", async (req, res) => {
         batch: r.batch,
         note: r.note,
       },
-      type: (String(r.nationality || "").toLowerCase() === "indonesia" ? "indonesia" : "expatriate") as "indonesia" | "expatriate",
+      type: (String(r.nationality || "").toLowerCase() === "indonesia" ? "indonesia" : "expat") as "indonesia" | "expat",
     };
     const roles = req.user?.roles || [];
     const allowed = new Set<string>();
