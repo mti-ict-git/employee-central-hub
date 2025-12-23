@@ -104,13 +104,17 @@ export async function fetchTypeColumnAccess(): Promise<TypeColumnAccess[]> {
     const res = await apiFetch(`/rbac/type_columns`, { credentials: "include" });
     if (res.ok) {
       const rows = await res.json();
-      const items = Array.isArray(rows) ? (rows as TypeColumnAccess[]) : [];
-      return items.map((i) => ({
-        type: i.type === "expatriate" ? "expat" : (i.type === "expat" ? "expat" : "indonesia"),
-        section: i.section,
-        column: i.column,
-        accessible: !!i.accessible,
-      }));
+      const items = Array.isArray(rows) ? (rows as Array<{ type?: string; section?: string; column?: string; accessible?: boolean }>) : [];
+      return items.map((i) => {
+        const rawType = String(i.type || "").toLowerCase();
+        const type: TypeName = rawType === "expat" ? "expat" : "indonesia";
+        return {
+          type,
+          section: String(i.section || ""),
+          column: String(i.column || ""),
+          accessible: !!i.accessible,
+        };
+      });
     }
   } catch {
     return [];
