@@ -121,7 +121,7 @@ const ImportEmployees = () => {
       header: true,
       skipEmptyLines: true,
       complete: (results) => {
-        const parsed: ParsedEmployee[] = results.data.map((row: any) => {
+        const parsed: ParsedEmployee[] = results.data.map((row: Record<string, string>) => {
           const errors = validateRow(row, employeeType);
           return {
             data: row,

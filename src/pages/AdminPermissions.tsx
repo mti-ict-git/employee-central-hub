@@ -8,6 +8,7 @@ import { toast } from "@/hooks/use-toast";
 import { Tabs, TabsList, TabsTrigger, TabsContent } from "@/components/ui/tabs";
 import { Switch } from "@/components/ui/switch";
 import { ColumnAccessContent } from "./ColumnAccess";
+import { TypeAccessContent } from "./TypeAccess";
 
 export default function AdminPermissions() {
   const [items, setItems] = useState<RolePermission[]>([]);
@@ -101,6 +102,7 @@ export default function AdminPermissions() {
         <TabsList className="mb-4 w-full justify-start overflow-x-auto">
           <TabsTrigger value="matrix">Role Matrix</TabsTrigger>
           <TabsTrigger value="columns">Column Access</TabsTrigger>
+          <TabsTrigger value="types">Indonesia VS Expat</TabsTrigger>
         </TabsList>
         <TabsContent value="matrix">
           <div className="rounded-xl border border-border bg-card p-6 shadow-card">
@@ -132,6 +134,9 @@ export default function AdminPermissions() {
         </TabsContent>
         <TabsContent value="columns">
           <ColumnAccessContent />
+        </TabsContent>
+        <TabsContent value="types">
+          <TypeAccessContent />
         </TabsContent>
       </Tabs>
     </MainLayout>

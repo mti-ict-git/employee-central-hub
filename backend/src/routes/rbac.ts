@@ -87,6 +87,32 @@ async function ensureRoleColumnAccessSchema(pool: sql.ConnectionPool) {
   }
 }
 
+async function ensureTypeColumnAccessSchema(pool: sql.ConnectionPool) {
+  const hasTableRes = await new sql.Request(pool).query(`
+    SELECT 1 AS ok FROM sys.tables WHERE name = 'type_column_access'
+  `);
+  const hasTable = !!((hasTableRes.recordset || [])[0]);
+  if (!hasTable) {
+    await new sql.Request(pool).query(`
+      CREATE TABLE dbo.type_column_access (
+        [employee_type] NVARCHAR(20) NOT NULL,
+        [section] NVARCHAR(50) NOT NULL,
+        [column] NVARCHAR(100) NOT NULL,
+        [accessible] BIT NOT NULL CONSTRAINT DF_type_column_access_accessible DEFAULT 0,
+        CONSTRAINT PK_type_column_access PRIMARY KEY CLUSTERED ([employee_type], [section], [column])
+      )
+    `);
+  } else {
+    const cols = await scanColumns(pool, "type_column_access");
+    const ops: string[] = [];
+    if (!cols.includes("employee_type")) ops.push("ALTER TABLE dbo.type_column_access ADD [employee_type] NVARCHAR(20) NOT NULL DEFAULT '';");
+    if (!cols.includes("section")) ops.push("ALTER TABLE dbo.type_column_access ADD [section] NVARCHAR(50) NOT NULL DEFAULT '';");
+    if (!cols.includes("column")) ops.push("ALTER TABLE dbo.type_column_access ADD [column] NVARCHAR(100) NOT NULL DEFAULT '';");
+    if (!cols.includes("accessible")) ops.push("ALTER TABLE dbo.type_column_access ADD [accessible] BIT NOT NULL DEFAULT 0;");
+    for (const q of ops) await new sql.Request(pool).query(q);
+  }
+}
+
 rbacRouter.get("/roles", async (_req, res) => {
   const pool = getPool();
   try {
@@ -146,6 +172,65 @@ rbacRouter.get("/roles", async (_req, res) => {
     return res.json(dedup);
   } catch (err: unknown) {
     const message = err instanceof Error ? err.message : "FAILED_TO_QUERY_ROLES";
+    return res.status(500).json({ error: message });
+  } finally {
+    await pool.close();
+  }
+});
+
+rbacRouter.get("/type_columns", async (_req, res) => {
+  const pool = getPool();
+  try {
+    await pool.connect();
+    await ensureTypeColumnAccessSchema(pool);
+    const result = await new sql.Request(pool).query(`
+      SELECT [employee_type], [section], [column], [accessible]
+      FROM dbo.type_column_access
+    `);
+    const items = (result.recordset || []).map((r) => {
+      const row = r as { employee_type?: string; section?: string; column?: string; accessible?: number | boolean };
+      const type = String(row.employee_type || "").toLowerCase() === "expat" ? "expat" : "indonesia";
+      return {
+        type,
+        section: String(row.section || ""),
+        column: String(row.column || ""),
+        accessible: !!row.accessible,
+      };
+    });
+    return res.json(items);
+  } catch (err: unknown) {
+    const message = err instanceof Error ? err.message : "FAILED_TO_READ_TYPE_COLUMNS";
+    return res.status(500).json({ error: message });
+  } finally {
+    await pool.close();
+  }
+});
+
+rbacRouter.post("/type_columns", requireRole(["admin","superadmin"]), async (req, res) => {
+  const body = req.body || {};
+  const type = String(body.type || "").toLowerCase() === "expat" ? "expat" : "indonesia";
+  const section = String(body.section || "");
+  const column = String(body.column || "");
+  const accessible = !!body.accessible;
+  if (!section || !column) return res.status(400).json({ error: "INVALID_TYPE_COLUMN" });
+  const pool = getPool();
+  try {
+    await pool.connect();
+    await ensureTypeColumnAccessSchema(pool);
+    const request = new sql.Request(pool);
+    request.input("employee_type", sql.NVarChar(20), type);
+    request.input("section", sql.NVarChar(50), section);
+    request.input("column", sql.NVarChar(100), column);
+    request.input("accessible", sql.Bit, accessible ? 1 : 0);
+    await request.query(`
+      IF EXISTS (SELECT 1 FROM dbo.type_column_access WHERE [employee_type]=@employee_type AND [section]=@section AND [column]=@column)
+        UPDATE dbo.type_column_access SET [accessible]=@accessible WHERE [employee_type]=@employee_type AND [section]=@section AND [column]=@column;
+      ELSE
+        INSERT INTO dbo.type_column_access ([employee_type], [section], [column], [accessible]) VALUES (@employee_type, @section, @column, @accessible);
+    `);
+    return res.json({ ok: true });
+  } catch (err: unknown) {
+    const message = err instanceof Error ? err.message : "FAILED_TO_UPSERT_TYPE_COLUMNS";
     return res.status(500).json({ error: message });
   } finally {
     await pool.close();
