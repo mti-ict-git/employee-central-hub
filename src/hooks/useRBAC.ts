@@ -10,7 +10,17 @@ export function useRBAC() {
     const run = async () => {
       const stored = typeof window !== "undefined" ? localStorage.getItem("auth_user") : null;
       const parsed = stored ? JSON.parse(stored) : null;
-      const roles: string[] = Array.isArray(parsed?.roles) ? parsed.roles : (parsed?.role ? [parsed.role] : []);
+      const rolesRaw: string[] = Array.isArray(parsed?.roles) ? parsed.roles : (parsed?.role ? [parsed.role] : []);
+      const roles: string[] = rolesRaw.map((r) => {
+        const s = String(r || "").trim().toLowerCase();
+        if (s.includes("super")) return "superadmin";
+        if (s === "admin") return "admin";
+        if (s.includes("hr")) return "hr_general";
+        if (s.includes("finance")) return "finance";
+        if (s.includes("dep")) return "department_rep";
+        if (s.includes("employee")) return "employee";
+        return s;
+      });
       const perms = await fetchPermissions();
       const cols = await fetchColumnAccess();
       const types = await fetchTypeColumnAccess();

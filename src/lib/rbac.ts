@@ -7,6 +7,12 @@ import { apiFetch } from "@/lib/api";
 export type TypeName = "indonesia" | "expat";
 export type TypeColumnAccess = { type: TypeName; section: string; column: string; accessible: boolean };
 
+function canonicalSectionKey(section: string) {
+  const s = String(section || "");
+  const withoutPrefix = s.startsWith("Employee ") ? s.slice("Employee ".length) : s;
+  return withoutPrefix.trim().toLowerCase();
+}
+
 function normalizeRoleName(role: string) {
   const s = String(role || "").trim().toLowerCase();
   if (s.includes("super")) return "superadmin";
@@ -106,8 +112,8 @@ export async function fetchTypeColumnAccess(): Promise<TypeColumnAccess[]> {
       const rows = await res.json();
       const items = Array.isArray(rows) ? (rows as Array<{ type?: string; section?: string; column?: string; accessible?: boolean }>) : [];
       return items.map((i) => {
-        const rawType = String(i.type || "").toLowerCase();
-        const type: TypeName = rawType === "expat" ? "expat" : "indonesia";
+        const rawType = String(i.type || "").trim().toLowerCase();
+        const type: TypeName = rawType.startsWith("expat") ? "expat" : "indonesia";
         return {
           type,
           section: String(i.section || ""),
@@ -125,12 +131,14 @@ export async function fetchTypeColumnAccess(): Promise<TypeColumnAccess[]> {
 export function buildTypeAccessIndex(items: TypeColumnAccess[]) {
   const index: Record<TypeName, Record<string, Record<string, boolean>>> = { indonesia: {}, expat: {} };
   for (const it of items) {
-    const section = String(it.section || "");
+    const sectionRaw = String(it.section || "");
+    const section = canonicalSectionKey(sectionRaw);
     const column = String(it.column || "");
     const type = it.type === "expat" ? "expat" : "indonesia";
     if (!index[type][section]) index[type][section] = {};
     index[type][section][column] = !!it.accessible;
-    const alias = section.startsWith("Employee ") ? section.slice("Employee ".length) : null;
+    const aliasRaw = sectionRaw.startsWith("Employee ") ? sectionRaw.slice("Employee ".length) : null;
+    const alias = aliasRaw ? canonicalSectionKey(aliasRaw) : null;
     if (alias) {
       if (!index[type][alias]) index[type][alias] = {};
       index[type][alias][column] = !!it.accessible;
@@ -142,20 +150,28 @@ export function buildTypeAccessIndex(items: TypeColumnAccess[]) {
 function computeColumnMaps(roles: string[], cols: ColumnAccess[]) {
   const readMap: Record<string, Set<string>> = {};
   const writeMap: Record<string, Set<string>> = {};
+  const seenReadMap: Record<string, Set<string>> = {};
+  const seenWriteMap: Record<string, Set<string>> = {};
   for (const role of roles) {
     for (const ca of cols) {
       if (ca.role !== role) continue;
+      const sec = canonicalSectionKey(ca.section);
+      const col = ca.column;
+      if (!seenReadMap[sec]) seenReadMap[sec] = new Set();
+      if (!seenWriteMap[sec]) seenWriteMap[sec] = new Set();
+      seenReadMap[sec].add(col);
+      seenWriteMap[sec].add(col);
       if (ca.read) {
-        if (!readMap[ca.section]) readMap[ca.section] = new Set();
-        readMap[ca.section].add(ca.column);
+        if (!readMap[sec]) readMap[sec] = new Set();
+        readMap[sec].add(col);
       }
       if (ca.write) {
-        if (!writeMap[ca.section]) writeMap[ca.section] = new Set();
-        writeMap[ca.section].add(ca.column);
+        if (!writeMap[sec]) writeMap[sec] = new Set();
+        writeMap[sec].add(col);
       }
     }
   }
-  return { readMap, writeMap };
+  return { readMap, writeMap, seenReadMap, seenWriteMap };
 }
 
 export function computeCapabilities(roles: string[], permissions: RolePermission[], columns: ColumnAccess[] = []) {
@@ -166,13 +182,21 @@ export function computeCapabilities(roles: string[], permissions: RolePermission
     for (const role of roles) for (const s of map[role] || []) set.add(s);
     return set;
   };
+  const { readMap, writeMap, seenReadMap, seenWriteMap } = computeColumnMaps(roles, columns);
   const readSections = union(defaultReadSections);
   const writeSections = union(defaultWriteSections);
-  const { readMap, writeMap } = computeColumnMaps(roles, columns);
+  for (const sec of Object.keys(readMap)) {
+    if (readMap[sec] && readMap[sec].size > 0) readSections.add(sec);
+  }
+  for (const sec of Object.keys(writeMap)) {
+    if (writeMap[sec] && writeMap[sec].size > 0) writeSections.add(sec);
+  }
   const canColumn = (section: string, column: string, mode: "read" | "write") => {
-    const set = mode === "read" ? readMap[section] : writeMap[section];
-    if (set && set.has(column)) return true;
-    return mode === "read" ? readSections.has(section) : writeSections.has(section);
+    const key = canonicalSectionKey(section);
+    const seen = mode === "read" ? seenReadMap[key] : seenWriteMap[key];
+    const allow = mode === "read" ? readMap[key] : writeMap[key];
+    if (seen && seen.has(column)) return !!(allow && allow.has(column));
+    return mode === "read" ? readSections.has(key) : writeSections.has(key);
   };
   return {
     canReadEmployees: can("employees", "read"),

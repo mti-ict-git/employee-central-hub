@@ -23,16 +23,12 @@ import { apiFetch } from "@/lib/api";
 
 const InfoRow = ({ label, value, visible = true }: { label: string; value?: string | boolean | null; visible?: boolean }) => {
   if (!visible) return null;
-  if (value === undefined || value === null || value === '') return null;
-  
-  const displayValue = typeof value === 'boolean' 
-    ? (value ? 'Yes' : 'No') 
-    : value;
-  
+  const displayValue = typeof value === 'boolean' ? (value ? 'Yes' : 'No') : (value ?? '');
+  const text = displayValue === '' ? 'N/A' : displayValue;
   return (
     <div className="flex flex-col sm:flex-row sm:items-center py-2 border-b border-border/50 last:border-0">
       <span className="text-sm text-muted-foreground w-full sm:w-48 shrink-0">{label}</span>
-      <span className="text-sm font-medium">{displayValue}</span>
+      <span className="text-sm font-medium">{text}</span>
     </div>
   );
 };
@@ -62,15 +58,37 @@ const EmployeeDetail = () => {
       .filter(Boolean)
       .map((w) => (w[0] ? w[0].toUpperCase() + w.slice(1) : ""))
       .join(" ");
-  const canReadSection = (section: string) => (caps ? caps.readSections.has(section) : true);
+  const hasSectionData = (key: string) => {
+    const obj = (employee as unknown as Record<string, unknown>) || {};
+    return obj[key] !== undefined && obj[key] !== null;
+  };
+  const canReadSection = (section: string) => hasSectionData(section);
   const canReadCol = (section: string, column: string) => {
-    if (!caps) return true;
-    const labeled = toLabel(section);
+    if (!hasSectionData(section)) return false;
+    const key = String(section || "").toLowerCase();
     const t = String(employee?.type || "").toLowerCase();
     const type = t === "expatriate" ? "expat" : (t === "expat" ? "expat" : "indonesia");
-    const applicable = typeAccess?.[type]?.[labeled]?.[column];
+    const applicable = typeAccess?.[type]?.[key]?.[column];
     if (applicable === false) return false;
-    return caps.canColumn(labeled, column, "read") || caps.canColumn(section, column, "read");
+    if (caps && caps.canColumn(section, column, "read")) return true;
+    return true;
+  };
+  const computeAge = (dob?: string | Date | null) => {
+    if (!dob) return "";
+    const d = typeof dob === "string" ? new Date(dob) : dob;
+    if (!(d instanceof Date) || isNaN(d.getTime())) return "";
+    const now = new Date();
+    let age = now.getFullYear() - d.getFullYear();
+    const m = now.getMonth() - d.getMonth();
+    if (m < 0 || (m === 0 && now.getDate() < d.getDate())) age--;
+    return String(age);
+  };
+  const computeMonthOfBirthday = (dob?: string | Date | null) => {
+    if (!dob) return "";
+    const d = typeof dob === "string" ? new Date(dob) : dob;
+    if (!(d instanceof Date) || isNaN(d.getTime())) return "";
+    const month = d.getMonth() + 1;
+    return month < 10 ? `0${month}` : String(month);
   };
 
   useEffect(() => {
@@ -197,6 +215,12 @@ const EmployeeDetail = () => {
               Employment
             </TabsTrigger>
           )}
+          {canReadSection("onboard") && (
+            <TabsTrigger value="onboard" className="gap-2">
+              <Briefcase className="h-4 w-4" />
+              Onboarding
+            </TabsTrigger>
+          )}
           {canReadSection("bank") && (
             <TabsTrigger value="bank" className="gap-2">
               <CreditCard className="h-4 w-4" />
@@ -231,14 +255,26 @@ const EmployeeDetail = () => {
 
         <TabsContent value="personal">
           <div className="grid gap-6 md:grid-cols-2">
+            <SectionCard title="Identifiers" icon={User}>
+              <InfoRow label="Employee ID" value={employee.core?.employee_id} visible={canReadCol("core","employee_id")} />
+              <InfoRow label="IMIP ID" value={employee.core?.imip_id} visible={canReadCol("core","imip_id")} />
+            </SectionCard>
             <SectionCard title="Basic Information" icon={User}>
+              <InfoRow label="Employee Name" value={employee.core?.name} visible={canReadCol("core","name")} />
               <InfoRow label="Gender" value={employee.core?.gender} visible={canReadCol("core","gender")} />
               <InfoRow label="Place of Birth" value={employee.core?.place_of_birth} visible={canReadCol("core","place_of_birth")} />
               <InfoRow label="Date of Birth" value={employee.core?.date_of_birth} visible={canReadCol("core","date_of_birth")} />
+              <InfoRow label="Age" value={computeAge(employee.core?.date_of_birth)} visible={canReadCol("core","date_of_birth")} />
               <InfoRow label="Marital Status" value={employee.core?.marital_status} visible={canReadCol("core","marital_status")} />
               <InfoRow label="Religion" value={employee.core?.religion} visible={canReadCol("core","religion")} />
               <InfoRow label="Nationality" value={employee.core?.nationality} visible={canReadCol("core","nationality")} />
               <InfoRow label="Blood Type" value={employee.core?.blood_type} visible={canReadCol("core","blood_type")} />
+              <InfoRow label="Month of Birthday" value={computeMonthOfBirthday(employee.core?.date_of_birth)} visible={canReadCol("core","date_of_birth")} />
+              <InfoRow
+                label="Field"
+                value={employee.core?.field}
+                visible={canReadCol("core","field")}
+              />
             </SectionCard>
             <SectionCard title="Identification" icon={User}>
               <InfoRow label="KTP No" value={employee.core?.ktp_no} visible={canReadCol("core","ktp_no")} />
@@ -247,6 +283,9 @@ const EmployeeDetail = () => {
               <InfoRow label="Tax Status" value={employee.core?.tax_status} visible={canReadCol("core","tax_status")} />
               <InfoRow label="Education" value={employee.core?.education} visible={canReadCol("core","education")} />
               <InfoRow label="Office Email" value={employee.core?.office_email} visible={canReadCol("core","office_email")} />
+              <InfoRow label="Branch ID" value={employee.core?.branch_id} visible={canReadCol("core","branch_id")} />
+              <InfoRow label="Branch" value={employee.core?.branch} visible={canReadCol("core","branch")} />
+              <InfoRow label="ID CARD MTI" value={employee.core?.id_card_mti ?? null} visible={canReadCol("core","id_card_mti")} />
             </SectionCard>
           </div>
         </TabsContent>
@@ -273,8 +312,9 @@ const EmployeeDetail = () => {
         <TabsContent value="employment">
           <div className="grid gap-6 md:grid-cols-2">
             <SectionCard title="Position Details" icon={Briefcase}>
+              <InfoRow label="Emp. ID" value={employee.core?.employee_id} visible={canReadCol("employment","employee_id")} />
               <InfoRow label="Employment Status" value={employee.employment?.employment_status} visible={canReadCol("employment","employment_status")} />
-              <InfoRow label="Status" value={employee.employment?.status} visible={canReadCol("employment","status")} />
+              <InfoRow label="Employee Status" value={employee.employment?.status} visible={canReadCol("employment","status")} />
               <InfoRow label="Division" value={employee.employment?.division} visible={canReadCol("employment","division")} />
               <InfoRow label="Department" value={employee.employment?.department} visible={canReadCol("employment","department")} />
               <InfoRow label="Section" value={employee.employment?.section} visible={canReadCol("employment","section")} />
@@ -288,16 +328,17 @@ const EmployeeDetail = () => {
               <InfoRow label="Company Office" value={employee.employment?.company_office} visible={canReadCol("employment","company_office")} />
               <InfoRow label="Work Location" value={employee.employment?.work_location} visible={canReadCol("employment","work_location")} />
               <InfoRow label="Locality Status" value={employee.employment?.locality_status} visible={canReadCol("employment","locality_status")} />
-              <InfoRow label="Branch" value={employee.core?.branch} visible={canReadCol("core","branch")} />
-              <InfoRow label="Branch ID" value={employee.core?.branch_id} visible={canReadCol("core","branch_id")} />
-              {employee.employment?.terminated_date && (
-                <>
-                  <InfoRow label="Terminated Date" value={employee.employment?.terminated_date} visible={canReadCol("employment","terminated_date")} />
-                  <InfoRow label="Terminated Type" value={employee.employment?.terminated_type} visible={canReadCol("employment","terminated_type")} />
-                  <InfoRow label="Terminated Reason" value={employee.employment?.terminated_reason} visible={canReadCol("employment","terminated_reason")} />
-                </>
-              )}
+              <InfoRow label="Terminated Date" value={employee.employment?.terminated_date} visible={canReadCol("employment","terminated_date")} />
+              <InfoRow label="Terminated Type" value={employee.employment?.terminated_type} visible={canReadCol("employment","terminated_type")} />
+              <InfoRow label="Terminated Reason" value={employee.employment?.terminated_reason} visible={canReadCol("employment","terminated_reason")} />
+              <InfoRow label="Black List MTI" value={employee.employment?.blacklist_mti} visible={canReadCol("employment","blacklist_mti")} />
+              <InfoRow label="Black List IMIP" value={employee.employment?.blacklist_imip} visible={canReadCol("employment","blacklist_imip")} />
             </SectionCard>
+          </div>
+        </TabsContent>
+
+        <TabsContent value="onboard">
+          <div className="grid gap-6 md:grid-cols-2">
             <SectionCard title="Onboarding" icon={Briefcase}>
               <InfoRow label="Point of Hire" value={employee.onboard?.point_of_hire} visible={canReadCol("onboard","point_of_hire")} />
               <InfoRow label="Point of Origin" value={employee.onboard?.point_of_origin} visible={canReadCol("onboard","point_of_origin")} />

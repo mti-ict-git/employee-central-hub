@@ -66,6 +66,8 @@ type EmployeeDetailRow = {
   branch: string | null;
   branch_id: string | null;
   imip_id: string | null;
+  id_card_mti: boolean | null;
+  field: string | null;
   phone_number: string | null;
   email: string | null;
   address: string | null;
@@ -92,6 +94,8 @@ type EmployeeDetailRow = {
   terminated_date: Date | null;
   terminated_type: string | null;
   terminated_reason: string | null;
+  blacklist_mti: string | null;
+  blacklist_imip: string | null;
   point_of_hire: string | null;
   point_of_origin: string | null;
   schedule_type: string | null;
@@ -162,6 +166,24 @@ function boolToYN(v: unknown) {
   return v ? "Y" : "N";
 }
 
+function normalizeRoleName(role: string) {
+  const s = String(role || "").trim().toLowerCase();
+  if (s.includes("super")) return "superadmin";
+  if (s === "admin") return "admin";
+  if (s.includes("hr")) return "hr_general";
+  if (s.includes("finance")) return "finance";
+  if (s.includes("dep")) return "department_rep";
+  if (s.includes("employee")) return "employee";
+  return s;
+}
+
+function canonicalSectionKey(section: string) {
+  const s = String(section || "").trim().toLowerCase();
+  if (s.startsWith("employee ")) return s.slice("employee ".length);
+  if (s.startsWith("employee_")) return s.slice("employee_".length);
+  return s;
+}
+
 function extractDbErrorDetails(err: unknown): { code?: string; number?: number; state?: string; name?: string } | undefined {
   if (typeof err !== "object" || err === null) return undefined;
   const o = err as { [k: string]: unknown };
@@ -172,14 +194,15 @@ function extractDbErrorDetails(err: unknown): { code?: string; number?: number; 
   if (!code && !number && !state && !name) return undefined;
   return { code, number, state, name };
 }
-employeesRouter.get("/", async (req, res) => {
+  employeesRouter.get("/", async (req, res) => {
   const limit = Math.min(parseInt(String(req.query.limit || "50"), 10) || 50, 200);
   const offset = parseInt(String(req.query.offset || "0"), 10) || 0;
   const pool = getPool();
   try {
     await pool.connect();
-    const userRoles = req.user?.roles || [];
-    const isDepRep = userRoles.includes("department_rep");
+    const rolesRaw = req.user?.roles || [];
+    const roles = rolesRaw.map((r) => normalizeRoleName(String(r)));
+    const isDepRep = roles.includes("department_rep");
     let userDept: string | null = null;
     if (isDepRep) {
       const deptReq = new sql.Request(pool);
@@ -299,6 +322,12 @@ employeesRouter.put("/:id", async (req, res) => {
     request.input("imip_id", sql.NVarChar(50), core.imip_id || null);
     request.input("branch", sql.NVarChar(50), core.branch || null);
     request.input("branch_id", sql.NVarChar(50), core.branch_id || null);
+    request.input("office_email", sql.NVarChar(255), core.office_email || null);
+    const idCardVal =
+      core.id_card_mti === true ? 1 :
+      core.id_card_mti === false ? 0 : null;
+    request.input("id_card_mti", sql.Bit, idCardVal);
+    request.input("field", sql.NVarChar(100), (core.field ?? employment.field) || null);
     phase = "core_upsert";
     console.log("employees.put", { id, phase, params: Object.keys(((request as unknown as { parameters?: Record<string, unknown> }).parameters) || {}) });
     await request.query(`
@@ -307,11 +336,11 @@ employeesRouter.put("/:id", async (req, res) => {
         SET name=@name, gender=@gender, place_of_birth=@place_of_birth, date_of_birth=@date_of_birth,
             marital_status=@marital_status, religion=@religion, nationality=@nationality, blood_type=@blood_type,
             kartu_keluarga_no=@kartu_keluarga_no, ktp_no=@ktp_no, npwp=@npwp, tax_status=@tax_status,
-            education=@education, imip_id=@imip_id, branch=@branch, branch_id=@branch_id
+            education=@education, imip_id=@imip_id, branch=@branch, branch_id=@branch_id, office_email=@office_email, id_card_mti=@id_card_mti, field=@field
         WHERE employee_id=@employee_id
       ELSE
-        INSERT INTO dbo.employee_core (employee_id, name, gender, place_of_birth, date_of_birth, marital_status, religion, nationality, blood_type, kartu_keluarga_no, ktp_no, npwp, tax_status, education, imip_id, branch, branch_id)
-        VALUES (@employee_id, @name, @gender, @place_of_birth, @date_of_birth, @marital_status, @religion, @nationality, @blood_type, @kartu_keluarga_no, @ktp_no, @npwp, @tax_status, @education, @imip_id, @branch, @branch_id);
+        INSERT INTO dbo.employee_core (employee_id, name, gender, place_of_birth, date_of_birth, marital_status, religion, nationality, blood_type, kartu_keluarga_no, ktp_no, npwp, tax_status, education, imip_id, branch, branch_id, office_email, id_card_mti, field)
+        VALUES (@employee_id, @name, @gender, @place_of_birth, @date_of_birth, @marital_status, @religion, @nationality, @blood_type, @kartu_keluarga_no, @ktp_no, @npwp, @tax_status, @education, @imip_id, @branch, @branch_id, @office_email, @id_card_mti, @field);
     `);
     request.parameters = {};
     request.input("employee_id", sql.VarChar(100), id);
@@ -353,6 +382,8 @@ employeesRouter.put("/:id", async (req, res) => {
     request.input("company_office", sql.NVarChar(100), employment.company_office || null);
     request.input("work_location", sql.NVarChar(100), employment.work_location || null);
     request.input("locality_status", sql.NVarChar(50), employment.locality_status || null);
+    request.input("blacklist_mti", sql.NVarChar(1), boolToYN((employment as unknown as { blacklist_mti?: boolean }).blacklist_mti));
+    request.input("blacklist_imip", sql.NVarChar(1), boolToYN((employment as unknown as { blacklist_imip?: boolean }).blacklist_imip));
     phase = "employment_upsert";
     console.log("employees.put", { id, phase, params: Object.keys(((request as unknown as { parameters?: Record<string, unknown> }).parameters) || {}) });
     await request.query(`
@@ -361,11 +392,11 @@ employeesRouter.put("/:id", async (req, res) => {
         SET employment_status=@employment_status, status=@status, division=@division, department=@department, section=@section,
             job_title=@job_title, grade=@grade, position_grade=@position_grade, group_job_title=@group_job_title,
             direct_report=@direct_report, company_office=@company_office, work_location=@work_location,
-            locality_status=@locality_status
+            locality_status=@locality_status, blacklist_mti=@blacklist_mti, blacklist_imip=@blacklist_imip
         WHERE employee_id=@employee_id
       ELSE
-        INSERT INTO dbo.employee_employment (employee_id, employment_status, status, division, department, section, job_title, grade, position_grade, group_job_title, direct_report, company_office, work_location, locality_status)
-        VALUES (@employee_id, @employment_status, @status, @division, @department, @section, @job_title, @grade, @position_grade, @group_job_title, @direct_report, @company_office, @work_location, @locality_status);
+        INSERT INTO dbo.employee_employment (employee_id, employment_status, status, division, department, section, job_title, grade, position_grade, group_job_title, direct_report, company_office, work_location, locality_status, blacklist_mti, blacklist_imip)
+        VALUES (@employee_id, @employment_status, @status, @division, @department, @section, @job_title, @grade, @position_grade, @group_job_title, @direct_report, @company_office, @work_location, @locality_status, @blacklist_mti, @blacklist_imip);
     `);
     request.parameters = {};
     request.input("employee_id", sql.VarChar(100), id);
@@ -541,17 +572,23 @@ employeesRouter.post("/", async (req, res) => {
     request.input("imip_id", sql.NVarChar(50), core.imip_id || null);
     request.input("branch", sql.NVarChar(50), core.branch || null);
     request.input("branch_id", sql.NVarChar(50), core.branch_id || null);
+    request.input("office_email", sql.NVarChar(255), core.office_email || null);
+    const idCardVal =
+      core.id_card_mti === true ? 1 :
+      core.id_card_mti === false ? 0 : null;
+    request.input("id_card_mti", sql.Bit, idCardVal);
+    request.input("field", sql.NVarChar(100), (core.field ?? employment.field) || null);
     await request.query(`
       IF EXISTS (SELECT 1 FROM dbo.employee_core WHERE employee_id = @employee_id)
         UPDATE dbo.employee_core
         SET name=@name, gender=@gender, place_of_birth=@place_of_birth, date_of_birth=@date_of_birth,
             marital_status=@marital_status, religion=@religion, nationality=@nationality, blood_type=@blood_type,
             kartu_keluarga_no=@kartu_keluarga_no, ktp_no=@ktp_no, npwp=@npwp, tax_status=@tax_status,
-            education=@education, imip_id=@imip_id, branch=@branch, branch_id=@branch_id
+            education=@education, imip_id=@imip_id, branch=@branch, branch_id=@branch_id, office_email=@office_email, id_card_mti=@id_card_mti, field=@field
         WHERE employee_id=@employee_id
       ELSE
-        INSERT INTO dbo.employee_core (employee_id, name, gender, place_of_birth, date_of_birth, marital_status, religion, nationality, blood_type, kartu_keluarga_no, ktp_no, npwp, tax_status, education, imip_id, branch, branch_id)
-        VALUES (@employee_id, @name, @gender, @place_of_birth, @date_of_birth, @marital_status, @religion, @nationality, @blood_type, @kartu_keluarga_no, @ktp_no, @npwp, @tax_status, @education, @imip_id, @branch, @branch_id);
+        INSERT INTO dbo.employee_core (employee_id, name, gender, place_of_birth, date_of_birth, marital_status, religion, nationality, blood_type, kartu_keluarga_no, ktp_no, npwp, tax_status, education, imip_id, branch, branch_id, office_email, id_card_mti, field)
+        VALUES (@employee_id, @name, @gender, @place_of_birth, @date_of_birth, @marital_status, @religion, @nationality, @blood_type, @kartu_keluarga_no, @ktp_no, @npwp, @tax_status, @education, @imip_id, @branch, @branch_id, @office_email, @id_card_mti, @field);
     `);
     request.parameters = {};
     request.input("employee_id", sql.VarChar(100), id);
@@ -797,13 +834,14 @@ employeesRouter.post("/import", async (req, res) => {
   return res.json({ ok: true, success, failed, total: rows.length });
 });
 
-employeesRouter.get("/:id", async (req, res) => {
+  employeesRouter.get("/:id", async (req, res) => {
   const id = String(req.params.id);
   const pool = getPool();
   try {
     await pool.connect();
-    const userRoles = req.user?.roles || [];
-    const isDepRep = userRoles.includes("department_rep");
+    const rolesRaw = req.user?.roles || [];
+    const rolesNorm = rolesRaw.map((r) => normalizeRoleName(String(r)));
+    const isDepRep = rolesNorm.includes("department_rep");
     let userDept: string | null = null;
     if (isDepRep) {
       const deptReq = new sql.Request(pool);
@@ -822,17 +860,17 @@ employeesRouter.get("/:id", async (req, res) => {
     request.input("id", sql.VarChar(100), id);
     if (isDepRep && userDept) request.input("department", sql.NVarChar(100), userDept);
     const extraWhere = isDepRep ? " AND emp.department IS NOT NULL AND LTRIM(RTRIM(emp.department)) <> '' AND LOWER(emp.department) = LOWER(@department)" : "";
-    const result = await request.query<EmployeeDetailRow>(`
-      SELECT
-        core.employee_id, core.name, core.gender, core.place_of_birth, core.date_of_birth, core.marital_status,
-        core.religion, core.nationality, core.blood_type, core.kartu_keluarga_no, core.ktp_no, core.npwp,
-        core.tax_status, core.education, core.office_email, core.branch, core.branch_id, core.imip_id,
-        contact.phone_number, contact.email, contact.address, contact.city,
-        contact.spouse_name, contact.child_name_1, contact.child_name_2, contact.child_name_3,
-        contact.emergency_contact_name, contact.emergency_contact_phone,
-        emp.employment_status, emp.status, emp.division, emp.department, emp.section, emp.job_title,
-        emp.grade, emp.position_grade, emp.group_job_title, emp.direct_report, emp.company_office,
-        emp.work_location, emp.locality_status, emp.terminated_date, emp.terminated_type, emp.terminated_reason,
+      const result = await request.query<EmployeeDetailRow>(`
+        SELECT
+          core.employee_id, core.name, core.gender, core.place_of_birth, core.date_of_birth, core.marital_status,
+          core.religion, core.nationality, core.blood_type, core.kartu_keluarga_no, core.ktp_no, core.npwp,
+          core.tax_status, core.education, core.office_email, core.branch, core.branch_id, core.imip_id, core.id_card_mti, core.field,
+          contact.phone_number, contact.email, contact.address, contact.city,
+          contact.spouse_name, contact.child_name_1, contact.child_name_2, contact.child_name_3,
+          contact.emergency_contact_name, contact.emergency_contact_phone,
+          emp.employment_status, emp.status, emp.division, emp.department, emp.section, emp.job_title,
+          emp.grade, emp.position_grade, emp.group_job_title, emp.direct_report, emp.company_office,
+        emp.work_location, emp.locality_status, emp.terminated_date, emp.terminated_type, emp.terminated_reason, emp.blacklist_mti, emp.blacklist_imip,
         onboard.point_of_hire, onboard.point_of_origin, onboard.schedule_type, onboard.first_join_date_merdeka,
         onboard.transfer_merdeka, onboard.first_join_date, onboard.join_date, onboard.end_contract, onboard.years_in_service,
         bank.bank_name, bank.account_name, bank.account_no, bank.bank_code, bank.icbc_bank_account_no, bank.icbc_username,
@@ -879,6 +917,8 @@ employeesRouter.get("/:id", async (req, res) => {
         branch: r.branch,
         branch_id: r.branch_id,
         imip_id: r.imip_id,
+        id_card_mti: r.id_card_mti,
+        field: r.field,
       },
       contact: {
         phone_number: r.phone_number,
@@ -909,6 +949,8 @@ employeesRouter.get("/:id", async (req, res) => {
         terminated_date: r.terminated_date,
         terminated_type: r.terminated_type,
         terminated_reason: r.terminated_reason,
+        blacklist_mti: r.blacklist_mti,
+        blacklist_imip: r.blacklist_imip,
       },
       onboard: {
         point_of_hire: r.point_of_hire,
@@ -972,9 +1014,47 @@ employeesRouter.get("/:id", async (req, res) => {
       },
       type: (String(r.nationality || "").toLowerCase() === "indonesia" ? "indonesia" : "expat") as "indonesia" | "expat",
     };
-    const roles = req.user?.roles || [];
+    const rolesRaw2 = req.user?.roles || [];
+    const roles = rolesRaw2.map((r) => normalizeRoleName(r));
     const allowed = new Set<string>();
     for (const role of roles) for (const s of Array.from(readSectionsFor(role))) allowed.add(s);
+    try {
+      const req1 = new sql.Request(pool);
+      const res1 = await req1.query(`
+        SELECT [role], [section], [can_read], [can_view]
+        FROM dbo.role_column_access
+      `);
+      const rows1 = (res1.recordset || []) as Array<{ role?: unknown; section?: unknown; can_read?: unknown; can_view?: unknown }>;
+      for (const r1 of rows1) {
+        const role1 = normalizeRoleName(String(r1.role || ""));
+        if (!roles.includes(role1)) continue;
+        const canRead = Number(r1.can_read) === 1 || r1.can_read === true || Number(r1.can_view) === 1 || r1.can_view === true;
+        if (!canRead) continue;
+        const sec = canonicalSectionKey(String(r1.section || ""));
+        if (sec) allowed.add(sec);
+      }
+    } catch {}
+    try {
+      const req2 = new sql.Request(pool);
+      const res2 = await req2.query(`
+        SELECT
+          COALESCE(r.[role], r.[name], r.[role_name], r.[role_display_name]) AS role_text,
+          COALESCE(cc.[table_name], cc.[table]) AS table_name,
+          COALESCE(rca.[can_read], rca.[can_view]) AS can_read
+        FROM dbo.role_column_access AS rca
+        LEFT JOIN dbo.roles AS r ON r.[role_id] = rca.[role_id]
+        LEFT JOIN dbo.column_catalog AS cc ON cc.[column_id] = rca.[column_id]
+      `);
+      const rows2 = (res2.recordset || []) as Array<{ role_text?: unknown; table_name?: unknown; can_read?: unknown }>;
+      for (const r2 of rows2) {
+        const role2 = normalizeRoleName(String(r2.role_text || ""));
+        if (!roles.includes(role2)) continue;
+        const canRead2 = Number(r2.can_read) === 1 || r2.can_read === true;
+        if (!canRead2) continue;
+        const sec2 = canonicalSectionKey(String(r2.table_name || ""));
+        if (sec2) allowed.add(sec2);
+      }
+    } catch {}
     const filtered: Record<string, unknown> = {};
     for (const k of Object.keys(payload as Record<string, unknown>)) {
       if (allowed.has(k)) (filtered as Record<string, unknown>)[k] = (payload as Record<string, unknown>)[k];

@@ -31,6 +31,15 @@ function toLabel(s: string) {
     .join(" ");
 }
 
+function canonicalGroup(section: string) {
+  const s = String(section || "");
+  const withoutPrefix = s.startsWith("Employee ") ? s.slice("Employee ".length) : s;
+  const base = withoutPrefix.trim();
+  if (base.toLowerCase() === "core") return "Personal";
+  if (base.toLowerCase() === "onboard") return "Onboarding";
+  return base;
+}
+
 export function ColumnAccessContent() {
   const [roles, setRoles] = useState<string[]>([]);
   const [selectedRole, setSelectedRole] = useState<string>("");
@@ -40,6 +49,7 @@ export function ColumnAccessContent() {
   const [dirty, setDirty] = useState(false);
   const [group, setGroup] = useState<string>("all");
   const [query, setQuery] = useState("");
+  const [status, setStatus] = useState<string>("all");
 
   const load = async () => {
     const [rs, ac] = await Promise.all([fetchRoles(), fetchColumnAccess()]);
@@ -95,12 +105,20 @@ export function ColumnAccessContent() {
   const filtered = useMemo(() => {
     const g = group.toLowerCase();
     const q = query.toLowerCase();
+    const s = status.toLowerCase();
     return columns.filter((c) => {
-      const gmatch = g === "all" || c.section.toLowerCase() === g;
+      const gmatch = g === "all" || canonicalGroup(c.section).toLowerCase() === g;
       const qmatch = !q || c.label.toLowerCase().includes(q) || c.column.toLowerCase().includes(q);
-      return gmatch && qmatch;
+      const state = draft[selectedRole]?.[c.section]?.[c.column] || { read: false, write: false };
+      const smatch =
+        s === "all" ||
+        (s === "view_on" && !!state.read) ||
+        (s === "view_off" && !state.read) ||
+        (s === "edit_on" && !!state.write) ||
+        (s === "edit_off" && !state.write);
+      return gmatch && qmatch && smatch;
     });
-  }, [columns, group, query]);
+  }, [columns, group, query, status, selectedRole, draft]);
 
   const toggle = (section: string, column: string, mode: "read" | "write") => {
     setAccess((prev) => {
@@ -187,13 +205,13 @@ export function ColumnAccessContent() {
 
   const groups = useMemo(() => {
     const s = new Set<string>();
-    for (const c of columns) s.add(c.section);
+    for (const c of columns) s.add(canonicalGroup(c.section));
     return Array.from(s).sort((a, b) => a.localeCompare(b));
   }, [columns]);
 
   return (
     <div className="rounded-xl border border-border bg-card p-6 shadow-card">
-      <div className="mb-4 grid grid-cols-1 md:grid-cols-4 gap-3">
+      <div className="mb-4 grid grid-cols-1 md:grid-cols-5 gap-3">
         <div>
           <label className="text-xs text-muted-foreground">Role</label>
           <Select value={selectedRole} onValueChange={setSelectedRole}>
@@ -210,6 +228,19 @@ export function ColumnAccessContent() {
             <SelectContent>
               <SelectItem value="all">All groups</SelectItem>
               {groups.map((g) => (<SelectItem key={g} value={g.toLowerCase()}>{g}</SelectItem>))}
+            </SelectContent>
+          </Select>
+        </div>
+        <div>
+          <label className="text-xs text-muted-foreground">Status</label>
+          <Select value={status} onValueChange={setStatus}>
+            <SelectTrigger><SelectValue placeholder="Select status" /></SelectTrigger>
+            <SelectContent>
+              <SelectItem value="all">All statuses</SelectItem>
+              <SelectItem value="view_on">View: Enabled</SelectItem>
+              <SelectItem value="view_off">View: Disabled</SelectItem>
+              <SelectItem value="edit_on">Edit: Enabled</SelectItem>
+              <SelectItem value="edit_off">Edit: Disabled</SelectItem>
             </SelectContent>
           </Select>
         </div>
@@ -253,7 +284,7 @@ export function ColumnAccessContent() {
           return (
             <div key={`${c.section}-${c.column}`} className="contents">
               <div className="py-2">
-                <div className="text-xs text-muted-foreground">{c.section}</div>
+                <div className="text-xs text-muted-foreground">{canonicalGroup(c.section)}</div>
                 <div className="flex items-center gap-2">
                   <span className="text-sm">{c.label}</span>
                   <span className="text-xs text-muted-foreground">{c.column}{c.type ? ` · ${c.type}` : ""}</span>

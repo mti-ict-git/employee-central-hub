@@ -189,7 +189,8 @@ rbacRouter.get("/type_columns", async (_req, res) => {
     `);
     const items = (result.recordset || []).map((r) => {
       const row = r as { employee_type?: string; section?: string; column?: string; accessible?: number | boolean };
-      const type = String(row.employee_type || "").toLowerCase() === "expat" ? "expat" : "indonesia";
+      const raw = String(row.employee_type || "").trim().toLowerCase();
+      const type = raw.startsWith("expat") ? "expat" : "indonesia";
       return {
         type,
         section: String(row.section || ""),
