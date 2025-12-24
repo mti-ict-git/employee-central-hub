@@ -14,7 +14,7 @@ const sectionRead: Record<string, string[]> = {
   admin: ["core","contact","employment","bank","insurance","onboard","travel","checklist","notes"],
   hr_general: ["core","contact","employment","onboard","checklist","notes"],
   finance: ["core","bank","insurance"],
-  department_rep: ["core","employment"],
+  department_rep: ["core","employment","bank"],
   employee: ["core"],
 };
 

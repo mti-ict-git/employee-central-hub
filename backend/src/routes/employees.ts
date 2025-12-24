@@ -178,9 +178,10 @@ function normalizeRoleName(role: string) {
 }
 
 function canonicalSectionKey(section: string) {
-  const s = String(section || "").trim().toLowerCase();
-  if (s.startsWith("employee ")) return s.slice("employee ".length);
-  if (s.startsWith("employee_")) return s.slice("employee_".length);
+  let s = String(section || "").trim().toLowerCase();
+  if (s.includes(".")) s = s.split(".").pop() as string;
+  if (s.startsWith("employee ")) s = s.slice("employee ".length);
+  if (s.startsWith("employee_")) s = s.slice("employee_".length);
   return s;
 }
 
@@ -201,8 +202,10 @@ function extractDbErrorDetails(err: unknown): { code?: string; number?: number; 
   try {
     await pool.connect();
     const rolesRaw = req.user?.roles || [];
-    const roles = rolesRaw.map((r) => normalizeRoleName(String(r)));
-    const isDepRep = roles.includes("department_rep");
+    const rolesAll = rolesRaw.map((r) => normalizeRoleName(String(r)));
+    const isDepRep = rolesAll.includes("department_rep");
+    const isPrivileged = rolesAll.includes("superadmin") || rolesAll.includes("admin");
+    const rolesForAccess = isDepRep && !isPrivileged ? ["department_rep"] : rolesAll;
     let userDept: string | null = null;
     if (isDepRep) {
       const deptReq = new sql.Request(pool);
@@ -842,6 +845,8 @@ employeesRouter.post("/import", async (req, res) => {
     const rolesRaw = req.user?.roles || [];
     const rolesNorm = rolesRaw.map((r) => normalizeRoleName(String(r)));
     const isDepRep = rolesNorm.includes("department_rep");
+    const isPrivileged = rolesNorm.includes("superadmin") || rolesNorm.includes("admin");
+    const rolesForAccess = isDepRep && !isPrivileged ? ["department_rep"] : rolesNorm;
     let userDept: string | null = null;
     if (isDepRep) {
       const deptReq = new sql.Request(pool);
@@ -1014,10 +1019,8 @@ employeesRouter.post("/import", async (req, res) => {
       },
       type: (String(r.nationality || "").toLowerCase() === "indonesia" ? "indonesia" : "expat") as "indonesia" | "expat",
     };
-    const rolesRaw2 = req.user?.roles || [];
-    const roles = rolesRaw2.map((r) => normalizeRoleName(r));
     const allowed = new Set<string>();
-    for (const role of roles) for (const s of Array.from(readSectionsFor(role))) allowed.add(s);
+    for (const role of rolesForAccess) for (const s of Array.from(readSectionsFor(role))) allowed.add(s);
     try {
       const req1 = new sql.Request(pool);
       const res1 = await req1.query(`
@@ -1027,7 +1030,7 @@ employeesRouter.post("/import", async (req, res) => {
       const rows1 = (res1.recordset || []) as Array<{ role?: unknown; section?: unknown; can_read?: unknown; can_view?: unknown }>;
       for (const r1 of rows1) {
         const role1 = normalizeRoleName(String(r1.role || ""));
-        if (!roles.includes(role1)) continue;
+        if (!rolesForAccess.includes(role1)) continue;
         const canRead = Number(r1.can_read) === 1 || r1.can_read === true || Number(r1.can_view) === 1 || r1.can_view === true;
         if (!canRead) continue;
         const sec = canonicalSectionKey(String(r1.section || ""));
@@ -1048,7 +1051,7 @@ employeesRouter.post("/import", async (req, res) => {
       const rows2 = (res2.recordset || []) as Array<{ role_text?: unknown; table_name?: unknown; can_read?: unknown }>;
       for (const r2 of rows2) {
         const role2 = normalizeRoleName(String(r2.role_text || ""));
-        if (!roles.includes(role2)) continue;
+        if (!rolesForAccess.includes(role2)) continue;
         const canRead2 = Number(r2.can_read) === 1 || r2.can_read === true;
         if (!canRead2) continue;
         const sec2 = canonicalSectionKey(String(r2.table_name || ""));
