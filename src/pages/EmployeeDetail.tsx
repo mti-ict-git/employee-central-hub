@@ -62,7 +62,15 @@ const EmployeeDetail = () => {
     const obj = (employee as unknown as Record<string, unknown>) || {};
     return obj[key] !== undefined && obj[key] !== null;
   };
-  const canReadSection = (section: string) => hasSectionData(section);
+  const canReadSection = (section: string) => {
+    if (!hasSectionData(section)) return false;
+    const obj = (employee as unknown as Record<string, unknown>)[section] as Record<string, unknown> | undefined;
+    if (!obj || typeof obj !== "object") return false;
+    for (const col of Object.keys(obj)) {
+      if (canReadCol(section, col)) return true;
+    }
+    return false;
+  };
   const canReadCol = (section: string, column: string) => {
     if (!hasSectionData(section)) return false;
     const key = String(section || "").toLowerCase();
@@ -71,8 +79,8 @@ const EmployeeDetail = () => {
     const type = t.startsWith("expat") ? "expat" : (nat === "indonesia" || nat.startsWith("indo") ? "indonesia" : "expat");
     const applicable = typeAccess?.[type]?.[key]?.[column];
     if (applicable === false) return false;
-    if (caps && caps.canColumn(section, column, "read")) return true;
-    return true;
+    if (!caps) return false;
+    return caps.canColumn(section, column, "read");
   };
   const computeAge = (dob?: string | Date | null) => {
     if (!dob) return "";

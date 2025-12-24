@@ -185,6 +185,20 @@ function canonicalSectionKey(section: string) {
   return s;
 }
 
+async function scanColumns(pool: sql.ConnectionPool, table: string): Promise<Set<string>> {
+  const request = new sql.Request(pool);
+  request.input("table", sql.NVarChar(128), table);
+  const result = await request.query(`
+    SELECT COLUMN_NAME
+    FROM INFORMATION_SCHEMA.COLUMNS
+    WHERE TABLE_SCHEMA='dbo' AND TABLE_NAME=@table
+  `);
+  const out = new Set<string>();
+  const rows = (result.recordset || []) as Array<{ COLUMN_NAME?: unknown }>;
+  for (const r of rows) out.add(String(r.COLUMN_NAME || "").trim().toLowerCase());
+  return out;
+}
+
 function extractDbErrorDetails(err: unknown): { code?: string; number?: number; state?: string; name?: string } | undefined {
   if (typeof err !== "object" || err === null) return undefined;
   const o = err as { [k: string]: unknown };
@@ -1019,45 +1033,102 @@ employeesRouter.post("/import", async (req, res) => {
       },
       type: (String(r.nationality || "").toLowerCase() === "indonesia" ? "indonesia" : "expat") as "indonesia" | "expat",
     };
-    const allowed = new Set<string>();
-    for (const role of rolesForAccess) for (const s of Array.from(readSectionsFor(role))) allowed.add(s);
+    const allowedStatic = new Set<string>();
+    for (const role of rolesForAccess) for (const s of Array.from(readSectionsFor(role))) allowedStatic.add(s);
+    const dynamicSeen = new Set<string>();
+    const dynamicAllowed = new Set<string>();
     try {
-      const req1 = new sql.Request(pool);
-      const res1 = await req1.query(`
-        SELECT [role], [section], [can_read], [can_view]
-        FROM dbo.role_column_access
-      `);
-      const rows1 = (res1.recordset || []) as Array<{ role?: unknown; section?: unknown; can_read?: unknown; can_view?: unknown }>;
-      for (const r1 of rows1) {
-        const role1 = normalizeRoleName(String(r1.role || ""));
-        if (!rolesForAccess.includes(role1)) continue;
-        const canRead = Number(r1.can_read) === 1 || r1.can_read === true || Number(r1.can_view) === 1 || r1.can_view === true;
-        if (!canRead) continue;
-        const sec = canonicalSectionKey(String(r1.section || ""));
-        if (sec) allowed.add(sec);
+      const rcaCols = await scanColumns(pool, "role_column_access");
+      const hasTextSchema = rcaCols.has("role") && rcaCols.has("section");
+      const readExpr = (() => {
+        const hasCanRead = rcaCols.has("can_read");
+        const hasCanView = rcaCols.has("can_view");
+        if (hasCanRead && hasCanView) return "(CASE WHEN rca.[can_read]=1 OR rca.[can_view]=1 THEN 1 ELSE 0 END)";
+        if (hasCanRead) return "rca.[can_read]";
+        if (hasCanView) return "rca.[can_view]";
+        return null;
+      })();
+      if (hasTextSchema && readExpr) {
+        const req1 = new sql.Request(pool);
+        const res1 = await req1.query(`
+          SELECT rca.[role] AS role, rca.[section] AS section, ${readExpr} AS can_read
+          FROM dbo.role_column_access AS rca
+        `);
+        const rows1 = (res1.recordset || []) as Array<{ role?: unknown; section?: unknown; can_read?: unknown }>;
+        for (const r1 of rows1) {
+          const role1 = normalizeRoleName(String(r1.role || ""));
+          if (!rolesForAccess.includes(role1)) continue;
+          const sec = canonicalSectionKey(String(r1.section || ""));
+          if (!sec) continue;
+          dynamicSeen.add(sec);
+          const canRead = Number(r1.can_read) === 1 || r1.can_read === true;
+          if (canRead) dynamicAllowed.add(sec);
+        }
       }
     } catch {}
     try {
-      const req2 = new sql.Request(pool);
-      const res2 = await req2.query(`
-        SELECT
-          COALESCE(r.[role], r.[name], r.[role_name], r.[role_display_name]) AS role_text,
-          COALESCE(cc.[table_name], cc.[table]) AS table_name,
-          COALESCE(rca.[can_read], rca.[can_view]) AS can_read
-        FROM dbo.role_column_access AS rca
-        LEFT JOIN dbo.roles AS r ON r.[role_id] = rca.[role_id]
-        LEFT JOIN dbo.column_catalog AS cc ON cc.[column_id] = rca.[column_id]
-      `);
-      const rows2 = (res2.recordset || []) as Array<{ role_text?: unknown; table_name?: unknown; can_read?: unknown }>;
-      for (const r2 of rows2) {
-        const role2 = normalizeRoleName(String(r2.role_text || ""));
-        if (!rolesForAccess.includes(role2)) continue;
-        const canRead2 = Number(r2.can_read) === 1 || r2.can_read === true;
-        if (!canRead2) continue;
-        const sec2 = canonicalSectionKey(String(r2.table_name || ""));
-        if (sec2) allowed.add(sec2);
+      const rcaCols = await scanColumns(pool, "role_column_access");
+      const hasNormalized = rcaCols.has("role_id") && rcaCols.has("column_id");
+      const readExpr = (() => {
+        const hasCanRead = rcaCols.has("can_read");
+        const hasCanView = rcaCols.has("can_view");
+        if (hasCanRead && hasCanView) return "(CASE WHEN rca.[can_read]=1 OR rca.[can_view]=1 THEN 1 ELSE 0 END)";
+        if (hasCanRead) return "rca.[can_read]";
+        if (hasCanView) return "rca.[can_view]";
+        return null;
+      })();
+      if (hasNormalized && readExpr) {
+        const roleCols = await scanColumns(pool, "roles");
+        const pickRole = (names: string[]) => {
+          for (const n of names) if (roleCols.has(n)) return `[${n}]`;
+          return null;
+        };
+        const roleIdCol = pickRole(["role_id", "id"]);
+        const roleNameCol = pickRole(["role", "name", "role_name", "role_display_name"]);
+
+        const catCols = await scanColumns(pool, "column_catalog");
+        const pickCat = (names: string[]) => {
+          for (const n of names) if (catCols.has(n)) return `[${n}]`;
+          return null;
+        };
+        const colIdCol = pickCat(["column_id", "id"]);
+        const tableNameCol = pickCat(["table_name", "table"]);
+
+        if (roleIdCol && colIdCol && tableNameCol) {
+          const roleTextExpr = roleNameCol
+            ? `COALESCE(r.${roleNameCol}, CAST(rca.[role_id] AS NVARCHAR(50)))`
+            : `CAST(rca.[role_id] AS NVARCHAR(50))`;
+          const req2 = new sql.Request(pool);
+          const res2 = await req2.query(`
+            SELECT
+              ${roleTextExpr} AS role_text,
+              cc.${tableNameCol} AS table_name,
+              ${readExpr} AS can_read
+            FROM dbo.role_column_access AS rca
+            LEFT JOIN dbo.roles AS r ON r.${roleIdCol} = rca.[role_id]
+            LEFT JOIN dbo.column_catalog AS cc ON cc.${colIdCol} = rca.[column_id]
+            WHERE rca.[role_id] IS NOT NULL AND rca.[column_id] IS NOT NULL
+          `);
+          const rows2 = (res2.recordset || []) as Array<{ role_text?: unknown; table_name?: unknown; can_read?: unknown }>;
+          for (const r2 of rows2) {
+            const role2 = normalizeRoleName(String(r2.role_text || ""));
+            if (!rolesForAccess.includes(role2)) continue;
+            const sec2 = canonicalSectionKey(String(r2.table_name || ""));
+            if (!sec2) continue;
+            dynamicSeen.add(sec2);
+            const canRead2 = Number(r2.can_read) === 1 || r2.can_read === true;
+            if (canRead2) dynamicAllowed.add(sec2);
+          }
+        }
       }
     } catch {}
+    const allowed = new Set<string>(Array.from(allowedStatic));
+    if (dynamicSeen.size > 0) {
+      for (const sec of Array.from(dynamicSeen)) {
+        if (dynamicAllowed.has(sec)) allowed.add(sec);
+        else allowed.delete(sec);
+      }
+    }
     const filtered: Record<string, unknown> = {};
     for (const k of Object.keys(payload as Record<string, unknown>)) {
       if (allowed.has(k)) (filtered as Record<string, unknown>)[k] = (payload as Record<string, unknown>)[k];

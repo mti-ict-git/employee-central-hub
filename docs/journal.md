@@ -172,5 +172,29 @@ Wednesday, December 17, 2025 4:24:46 PM - Secured env handling: added .env to .g
 - Regenerated outputs:
   - `backend/scripts/schema-mapping.json`
   - `backend/scripts/schema-mapping.md`
-- Ran backend typecheck (`npm run typecheck`) — succeeded with exit code 0.
+ - Ran backend typecheck (`npm run typecheck`) — succeeded with exit code 0.
+
+## 2025-12-24 20:51:41 +08:00 — RBAC Architecture Walkthrough
+
+- Mapped RBAC end-to-end across backend and frontend.
+- Backend JWT carries `roles` decoded by auth middleware (`backend/src/middleware/auth.ts:27–36`).
+- Route guards use `requireRole(["admin","superadmin"])` for admin endpoints (`backend/src/routes/rbac.ts:210`, `backend/src/routes/rbac.ts:681`).
+- Policy functions define CRUD, user management, and report permissions (`backend/src/policy.ts:30–64`).
+- Employees API enforces role CRUD and filters response sections using static policy + `role_column_access` (`backend/src/routes/employees.ts:11–27`, `backend/src/routes/employees.ts:1022–1079`).
+- RBAC DB adapters support `role_permissions`, `role_column_access`, and `type_column_access` with schema normalization and fallbacks (`backend/src/routes/rbac.ts:44–114`, `backend/src/routes/rbac.ts:568–679`, `backend/src/routes/rbac.ts:181–239`).
+- LDAP maps AD groups → roles via env (`backend/src/auth/ldap.ts:76–87`, `backend/src/config.ts:45–52`).
+- Frontend computes capabilities from backend data and defaults (`src/lib/rbac.ts:177–214`) and exposes `canColumn` for per-field visibility.
+- UI guards: `RequireAuth` protects routes; `RequireRole` restricts admin pages (`src/App.tsx:87–116`, `src/components/auth/RequireRole.tsx:10–35`).
+- Admin UI to edit permissions and column/type access: `src/pages/AdminPermissions.tsx`.
+
+## 2025-12-24 21:01:33 — Frontend Login Logging
+
+- Added a log on app load when an auth session exists (`src/App.tsx:50–69`).
+- Added a log on successful login (mock + AD) (`src/pages/Auth.tsx:72–136`).
+- Log format: `<name> is logged in with role <role>`.
+
+## 2025-12-24 22:21:54 +08:00 — Employee Detail Contact Visibility
+
+- Fixed employee detail section filtering to respect `role_column_access` regardless of `can_read` vs `can_view` schema.
+- This ensures roles with Contact column read access receive the `contact` section in `/api/employees/:id` responses.
 

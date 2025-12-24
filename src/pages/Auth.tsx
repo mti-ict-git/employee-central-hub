@@ -15,7 +15,7 @@ const MOCK_USERS = [
   { username: "hradmin", password: "P@ssw0rd.123", role: "admin", displayName: "HR Administrator" },
   { username: "hruser", password: "P@ssw0rd.123", role: "hr_general", displayName: "HR Staff" },
   { username: "finance", password: "P@ssw0rd.123", role: "finance", displayName: "Finance Staff" },
-  { username: "deprep", password: "P@ssw0rd.123", role: "dep_rep", displayName: "Department Representative" },
+  { username: "deprep", password: "P@ssw0rd.123", role: "department_rep", displayName: "Department Representative" },
 ];
 
 const ROLE_LABELS: Record<string, { label: string; color: string }> = {
@@ -23,7 +23,7 @@ const ROLE_LABELS: Record<string, { label: string; color: string }> = {
   admin: { label: "Admin", color: "bg-orange-500" },
   hr_general: { label: "HR General", color: "bg-blue-500" },
   finance: { label: "Finance", color: "bg-green-500" },
-  dep_rep: { label: "Dept. Rep", color: "bg-purple-500" },
+  department_rep: { label: "Dept. Rep", color: "bg-purple-500" },
 };
 
 const Auth = () => {
@@ -97,6 +97,7 @@ const Auth = () => {
         };
         localStorage.setItem("auth_token", `dev-mock-token-${mockUser.role}`);
         localStorage.setItem("auth_user", JSON.stringify(user));
+        console.info(`${user.displayName || user.username || "unknown"} is logged in with role ${user.role || "unknown"}`);
         const roleInfo = ROLE_LABELS[mockUser.role];
         toast({ 
           title: "Login Successful", 
@@ -125,6 +126,7 @@ const Auth = () => {
         roles: Array.isArray(data.user.roles) ? data.user.roles : [primaryRole],
       };
       localStorage.setItem("auth_user", JSON.stringify(userWithRole));
+      console.info(`${userWithRole.displayName || userWithRole.username || "unknown"} is logged in with role ${userWithRole.role || "unknown"}`);
       const roleInfo = ROLE_LABELS[primaryRole];
       toast({ 
         title: "Login Successful", 
