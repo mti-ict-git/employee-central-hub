@@ -1059,6 +1059,7 @@ employeesRouter.post("/import", async (req, res) => {
     for (const k of Object.keys(payload as Record<string, unknown>)) {
       if (allowed.has(k)) (filtered as Record<string, unknown>)[k] = (payload as Record<string, unknown>)[k];
     }
+    (filtered as Record<string, unknown>)["type"] = (payload as Record<string, unknown>)["type"];
     return res.json(filtered);
   } catch (err: unknown) {
     const message = err instanceof Error ? err.message : "FAILED_TO_QUERY_EMPLOYEE";

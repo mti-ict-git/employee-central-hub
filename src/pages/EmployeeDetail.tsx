@@ -66,8 +66,9 @@ const EmployeeDetail = () => {
   const canReadCol = (section: string, column: string) => {
     if (!hasSectionData(section)) return false;
     const key = String(section || "").toLowerCase();
-    const t = String(employee?.type || "").toLowerCase();
-    const type = t === "expatriate" ? "expat" : (t === "expat" ? "expat" : "indonesia");
+    const t = String(employee?.type || "").trim().toLowerCase();
+    const nat = String(employee?.core?.nationality || "").trim().toLowerCase();
+    const type = t.startsWith("expat") ? "expat" : (nat === "indonesia" || nat.startsWith("indo") ? "indonesia" : "expat");
     const applicable = typeAccess?.[type]?.[key]?.[column];
     if (applicable === false) return false;
     if (caps && caps.canColumn(section, column, "read")) return true;
@@ -101,6 +102,13 @@ const EmployeeDetail = () => {
         const res = await apiFetch(`/employees/${encodeURIComponent(id)}`, { signal: ctrl.signal, credentials: "include" });
         if (!res.ok) throw new Error(`HTTP_${res.status}`);
         const data = await res.json();
+        const normalizedType = (() => {
+          const raw = String(data?.type || "").trim().toLowerCase();
+          const nat = String(data?.core?.nationality || "").trim().toLowerCase();
+          if (raw.startsWith("expat")) return "expat";
+          if (nat === "indonesia" || nat.startsWith("indo")) return "indonesia";
+          return "expat";
+        })();
         const normalized: Employee = {
           core: data.core,
           contact: data.contact,
@@ -111,7 +119,7 @@ const EmployeeDetail = () => {
           travel: data.travel,
           checklist: data.checklist,
           notes: data.notes,
-          type: data.type,
+          type: normalizedType,
         };
         setEmployee(normalized);
       } catch (err: unknown) {
