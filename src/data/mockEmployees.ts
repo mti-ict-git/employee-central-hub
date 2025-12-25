@@ -36,7 +36,7 @@ export const mockEmployees: Employee[] = [
     },
     employment: {
       employee_id: 'MTI12345',
-      employment_status: 'Permanent',
+      employment_status: 'active',
       status: 'Active',
       division: 'ICT',
       department: 'Support Services',
@@ -114,7 +114,7 @@ export const mockEmployees: Employee[] = [
     },
     employment: {
       employee_id: 'MTI12346',
-      employment_status: 'Permanent',
+      employment_status: 'active',
       status: 'Active',
       division: 'Finance',
       department: 'Administration',
@@ -184,7 +184,7 @@ export const mockEmployees: Employee[] = [
     },
     employment: {
       employee_id: 'MTI22001',
-      employment_status: 'Contract',
+      employment_status: 'contract',
       status: 'Active',
       company_office: 'Morowali Office',
       work_location: 'IMIP',
@@ -274,7 +274,7 @@ export const mockEmployees: Employee[] = [
     },
     employment: {
       employee_id: 'MTI12350',
-      employment_status: 'Permanent',
+      employment_status: 'active',
       status: 'Inactive',
       division: 'Operation',
       department: 'Maintenance',
@@ -333,7 +333,7 @@ export const mockEmployees: Employee[] = [
     },
     employment: {
       employee_id: 'MTI22010',
-      employment_status: 'Contract',
+      employment_status: 'contract',
       status: 'Active',
       company_office: 'Morowali Office',
       work_location: 'Morowali',

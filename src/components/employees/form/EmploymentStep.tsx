@@ -46,10 +46,14 @@ export function EmploymentStep({ form }: EmploymentStepProps) {
                   </SelectTrigger>
                 </FormControl>
                 <SelectContent>
-                  <SelectItem value="Permanent">Permanent</SelectItem>
-                  <SelectItem value="Contract">Contract</SelectItem>
-                  <SelectItem value="Probation">Probation</SelectItem>
-                  <SelectItem value="Internship">Internship</SelectItem>
+                  <SelectItem value="active">Active</SelectItem>
+                  <SelectItem value="contract">Contract</SelectItem>
+                  <SelectItem value="probation">Probation</SelectItem>
+                  <SelectItem value="intern">Intern</SelectItem>
+                  <SelectItem value="non_active">Non Active</SelectItem>
+                  <SelectItem value="suspended">Suspended</SelectItem>
+                  <SelectItem value="retired">Retired</SelectItem>
+                  <SelectItem value="terminated">Terminated</SelectItem>
                 </SelectContent>
               </Select>
               <FormMessage />

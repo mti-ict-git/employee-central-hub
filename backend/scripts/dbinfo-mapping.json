@@ -721,7 +721,7 @@
   },
   {
     "excel": {
-      "table": "employee_onboard",
+      "table": "employee_employment",
       "schema": "dbo",
       "column": "employment_status",
       "excelName": "Employment Status",
@@ -729,7 +729,7 @@
       "usedTableHeader": "Table Name"
     },
     "matched": {
-      "table": "dbo.employee_onboard",
+      "table": "dbo.employee_employment",
       "column": "employment_status",
       "type": "varchar"
     },

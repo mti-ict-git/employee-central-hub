@@ -211,7 +211,14 @@ const EditEmployee = () => {
     v === 'Single' || v === 'Married' || v === 'Divorced' || v === 'Widowed'
   );
   const isEmploymentStatus = (v: string): v is Employee['employment']['employment_status'] => (
-    v === 'Permanent' || v === 'Contract' || v === 'Probation' || v === 'Internship'
+    v === 'suspended' ||
+    v === 'retired' ||
+    v === 'terminated' ||
+    v === 'non_active' ||
+    v === 'intern' ||
+    v === 'contract' ||
+    v === 'probation' ||
+    v === 'active'
   );
   const isEmploymentActiveStatus = (v: string): v is Employee['employment']['status'] => (
     v === 'Active' || v === 'Inactive' || v === 'Resign' || v === 'Terminated'
@@ -597,10 +604,14 @@ const EditEmployee = () => {
                   disabled={!canWrite('employment','employment_status')}
                   visible={canWrite('employment','employment_status')}
                   options={[
-                    { value: 'Permanent', label: 'Permanent' },
-                    { value: 'Contract', label: 'Contract' },
-                    { value: 'Probation', label: 'Probation' },
-                    { value: 'Internship', label: 'Internship' },
+                    { value: 'active', label: 'Active' },
+                    { value: 'contract', label: 'Contract' },
+                    { value: 'probation', label: 'Probation' },
+                    { value: 'intern', label: 'Intern' },
+                    { value: 'non_active', label: 'Non Active' },
+                    { value: 'suspended', label: 'Suspended' },
+                    { value: 'retired', label: 'Retired' },
+                    { value: 'terminated', label: 'Terminated' },
                   ]}
                 />
                 <SelectField 

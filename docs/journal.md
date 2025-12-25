@@ -222,3 +222,20 @@ Wednesday, December 17, 2025 4:24:46 PM - Secured env handling: added .env to .g
 - Ran `npx tsc --noEmit -p tsconfig.json` and `npm --prefix backend run typecheck` — passed.
 - Ran `npm --prefix backend run build` — passed.
 
+## 2025-12-25 09:01:57 — Department Rep Bank Write Fix
+
+- Fixed `buildWriteAccess` to apply role filtering for normalized RBAC schema (`role_id`/`column_id`) and include `dep_rep` alias (`backend/src/routes/employees.ts:94–164`).
+- Ran `npm run lint`, `npx tsc --noEmit -p tsconfig.json`, and `npm --prefix backend run typecheck` — passed.
+
+## 2025-12-25 09:26:28 +08:00 — Employment Status Constraint Alignment
+
+- Confirmed DB check constraint for `employee_employment.employment_status` and allowed values.
+- Normalized `employment_status` on write and return a clear `400` for invalid values (`backend/src/routes/employees.ts`).
+- Updated frontend enums/options to match backend constraint (`src/lib/employeeSchema.ts`, `src/pages/EditEmployee.tsx`, `src/components/employees/form/EmploymentStep.tsx`).
+- Updated CSV template samples and mock data to use canonical values (`src/lib/csvTemplates.ts`, `src/data/mockEmployees.ts`).
+
+## 2025-12-25 10:04:38 — Column Access Employment Status Group Fix
+
+- Moved `employment_status` mapping to `employee_employment` so it appears under Employment in Column Access (`backend/scripts/dbinfo-mapping.json`).
+- Kept legacy column-write permissions working by honoring existing Onboarding grants for `employment_status` updates (`backend/src/routes/employees.ts`).
+

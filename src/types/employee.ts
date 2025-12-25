@@ -43,7 +43,7 @@ export interface EmployeeContact {
 
 export interface EmployeeEmployment {
   employee_id: string;
-  employment_status?: 'Permanent' | 'Contract' | 'Probation' | 'Internship';
+  employment_status?: 'suspended' | 'retired' | 'terminated' | 'non_active' | 'intern' | 'contract' | 'probation' | 'active';
   status?: 'Active' | 'Inactive' | 'Resign' | 'Terminated';
   company_office?: string;
   work_location?: string;

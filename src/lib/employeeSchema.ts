@@ -39,7 +39,16 @@ export const contactInfoSchema = z.object({
 
 // Step 3: Employment Details
 export const employmentSchema = z.object({
-  employment_status: z.enum(["Permanent", "Contract", "Probation", "Internship"], {
+  employment_status: z.enum([
+    "suspended",
+    "retired",
+    "terminated",
+    "non_active",
+    "intern",
+    "contract",
+    "probation",
+    "active",
+  ], {
     required_error: "Employment status is required",
   }),
   company_office: z.string().max(100).optional(),

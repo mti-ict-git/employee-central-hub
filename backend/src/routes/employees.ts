@@ -27,11 +27,49 @@ employeesRouter.use((req, res, next) => {
 
 type WriteAccess = {
   canWriteColumn: (section: string, column: string) => boolean;
+  hasColumnRule: (section: string, column: string) => boolean;
   hasAnyWriteAccess: boolean;
 };
 
 function isObjectRecord(value: unknown): value is Record<string, unknown> {
   return typeof value === "object" && value !== null && !Array.isArray(value);
+}
+
+const EMPLOYMENT_STATUS_ALLOWED = [
+  "suspended",
+  "retired",
+  "terminated",
+  "non_active",
+  "intern",
+  "contract",
+  "probation",
+  "active",
+] as const;
+
+type EmploymentStatusAllowed = (typeof EMPLOYMENT_STATUS_ALLOWED)[number];
+
+function normalizeEmploymentStatus(raw: unknown): EmploymentStatusAllowed | null | undefined {
+  if (raw === undefined) return undefined;
+  if (raw === null) return null;
+  const lowered = String(raw).trim().toLowerCase();
+  if (!lowered) return null;
+
+  const canonical = lowered
+    .replace(/\s+/g, "_")
+    .replace(/-+/g, "_")
+    .replace(/__+/g, "_");
+
+  const mapped = (() => {
+    if (canonical === "internship") return "intern";
+    if (canonical === "permanent") return "active";
+    if (canonical === "inactive") return "non_active";
+    return canonical;
+  })();
+
+  if ((EMPLOYMENT_STATUS_ALLOWED as readonly string[]).includes(mapped)) {
+    return mapped as EmploymentStatusAllowed;
+  }
+  return null;
 }
 
 type DeniedTypeAccess = Record<string, Set<string>>;
@@ -189,8 +227,13 @@ async function buildWriteAccess(pool: sql.ConnectionPool, rolesRaw: string[]): P
     if (seen && seen.has(col)) return !!(allowWrite[sec] && allowWrite[sec].has(col));
     return writeSections.has(sec);
   };
+  const hasColumnRule = (section: string, column: string) => {
+    const sec = canonicalSectionKey(section);
+    const col = String(column || "").trim().toLowerCase();
+    return !!(seenWrite[sec] && seenWrite[sec].has(col));
+  };
   const hasAnyWriteAccess = writeSections.size > 0 || Object.keys(allowWrite).some((k) => (allowWrite[k]?.size || 0) > 0);
-  return { canWriteColumn, hasAnyWriteAccess };
+  return { canWriteColumn, hasColumnRule, hasAnyWriteAccess };
 }
 
 async function upsertEmployeeSection(
@@ -358,6 +401,7 @@ function normalizeRoleName(role: string) {
   const s = String(role || "").trim().toLowerCase();
   if (s.includes("super")) return "superadmin";
   if (s === "admin") return "admin";
+  if (s.includes("human resources") || s.includes("human resource")) return "hr_general";
   if (s.includes("hr")) return "hr_general";
   if (s.includes("finance")) return "finance";
   if (s.includes("dep")) return "department_rep";
@@ -530,9 +574,10 @@ employeesRouter.put("/:id", async (req, res) => {
     const typeDenied = await loadTypeDeniedAccess(pool, employeeType);
     const canWrite = (section: string, column: string) => {
       if (column === "employee_id") return false;
-      if (!writeAccess.canWriteColumn(section, column)) return false;
       const sec = canonicalSectionKey(section);
       const col = String(column || "").trim().toLowerCase();
+      const canWriteLegacyEmploymentStatus = sec === "employment" && col === "employment_status" && writeAccess.canWriteColumn("onboard", "employment_status");
+      if (!writeAccess.canWriteColumn(section, column) && !canWriteLegacyEmploymentStatus) return false;
       if (typeDenied[sec] && typeDenied[sec].has(col)) return false;
       return true;
     };
@@ -589,8 +634,19 @@ employeesRouter.put("/:id", async (req, res) => {
       .filter((f) => contactTableCols.has(f.column) && canWrite("contact", f.gate))
       .map((f) => ({ column: f.column, param: f.param, sqlType: f.sqlType, value: f.value }));
 
+    const normalizedEmploymentStatus = normalizeEmploymentStatus(employment.employment_status);
+    if (employment.employment_status !== undefined && normalizedEmploymentStatus === null && canWrite("employment", "employment_status")) {
+      return res.status(400).json({
+        error: "INVALID_EMPLOYMENT_STATUS",
+        received: employment.employment_status,
+        allowed: EMPLOYMENT_STATUS_ALLOWED,
+      });
+    }
+
     const employmentFields = [
-      { column: "employment_status", param: "employment_status", sqlType: sql.NVarChar(50), value: employment.employment_status ? String(employment.employment_status) : null, gate: "employment_status" },
+      ...(normalizedEmploymentStatus !== undefined
+        ? [{ column: "employment_status", param: "employment_status", sqlType: sql.NVarChar(50), value: normalizedEmploymentStatus, gate: "employment_status" }]
+        : []),
       { column: "status", param: "status", sqlType: sql.NVarChar(50), value: employment.status ? String(employment.status) : "Active", gate: "status" },
       { column: "division", param: "division", sqlType: sql.NVarChar(100), value: employment.division ? String(employment.division) : null, gate: "division" },
       { column: "department", param: "department", sqlType: sql.NVarChar(100), value: employment.department ? String(employment.department) : null, gate: "department" },
@@ -803,7 +859,16 @@ employeesRouter.post("/", async (req, res) => {
     `);
     request.parameters = {};
     request.input("employee_id", sql.VarChar(100), id);
-    request.input("employment_status", sql.NVarChar(50), employment.employment_status || null);
+    const normalizedEmploymentStatus = normalizeEmploymentStatus(employment.employment_status);
+    if (normalizedEmploymentStatus === undefined || normalizedEmploymentStatus === null) {
+      await trx.rollback();
+      return res.status(400).json({
+        error: "INVALID_EMPLOYMENT_STATUS",
+        received: employment.employment_status,
+        allowed: EMPLOYMENT_STATUS_ALLOWED,
+      });
+    }
+    request.input("employment_status", sql.NVarChar(50), normalizedEmploymentStatus);
     request.input("status", sql.NVarChar(50), employment.status || "Active");
     request.input("division", sql.NVarChar(100), employment.division || null);
     request.input("department", sql.NVarChar(100), employment.department || null);
@@ -992,7 +1057,15 @@ employeesRouter.post("/import", async (req, res) => {
       `);
       request.parameters = {};
       request.input("employee_id", sql.VarChar(100), id);
-      request.input("employment_status", sql.NVarChar(50), r.employment_status || null);
+      const rawEmploymentStatus = r.employment_status;
+      const normalizedEmploymentStatus = normalizeEmploymentStatus(rawEmploymentStatus);
+      const hasEmploymentStatus = String(rawEmploymentStatus || "").trim() !== "";
+      if (hasEmploymentStatus && normalizedEmploymentStatus === null) throw new Error("INVALID_EMPLOYMENT_STATUS");
+      request.input(
+        "employment_status",
+        sql.NVarChar(50),
+        (normalizedEmploymentStatus === undefined || normalizedEmploymentStatus === null) ? "active" : normalizedEmploymentStatus,
+      );
       request.input("department", sql.NVarChar(100), r.department || null);
       request.input("job_title", sql.NVarChar(100), r.job_title || null);
       request.input("join_date", sql.Date, r.join_date || null);

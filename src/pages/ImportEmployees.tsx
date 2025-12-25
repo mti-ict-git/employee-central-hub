@@ -86,8 +86,18 @@ const ImportEmployees = () => {
     }
 
     // Validate employment status
-    if (row.employment_status && !["Permanent", "Contract", "Probation", "Internship"].includes(row.employment_status)) {
-      errors.push("Invalid employment status");
+    if (row.employment_status) {
+      const normalized = String(row.employment_status)
+        .trim()
+        .toLowerCase()
+        .replace(/\s+/g, "_")
+        .replace(/-+/g, "_")
+        .replace(/__+/g, "_");
+      const mapped = normalized === "internship" ? "intern" : normalized === "permanent" ? "active" : normalized;
+      const allowed = ["suspended", "retired", "terminated", "non_active", "intern", "contract", "probation", "active"];
+      if (!allowed.includes(mapped)) {
+        errors.push("Invalid employment status");
+      }
     }
 
     // Validate date format (basic check)

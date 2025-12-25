@@ -34,6 +34,7 @@ function normalizeRoleName(role: string) {
   const s = String(role || "").trim().toLowerCase();
   if (s.includes("super")) return "superadmin";
   if (s === "admin") return "admin";
+  if (s.includes("human resources") || s.includes("human resource")) return "hr_general";
   if (s.includes("hr")) return "hr_general";
   if (s.includes("finance")) return "finance";
   if (s.includes("dep")) return "department_rep";

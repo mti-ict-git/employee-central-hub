@@ -31,6 +31,13 @@ const Field = ({ label, value }: { label: string; value?: string | boolean | nul
 export function ReviewStep({ form }: ReviewStepProps) {
   const values = form.getValues();
   const isExpat = values.employee_type === 'expat';
+  const toLabel = (s: string) =>
+    String(s || "")
+      .replace(/_/g, " ")
+      .split(" ")
+      .filter(Boolean)
+      .map((w) => (w[0] ? w[0].toUpperCase() + w.slice(1) : ""))
+      .join(" ");
 
   return (
     <div className="space-y-6">
@@ -86,7 +93,7 @@ export function ReviewStep({ form }: ReviewStepProps) {
         </Section>
 
         <Section title="Employment Details" icon={Briefcase}>
-          <Field label="Status" value={values.employment_status} />
+          <Field label="Status" value={values.employment_status ? toLabel(values.employment_status) : values.employment_status} />
           <Field label="Division" value={values.division} />
           <Field label="Department" value={values.department} />
           <Field label="Section" value={values.section} />
