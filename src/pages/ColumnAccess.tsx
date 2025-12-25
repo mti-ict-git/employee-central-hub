@@ -23,7 +23,14 @@ type ColumnDef = {
 type Draft = Record<string, Record<string, Record<string, { read: boolean; write: boolean }>>>;
 
 function toLabel(s: string) {
-  const name = s.replace(/_/g, " ").trim();
+  const raw = String(s || "").trim();
+  const withoutEmployeePrefix = (() => {
+    const lower = raw.toLowerCase();
+    if (lower.startsWith("employee ")) return raw.slice("employee ".length);
+    if (lower.startsWith("employee_")) return raw.slice("employee_".length);
+    return raw;
+  })();
+  const name = withoutEmployeePrefix.replace(/_/g, " ").trim();
   return name
     .split(" ")
     .filter(Boolean)

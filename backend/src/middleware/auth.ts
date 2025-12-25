@@ -25,14 +25,15 @@ export function authMiddleware(req: Request, res: Response, next: NextFunction) 
   if (!token) return res.status(401).json({ error: "AUTH_REQUIRED" });
   try {
     const decoded = jwt.verify(token, CONFIG.JWT_SECRET) as JwtPayload;
-    const roles = Array.isArray((decoded as any).roles) ? (decoded as any).roles : [];
+    const decodedRoles = (decoded as JwtPayload & { roles?: unknown }).roles;
+    const roles = Array.isArray(decodedRoles) ? decodedRoles.map((r) => String(r)) : [];
     req.user = {
-      sub: String((decoded as any).sub || ""),
-      username: String((decoded as any).username || ""),
-      displayName: (decoded as any).displayName,
-      email: (decoded as any).email,
+      sub: String((decoded as JwtPayload & { sub?: unknown }).sub || ""),
+      username: String((decoded as JwtPayload & { username?: unknown }).username || ""),
+      displayName: (decoded as JwtPayload & { displayName?: unknown }).displayName as string | undefined,
+      email: (decoded as JwtPayload & { email?: unknown }).email as string | undefined,
       roles,
-      provider: (decoded as any).provider,
+      provider: (decoded as JwtPayload & { provider?: unknown }).provider as string | undefined,
     };
     return next();
   } catch {

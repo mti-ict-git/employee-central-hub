@@ -8,15 +8,20 @@ export type TypeName = "indonesia" | "expat";
 export type TypeColumnAccess = { type: TypeName; section: string; column: string; accessible: boolean };
 
 function canonicalSectionKey(section: string) {
-  const s = String(section || "");
-  const withoutPrefix = s.startsWith("Employee ") ? s.slice("Employee ".length) : s;
-  return withoutPrefix.trim().toLowerCase();
+  const raw = String(section || "");
+  const withoutEmployeeWord = raw.startsWith("Employee ") ? raw.slice("Employee ".length) : raw;
+  const trimmed = withoutEmployeeWord.trim();
+  const lowered = trimmed.toLowerCase();
+  if (lowered.startsWith("employee_")) return trimmed.slice("employee_".length).trim().toLowerCase();
+  if (lowered.startsWith("employee ")) return trimmed.slice("employee ".length).trim().toLowerCase();
+  return lowered;
 }
 
 function normalizeRoleName(role: string) {
   const s = String(role || "").trim().toLowerCase();
   if (s.includes("super")) return "superadmin";
   if (s === "admin") return "admin";
+  if (s.includes("human resources") || s.includes("human resource")) return "hr_general";
   if (s.includes("hr")) return "hr_general";
   if (s.includes("finance")) return "finance";
   if (s.includes("dep")) return "department_rep";

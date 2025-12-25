@@ -355,7 +355,15 @@ const EmployeeDetail = () => {
           <div className="grid gap-6 md:grid-cols-2">
             <SectionCard title="Position Details" icon={Briefcase}>
               <InfoRow label="Emp. ID" value={employee.core?.employee_id} visible={canReadCol("employment","employee_id")} />
-              <InfoRow label="Employment Status" value={employee.employment?.employment_status ? toLabel(employee.employment.employment_status) : employee.employment?.employment_status} visible={canReadCol("employment","employment_status")} />
+              <InfoRow
+                label="Employment Status"
+                value={employee.employment?.employment_status ? toLabel(employee.employment.employment_status) : employee.employment?.employment_status}
+                visible={
+                  canReadCol("employment", "employment_status") &&
+                  !!employee.employment &&
+                  Object.prototype.hasOwnProperty.call(employee.employment, "employment_status")
+                }
+              />
               <InfoRow label="Employee Status" value={employee.employment?.status} visible={canReadCol("employment","status")} />
               <InfoRow label="Division" value={employee.employment?.division} visible={canReadCol("employment","division")} />
               <InfoRow label="Department" value={employee.employment?.department} visible={canReadCol("employment","department")} />

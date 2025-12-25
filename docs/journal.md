@@ -234,8 +234,24 @@ Wednesday, December 17, 2025 4:24:46 PM - Secured env handling: added .env to .g
 - Updated frontend enums/options to match backend constraint (`src/lib/employeeSchema.ts`, `src/pages/EditEmployee.tsx`, `src/components/employees/form/EmploymentStep.tsx`).
 - Updated CSV template samples and mock data to use canonical values (`src/lib/csvTemplates.ts`, `src/data/mockEmployees.ts`).
 
-## 2025-12-25 10:04:38 — Column Access Employment Status Group Fix
+## 2025-12-25 10:04:38 â€” Column Access Employment Status Group Fix
 
 - Moved `employment_status` mapping to `employee_employment` so it appears under Employment in Column Access (`backend/scripts/dbinfo-mapping.json`).
 - Kept legacy column-write permissions working by honoring existing Onboarding grants for `employment_status` updates (`backend/src/routes/employees.ts`).
+
+## 2025-12-25 10:44:13 +08:00 â€” Employment Status Column RBAC Enforcement
+
+- Enforced per-column read filtering for Employee Details via `role_column_access` and type rules (`backend/src/routes/employees.ts`).
+- Limited legacy `employment_status` write fallback to cases without an explicit Employment column rule (`backend/src/routes/employees.ts`).
+- Normalized Column Access section labels and expanded HR role alias normalization (`src/pages/ColumnAccess.tsx`, `src/hooks/useRBAC.ts`, `src/lib/rbac.ts`).
+
+## 2025-12-25 11:34:05 — Employment Status RBAC Leak Fix
+
+- Fixed `employment_status` read/write gating to honor an explicit Onboard deny when no Employment column rule exists (`backend/src/routes/employees.ts:717–742`, `backend/src/routes/employees.ts:1429–1453`).
+- This prevents `hr_general` users from seeing `employment.employment_status` in `GET /api/employees/:id` when Column Access disabled it under Onboarding.
+
+## 2025-12-25 13:36:00 +08:00 — Employee Detail Employment Status UI Hide
+
+- Hid the Employment Status row when the API omits `employment.employment_status` due to RBAC (`src/pages/EmployeeDetail.tsx:358–368`).
+- Rechecked `hr_general` API response: `employment_status` is not present in `GET /api/employees/:id` payload.
 
