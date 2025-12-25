@@ -96,7 +96,11 @@ export async function fetchColumnAccess(): Promise<ColumnAccess[]> {
     if (res.ok) {
       const rows = await res.json();
       const items = Array.isArray(rows) ? (rows as ColumnAccess[]) : [];
-      return items.map((i) => ({ ...i, role: normalizeRoleName(i.role) }));
+      return items.map((i) => ({
+        ...i,
+        role: normalizeRoleName(i.role),
+        column: String(i.column || "").trim().toLowerCase(),
+      }));
     }
   } catch (err) {
     return [];
@@ -117,7 +121,7 @@ export async function fetchTypeColumnAccess(): Promise<TypeColumnAccess[]> {
         return {
           type,
           section: String(i.section || ""),
-          column: String(i.column || ""),
+          column: String(i.column || "").trim().toLowerCase(),
           accessible: !!i.accessible,
         };
       });
@@ -133,7 +137,7 @@ export function buildTypeAccessIndex(items: TypeColumnAccess[]) {
   for (const it of items) {
     const sectionRaw = String(it.section || "");
     const section = canonicalSectionKey(sectionRaw);
-    const column = String(it.column || "");
+    const column = String(it.column || "").trim().toLowerCase();
     const type = it.type === "expat" ? "expat" : "indonesia";
     if (!index[type][section]) index[type][section] = {};
     index[type][section][column] = !!it.accessible;

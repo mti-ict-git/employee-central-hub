@@ -2,7 +2,7 @@ import { Router } from "express";
 import sql from "mssql";
 import { CONFIG } from "../config";
 import { authMiddleware } from "../middleware/auth";
-import { can, readSectionsFor } from "../policy";
+import { can, readSectionsFor, writeSectionsFor } from "../policy";
 
 export const employeesRouter = Router();
 
@@ -16,8 +16,7 @@ employeesRouter.use((req, res, next) => {
     return res.status(403).json({ error: "FORBIDDEN_CREATE_EMPLOYEE" });
   }
   if (req.method === "PUT" || req.method === "PATCH") {
-    if (roles.some((r) => can(r, "update", "employees"))) return next();
-    return res.status(403).json({ error: "FORBIDDEN_UPDATE_EMPLOYEE" });
+    return next();
   }
   if (req.method === "DELETE") {
     if (roles.some((r) => can(r, "delete", "employees"))) return next();
@@ -25,6 +24,195 @@ employeesRouter.use((req, res, next) => {
   }
   return next();
 });
+
+type WriteAccess = {
+  canWriteColumn: (section: string, column: string) => boolean;
+  hasAnyWriteAccess: boolean;
+};
+
+function isObjectRecord(value: unknown): value is Record<string, unknown> {
+  return typeof value === "object" && value !== null && !Array.isArray(value);
+}
+
+type DeniedTypeAccess = Record<string, Set<string>>;
+
+async function loadTypeDeniedAccess(pool: sql.ConnectionPool, employeeType: "indonesia" | "expat"): Promise<DeniedTypeAccess> {
+  const out: DeniedTypeAccess = {};
+  const hasTableRes = await new sql.Request(pool).query(`
+    SELECT 1 AS ok FROM sys.tables WHERE name = 'type_column_access'
+  `);
+  const hasTable = !!((hasTableRes.recordset || [])[0] as { ok?: unknown } | undefined);
+  if (!hasTable) return out;
+  const req = new sql.Request(pool);
+  req.input("employee_type", sql.NVarChar(20), employeeType);
+  const res = await req.query(`
+    SELECT [section], [column], [accessible]
+    FROM dbo.type_column_access
+    WHERE [employee_type] = @employee_type
+  `);
+  const rows = (res.recordset || []) as Array<{ section?: unknown; column?: unknown; accessible?: unknown }>;
+  for (const r of rows) {
+    const sec = canonicalSectionKey(String(r.section || ""));
+    const col = String(r.column || "").trim().toLowerCase();
+    if (!sec || !col) continue;
+    const accessible = r.accessible === true || r.accessible === 1;
+    if (accessible) continue;
+    if (!out[sec]) out[sec] = new Set<string>();
+    out[sec].add(col);
+  }
+  return out;
+}
+
+async function buildWriteAccess(pool: sql.ConnectionPool, rolesRaw: string[]): Promise<WriteAccess> {
+  const roles = rolesRaw.map((r) => normalizeRoleName(String(r)));
+  const writeSections = new Set<string>();
+  for (const role of roles) {
+    for (const sec of writeSectionsFor(role)) writeSections.add(canonicalSectionKey(sec));
+  }
+
+  const seenWrite: Record<string, Set<string>> = {};
+  const allowWrite: Record<string, Set<string>> = {};
+  const request = new sql.Request(pool);
+  const hasTableRes = await request.query(`
+    SELECT 1 AS ok FROM sys.tables WHERE name = 'role_column_access'
+  `);
+  const hasTable = !!((hasTableRes.recordset || [])[0] as { ok?: unknown } | undefined);
+  if (hasTable && roles.length) {
+    try {
+      const rcaCols = await scanColumns(pool, "role_column_access");
+      const hasTextSchema = rcaCols.has("role") && rcaCols.has("section") && rcaCols.has("column");
+      const hasNormalized = rcaCols.has("role_id") && rcaCols.has("column_id");
+      const writeExpr = (() => {
+        const hasCanWrite = rcaCols.has("can_write");
+        const hasCanEdit = rcaCols.has("can_edit");
+        if (hasCanWrite && hasCanEdit) return "(CASE WHEN rca.[can_write]=1 OR rca.[can_edit]=1 THEN 1 ELSE 0 END)";
+        if (hasCanWrite) return "rca.[can_write]";
+        if (hasCanEdit) return "rca.[can_edit]";
+        return null;
+      })();
+      if (writeExpr) {
+        const roleAliases = (role: string): string[] => {
+          if (role === "department_rep") return [role, "dep_rep"];
+          return [role];
+        };
+        const queryRoles = Array.from(new Set(roles.flatMap((r) => roleAliases(r))));
+        const roleParams = queryRoles.map((_, i) => `@role${i}`).join(", ");
+
+        if (hasTextSchema) {
+          const req2 = new sql.Request(pool);
+          queryRoles.forEach((r, i) => {
+            req2.input(`role${i}`, sql.NVarChar(50), String(r || "").trim().toLowerCase());
+          });
+          const rows = await req2.query(`
+            SELECT rca.[role] AS role, rca.[section] AS section, rca.[column] AS col, ${writeExpr} AS can_write
+            FROM dbo.role_column_access AS rca
+            WHERE LOWER(rca.[role]) IN (${roleParams})
+          `);
+          const items = (rows.recordset || []) as Array<{ role?: unknown; section?: unknown; col?: unknown; can_write?: unknown }>;
+          for (const it of items) {
+            const roleNorm = normalizeRoleName(String(it.role || ""));
+            if (!roles.includes(roleNorm)) continue;
+            const sec = canonicalSectionKey(String(it.section || ""));
+            const col = String(it.col || "").trim().toLowerCase();
+            if (!sec || !col) continue;
+            if (!seenWrite[sec]) seenWrite[sec] = new Set<string>();
+            seenWrite[sec].add(col);
+            if (it.can_write === true || it.can_write === 1) {
+              if (!allowWrite[sec]) allowWrite[sec] = new Set<string>();
+              allowWrite[sec].add(col);
+            }
+          }
+        }
+
+        if (hasNormalized) {
+          const roleCols = await scanColumns(pool, "roles");
+          const pickRole = (names: string[]) => {
+            for (const n of names) if (roleCols.has(n)) return `[${n}]`;
+            return null;
+          };
+          const roleIdCol = pickRole(["role_id", "id"]);
+          const roleNameCol = pickRole(["role", "name", "role_name", "role_display_name"]);
+
+          const catCols = await scanColumns(pool, "column_catalog");
+          const pickCat = (names: string[]) => {
+            for (const n of names) if (catCols.has(n)) return `[${n}]`;
+            return null;
+          };
+          const colIdCol = pickCat(["column_id", "id"]);
+          const tableNameCol = pickCat(["table_name", "table"]);
+          const columnNameCol = pickCat(["column_name", "column"]);
+
+          if (roleIdCol && colIdCol && tableNameCol && columnNameCol) {
+            const roleTextExpr = roleNameCol
+              ? `COALESCE(r.${roleNameCol}, CAST(rca.[role_id] AS NVARCHAR(50)))`
+              : `CAST(rca.[role_id] AS NVARCHAR(50))`;
+            const req3 = new sql.Request(pool);
+            queryRoles.forEach((r, i) => {
+              req3.input(`role${i}`, sql.NVarChar(50), String(r || "").trim().toLowerCase());
+            });
+            const res3 = await req3.query(`
+              SELECT
+                ${roleTextExpr} AS role_text,
+                cc.${tableNameCol} AS table_name,
+                cc.${columnNameCol} AS column_name,
+                ${writeExpr} AS can_write
+              FROM dbo.role_column_access AS rca
+              LEFT JOIN dbo.roles AS r ON r.${roleIdCol} = rca.[role_id]
+              LEFT JOIN dbo.column_catalog AS cc ON cc.${colIdCol} = rca.[column_id]
+              WHERE rca.[role_id] IS NOT NULL AND rca.[column_id] IS NOT NULL
+                AND LOWER(${roleTextExpr}) IN (${roleParams})
+            `);
+            const items2 = (res3.recordset || []) as Array<{ role_text?: unknown; table_name?: unknown; column_name?: unknown; can_write?: unknown }>;
+            for (const it2 of items2) {
+              const roleNorm = normalizeRoleName(String(it2.role_text || ""));
+              if (!roles.includes(roleNorm)) continue;
+              const sec = canonicalSectionKey(String(it2.table_name || ""));
+              const col = String(it2.column_name || "").trim().toLowerCase();
+              if (!sec || !col) continue;
+              if (!seenWrite[sec]) seenWrite[sec] = new Set<string>();
+              seenWrite[sec].add(col);
+              if (it2.can_write === true || it2.can_write === 1) {
+                if (!allowWrite[sec]) allowWrite[sec] = new Set<string>();
+                allowWrite[sec].add(col);
+              }
+            }
+          }
+        }
+      }
+    } catch {}
+  }
+
+  const canWriteColumn = (section: string, column: string) => {
+    const sec = canonicalSectionKey(section);
+    const col = String(column || "").trim().toLowerCase();
+    const seen = seenWrite[sec];
+    if (seen && seen.has(col)) return !!(allowWrite[sec] && allowWrite[sec].has(col));
+    return writeSections.has(sec);
+  };
+  const hasAnyWriteAccess = writeSections.size > 0 || Object.keys(allowWrite).some((k) => (allowWrite[k]?.size || 0) > 0);
+  return { canWriteColumn, hasAnyWriteAccess };
+}
+
+async function upsertEmployeeSection(
+  trx: sql.Transaction,
+  table: string,
+  employeeId: string,
+  fields: Array<{ column: string; param: string; sqlType: sql.ISqlType; value: unknown }>,
+) {
+  if (!fields.length) return;
+  const request = new sql.Request(trx);
+  request.input("employee_id", sql.VarChar(100), employeeId);
+  for (const f of fields) request.input(f.param, f.sqlType, f.value);
+  const setClause = fields.map((f) => `[${f.column}]=@${f.param}`).join(", ");
+  const cols = ["employee_id", ...fields.map((f) => f.column)].map((c) => `[${c}]`).join(", ");
+  const vals = ["@employee_id", ...fields.map((f) => `@${f.param}`)].join(", ");
+  await request.query(`
+    IF EXISTS (SELECT 1 FROM dbo.${table} WHERE employee_id = @employee_id)
+      UPDATE dbo.${table} SET ${setClause} WHERE employee_id = @employee_id
+    ELSE
+      INSERT INTO dbo.${table} (${cols}) VALUES (${vals});
+  `);
+}
 function getPool() {
   return new sql.ConnectionPool({
     server: CONFIG.DB.SERVER,
@@ -306,248 +494,231 @@ employeesRouter.delete("/:id", async (req, res) => {
 employeesRouter.put("/:id", async (req, res) => {
   const id = String(req.params.id || "").trim();
   if (!id) return res.status(400).json({ error: "EMPLOYEE_ID_REQUIRED" });
-  const body = req.body || {};
   const pool = getPool();
-  const trx = new sql.Transaction(await pool.connect());
-  let phase = "init";
+  await pool.connect();
+  const trx = new sql.Transaction(pool);
+  const body = isObjectRecord(req.body) ? req.body : {};
+  const rolesRaw = req.user?.roles || [];
   try {
+    const writeAccess = await buildWriteAccess(pool, rolesRaw);
+    if (!writeAccess.hasAnyWriteAccess) {
+      return res.status(403).json({ error: "FORBIDDEN_UPDATE_EMPLOYEE", reason: "NO_WRITE_ACCESS" });
+    }
+
+    const core = isObjectRecord((body as { core?: unknown }).core) ? ((body as { core?: unknown }).core as Record<string, unknown>) : body;
+    const contact = isObjectRecord((body as { contact?: unknown }).contact) ? ((body as { contact?: unknown }).contact as Record<string, unknown>) : body;
+    const employment = isObjectRecord((body as { employment?: unknown }).employment) ? ((body as { employment?: unknown }).employment as Record<string, unknown>) : body;
+    const onboard = isObjectRecord((body as { onboard?: unknown }).onboard) ? ((body as { onboard?: unknown }).onboard as Record<string, unknown>) : body;
+    const bank = isObjectRecord((body as { bank?: unknown }).bank) ? ((body as { bank?: unknown }).bank as Record<string, unknown>) : body;
+    const insurance = isObjectRecord((body as { insurance?: unknown }).insurance) ? ((body as { insurance?: unknown }).insurance as Record<string, unknown>) : body;
+    const travel = isObjectRecord((body as { travel?: unknown }).travel) ? ((body as { travel?: unknown }).travel as Record<string, unknown>) : body;
+    const checklist = isObjectRecord((body as { checklist?: unknown }).checklist) ? ((body as { checklist?: unknown }).checklist as Record<string, unknown>) : body;
+    const notes = isObjectRecord((body as { notes?: unknown }).notes) ? ((body as { notes?: unknown }).notes as Record<string, unknown>) : body;
+
+    const natReq = new sql.Request(pool);
+    natReq.input("employee_id", sql.VarChar(100), id);
+    const natRes = await natReq.query(`
+      SELECT TOP 1 nationality
+      FROM dbo.employee_core
+      WHERE employee_id = @employee_id
+    `);
+    const natDbRow = (natRes.recordset || [])[0] as { nationality?: unknown } | undefined;
+    const natFallback = core.nationality;
+    const nat = String(natDbRow?.nationality ?? natFallback ?? "").trim().toLowerCase();
+    const employeeType: "indonesia" | "expat" = nat === "indonesia" || nat.startsWith("indo") ? "indonesia" : "expat";
+
+    const typeDenied = await loadTypeDeniedAccess(pool, employeeType);
+    const canWrite = (section: string, column: string) => {
+      if (column === "employee_id") return false;
+      if (!writeAccess.canWriteColumn(section, column)) return false;
+      const sec = canonicalSectionKey(section);
+      const col = String(column || "").trim().toLowerCase();
+      if (typeDenied[sec] && typeDenied[sec].has(col)) return false;
+      return true;
+    };
+
+    const coreTableCols = await scanColumns(pool, "employee_core");
+    const contactTableCols = await scanColumns(pool, "employee_contact");
+    const employmentTableCols = await scanColumns(pool, "employee_employment");
+    const onboardTableCols = await scanColumns(pool, "employee_onboard");
+    const bankTableCols = await scanColumns(pool, "employee_bank");
+    const insuranceTableCols = await scanColumns(pool, "employee_insurance");
+    const travelTableCols = await scanColumns(pool, "employee_travel");
+    const checklistTableCols = await scanColumns(pool, "employee_checklist");
+    const notesTableCols = await scanColumns(pool, "employee_notes");
+
+    const idCardRaw = core.id_card_mti;
+    const idCardVal = idCardRaw === true ? 1 : idCardRaw === false ? 0 : null;
+
+    const coreFields = [
+      { column: "name", param: "name", sqlType: sql.NVarChar(200), value: core.name ? String(core.name) : null, gate: "name" },
+      { column: "gender", param: "gender", sqlType: sql.Char(1), value: genderToCode(core.gender ? String(core.gender) : null), gate: "gender" },
+      { column: "place_of_birth", param: "place_of_birth", sqlType: sql.NVarChar(100), value: core.place_of_birth ? String(core.place_of_birth) : null, gate: "place_of_birth" },
+      { column: "date_of_birth", param: "date_of_birth", sqlType: sql.Date(), value: parseDate(core.date_of_birth), gate: "date_of_birth" },
+      { column: "marital_status", param: "marital_status", sqlType: sql.NVarChar(50), value: core.marital_status ? String(core.marital_status) : null, gate: "marital_status" },
+      { column: "religion", param: "religion", sqlType: sql.NVarChar(50), value: core.religion ? String(core.religion) : null, gate: "religion" },
+      { column: "nationality", param: "nationality", sqlType: sql.NVarChar(100), value: core.nationality ? String(core.nationality) : null, gate: "nationality" },
+      { column: "blood_type", param: "blood_type", sqlType: sql.NVarChar(5), value: core.blood_type ? String(core.blood_type) : null, gate: "blood_type" },
+      { column: "kartu_keluarga_no", param: "kartu_keluarga_no", sqlType: sql.NVarChar(50), value: core.kartu_keluarga_no ? String(core.kartu_keluarga_no) : null, gate: "kartu_keluarga_no" },
+      { column: "ktp_no", param: "ktp_no", sqlType: sql.NVarChar(50), value: core.ktp_no ? String(core.ktp_no) : null, gate: "ktp_no" },
+      { column: "npwp", param: "npwp", sqlType: sql.NVarChar(30), value: core.npwp ? String(core.npwp) : null, gate: "npwp" },
+      { column: "tax_status", param: "tax_status", sqlType: sql.NVarChar(20), value: core.tax_status ? String(core.tax_status) : null, gate: "tax_status" },
+      { column: "education", param: "education", sqlType: sql.NVarChar(100), value: core.education ? String(core.education) : null, gate: "education" },
+      { column: "imip_id", param: "imip_id", sqlType: sql.NVarChar(50), value: core.imip_id ? String(core.imip_id) : null, gate: "imip_id" },
+      { column: "branch", param: "branch", sqlType: sql.NVarChar(50), value: core.branch ? String(core.branch) : null, gate: "branch" },
+      { column: "branch_id", param: "branch_id", sqlType: sql.NVarChar(50), value: core.branch_id ? String(core.branch_id) : null, gate: "branch_id" },
+      { column: "office_email", param: "office_email", sqlType: sql.NVarChar(255), value: core.office_email ? String(core.office_email) : null, gate: "office_email" },
+      { column: "id_card_mti", param: "id_card_mti", sqlType: sql.Bit(), value: idCardVal, gate: "id_card_mti" },
+      { column: "field", param: "field", sqlType: sql.NVarChar(100), value: core.field ? String(core.field) : null, gate: "field" },
+    ]
+      .filter((f) => coreTableCols.has(f.column) && canWrite("core", f.gate))
+      .map((f) => ({ column: f.column, param: f.param, sqlType: f.sqlType, value: f.value }));
+
+    const contactFields = [
+      { column: "phone_number", param: "phone_number", sqlType: sql.NVarChar(50), value: contact.phone_number ? String(contact.phone_number) : null, gate: "phone_number" },
+      { column: "email", param: "email", sqlType: sql.NVarChar(200), value: contact.email ? String(contact.email) : null, gate: "email" },
+      { column: "address", param: "address", sqlType: sql.NVarChar(255), value: contact.address ? String(contact.address) : null, gate: "address" },
+      { column: "city", param: "city", sqlType: sql.NVarChar(100), value: contact.city ? String(contact.city) : null, gate: "city" },
+      { column: "spouse_name", param: "spouse_name", sqlType: sql.NVarChar(200), value: contact.spouse_name ? String(contact.spouse_name) : null, gate: "spouse_name" },
+      { column: "child_name_1", param: "child_name_1", sqlType: sql.NVarChar(200), value: contact.child_name_1 ? String(contact.child_name_1) : null, gate: "child_name_1" },
+      { column: "child_name_2", param: "child_name_2", sqlType: sql.NVarChar(200), value: contact.child_name_2 ? String(contact.child_name_2) : null, gate: "child_name_2" },
+      { column: "child_name_3", param: "child_name_3", sqlType: sql.NVarChar(200), value: contact.child_name_3 ? String(contact.child_name_3) : null, gate: "child_name_3" },
+      { column: "emergency_contact_name", param: "emergency_contact_name", sqlType: sql.NVarChar(200), value: contact.emergency_contact_name ? String(contact.emergency_contact_name) : null, gate: "emergency_contact_name" },
+      { column: "emergency_contact_phone", param: "emergency_contact_phone", sqlType: sql.NVarChar(50), value: contact.emergency_contact_phone ? String(contact.emergency_contact_phone) : null, gate: "emergency_contact_phone" },
+    ]
+      .filter((f) => contactTableCols.has(f.column) && canWrite("contact", f.gate))
+      .map((f) => ({ column: f.column, param: f.param, sqlType: f.sqlType, value: f.value }));
+
+    const employmentFields = [
+      { column: "employment_status", param: "employment_status", sqlType: sql.NVarChar(50), value: employment.employment_status ? String(employment.employment_status) : null, gate: "employment_status" },
+      { column: "status", param: "status", sqlType: sql.NVarChar(50), value: employment.status ? String(employment.status) : "Active", gate: "status" },
+      { column: "division", param: "division", sqlType: sql.NVarChar(100), value: employment.division ? String(employment.division) : null, gate: "division" },
+      { column: "department", param: "department", sqlType: sql.NVarChar(100), value: employment.department ? String(employment.department) : null, gate: "department" },
+      { column: "section", param: "section", sqlType: sql.NVarChar(100), value: employment.section ? String(employment.section) : null, gate: "section" },
+      { column: "job_title", param: "job_title", sqlType: sql.NVarChar(100), value: employment.job_title ? String(employment.job_title) : null, gate: "job_title" },
+      { column: "grade", param: "grade", sqlType: sql.NVarChar(20), value: employment.grade ? String(employment.grade) : null, gate: "grade" },
+      { column: "position_grade", param: "position_grade", sqlType: sql.NVarChar(50), value: employment.position_grade ? String(employment.position_grade) : null, gate: "position_grade" },
+      { column: "group_job_title", param: "group_job_title", sqlType: sql.NVarChar(100), value: employment.group_job_title ? String(employment.group_job_title) : null, gate: "group_job_title" },
+      { column: "direct_report", param: "direct_report", sqlType: sql.NVarChar(100), value: employment.direct_report ? String(employment.direct_report) : null, gate: "direct_report" },
+      { column: "company_office", param: "company_office", sqlType: sql.NVarChar(100), value: employment.company_office ? String(employment.company_office) : null, gate: "company_office" },
+      { column: "work_location", param: "work_location", sqlType: sql.NVarChar(100), value: employment.work_location ? String(employment.work_location) : null, gate: "work_location" },
+      { column: "locality_status", param: "locality_status", sqlType: sql.NVarChar(50), value: employment.locality_status ? String(employment.locality_status) : null, gate: "locality_status" },
+      { column: "blacklist_mti", param: "blacklist_mti", sqlType: sql.NVarChar(1), value: boolToYN(employment.blacklist_mti), gate: "blacklist_mti" },
+      { column: "blacklist_imip", param: "blacklist_imip", sqlType: sql.NVarChar(1), value: boolToYN(employment.blacklist_imip), gate: "blacklist_imip" },
+    ]
+      .filter((f) => employmentTableCols.has(f.column) && canWrite("employment", f.gate))
+      .map((f) => ({ column: f.column, param: f.param, sqlType: f.sqlType, value: f.value }));
+
+    const onboardFields = [
+      { column: "point_of_hire", param: "point_of_hire", sqlType: sql.NVarChar(100), value: onboard.point_of_hire ? String(onboard.point_of_hire) : null, gate: "point_of_hire" },
+      { column: "point_of_origin", param: "point_of_origin", sqlType: sql.NVarChar(100), value: onboard.point_of_origin ? String(onboard.point_of_origin) : null, gate: "point_of_origin" },
+      { column: "schedule_type", param: "schedule_type", sqlType: sql.NVarChar(50), value: onboard.schedule_type ? String(onboard.schedule_type) : null, gate: "schedule_type" },
+      { column: "first_join_date_merdeka", param: "first_join_date_merdeka", sqlType: sql.Date(), value: parseDate(onboard.first_join_date_merdeka), gate: "first_join_date_merdeka" },
+      { column: "transfer_merdeka", param: "transfer_merdeka", sqlType: sql.Date(), value: parseDate(onboard.transfer_merdeka), gate: "transfer_merdeka" },
+      { column: "first_join_date", param: "first_join_date", sqlType: sql.Date(), value: parseDate(onboard.first_join_date), gate: "first_join_date" },
+      { column: "join_date", param: "join_date", sqlType: sql.Date(), value: parseDate(onboard.join_date), gate: "join_date" },
+      { column: "end_contract", param: "end_contract", sqlType: sql.Date(), value: parseDate(onboard.end_contract), gate: "end_contract" },
+    ]
+      .filter((f) => onboardTableCols.has(f.column) && canWrite("onboard", f.gate))
+      .map((f) => ({ column: f.column, param: f.param, sqlType: f.sqlType, value: f.value }));
+
+    const bankFields = [
+      { column: "bank_name", param: "bank_name", sqlType: sql.NVarChar(100), value: bank.bank_name ? String(bank.bank_name) : null, gate: "bank_name" },
+      { column: "account_name", param: "account_name", sqlType: sql.NVarChar(100), value: bank.account_name ? String(bank.account_name) : null, gate: "account_name" },
+      { column: "account_no", param: "account_no", sqlType: sql.NVarChar(50), value: bank.account_no ? String(bank.account_no) : null, gate: "account_no" },
+      { column: "bank_code", param: "bank_code", sqlType: sql.NVarChar(50), value: bank.bank_code ? String(bank.bank_code) : null, gate: "bank_code" },
+      { column: "icbc_bank_account_no", param: "icbc_bank_account_no", sqlType: sql.NVarChar(50), value: bank.icbc_bank_account_no ? String(bank.icbc_bank_account_no) : null, gate: "icbc_bank_account_no" },
+      { column: "icbc_username", param: "icbc_username", sqlType: sql.NVarChar(50), value: bank.icbc_username ? String(bank.icbc_username) : null, gate: "icbc_username" },
+    ]
+      .filter((f) => bankTableCols.has(f.column) && canWrite("bank", f.gate))
+      .map((f) => ({ column: f.column, param: f.param, sqlType: f.sqlType, value: f.value }));
+
+    const insuranceFields = [
+      { column: "bpjs_tk", param: "bpjs_tk", sqlType: sql.NVarChar(50), value: insurance.bpjs_tk ? String(insurance.bpjs_tk) : null, gate: "bpjs_tk" },
+      { column: "bpjs_kes", param: "bpjs_kes", sqlType: sql.NVarChar(50), value: insurance.bpjs_kes ? String(insurance.bpjs_kes) : null, gate: "bpjs_kes" },
+      { column: "status_bpjs_kes", param: "status_bpjs_kes", sqlType: sql.NVarChar(50), value: insurance.status_bpjs_kes ? String(insurance.status_bpjs_kes) : null, gate: "status_bpjs_kes" },
+      { column: "insurance_endorsement", param: "insurance_endorsement", sqlType: sql.NVarChar(1), value: boolToYN(insurance.insurance_endorsement), gate: "insurance_endorsement" },
+      { column: "insurance_owlexa", param: "insurance_owlexa", sqlType: sql.NVarChar(1), value: boolToYN(insurance.insurance_owlexa), gate: "insurance_owlexa" },
+      { column: "insurance_fpg", param: "insurance_fpg", sqlType: sql.NVarChar(1), value: boolToYN(insurance.insurance_fpg), gate: "insurance_fpg" },
+      { column: "fpg_no", param: "fpg_no", sqlType: sql.NVarChar(50), value: insurance.fpg_no ? String(insurance.fpg_no) : null, gate: "fpg_no" },
+      { column: "owlexa_no", param: "owlexa_no", sqlType: sql.NVarChar(50), value: insurance.owlexa_no ? String(insurance.owlexa_no) : null, gate: "owlexa_no" },
+      { column: "social_insurance_no_alt", param: "social_insurance_no_alt", sqlType: sql.NVarChar(100), value: insurance.social_insurance_no_alt ? String(insurance.social_insurance_no_alt) : null, gate: "social_insurance_no_alt" },
+      { column: "bpjs_kes_no_alt", param: "bpjs_kes_no_alt", sqlType: sql.NVarChar(100), value: insurance.bpjs_kes_no_alt ? String(insurance.bpjs_kes_no_alt) : null, gate: "bpjs_kes_no_alt" },
+    ]
+      .filter((f) => insuranceTableCols.has(f.column) && canWrite("insurance", f.gate))
+      .map((f) => ({ column: f.column, param: f.param, sqlType: f.sqlType, value: f.value }));
+
+    const travelFields = [
+      { column: "passport_no", param: "passport_no", sqlType: sql.NVarChar(50), value: travel.passport_no ? String(travel.passport_no) : null, gate: "passport_no" },
+      { column: "name_as_passport", param: "name_as_passport", sqlType: sql.NVarChar(100), value: travel.name_as_passport ? String(travel.name_as_passport) : null, gate: "name_as_passport" },
+      { column: "passport_expiry", param: "passport_expiry", sqlType: sql.Date(), value: parseDate(travel.passport_expiry), gate: "passport_expiry" },
+      { column: "kitas_no", param: "kitas_no", sqlType: sql.NVarChar(50), value: travel.kitas_no ? String(travel.kitas_no) : null, gate: "kitas_no" },
+      { column: "kitas_expiry", param: "kitas_expiry", sqlType: sql.Date(), value: parseDate(travel.kitas_expiry), gate: "kitas_expiry" },
+      { column: "kitas_address", param: "kitas_address", sqlType: sql.NVarChar(255), value: travel.kitas_address ? String(travel.kitas_address) : null, gate: "kitas_address" },
+      { column: "imta", param: "imta", sqlType: sql.NVarChar(50), value: travel.imta ? String(travel.imta) : null, gate: "imta" },
+      { column: "rptka_no", param: "rptka_no", sqlType: sql.NVarChar(50), value: travel.rptka_no ? String(travel.rptka_no) : null, gate: "rptka_no" },
+      { column: "rptka_position", param: "rptka_position", sqlType: sql.NVarChar(100), value: travel.rptka_position ? String(travel.rptka_position) : null, gate: "rptka_position" },
+      { column: "job_title_kitas", param: "job_title_kitas", sqlType: sql.NVarChar(100), value: travel.job_title_kitas ? String(travel.job_title_kitas) : null, gate: "job_title_kitas" },
+      { column: "travel_in", param: "travel_in", sqlType: sql.Date(), value: parseDate(travel.travel_in), gate: "travel_in" },
+      { column: "travel_out", param: "travel_out", sqlType: sql.Date(), value: parseDate(travel.travel_out), gate: "travel_out" },
+    ]
+      .filter((f) => travelTableCols.has(f.column) && canWrite("travel", f.gate))
+      .map((f) => ({ column: f.column, param: f.param, sqlType: f.sqlType, value: f.value }));
+
+    const checklistFields = [
+      { column: "paspor_checklist", param: "paspor_checklist", sqlType: sql.NVarChar(1), value: boolToYN(checklist.passport_checklist), gate: "passport_checklist" },
+      { column: "kitas_checklist", param: "kitas_checklist", sqlType: sql.NVarChar(1), value: boolToYN(checklist.kitas_checklist), gate: "kitas_checklist" },
+      { column: "imta_checklist", param: "imta_checklist", sqlType: sql.NVarChar(1), value: boolToYN(checklist.imta_checklist), gate: "imta_checklist" },
+      { column: "rptka_checklist", param: "rptka_checklist", sqlType: sql.NVarChar(1), value: boolToYN(checklist.rptka_checklist), gate: "rptka_checklist" },
+      { column: "npwp_checklist", param: "npwp_checklist", sqlType: sql.NVarChar(1), value: boolToYN(checklist.npwp_checklist), gate: "npwp_checklist" },
+      { column: "bpjs_kes_checklist", param: "bpjs_kes_checklist", sqlType: sql.NVarChar(1), value: boolToYN(checklist.bpjs_kes_checklist), gate: "bpjs_kes_checklist" },
+      { column: "bpjs_tk_checklist", param: "bpjs_tk_checklist", sqlType: sql.NVarChar(1), value: boolToYN(checklist.bpjs_tk_checklist), gate: "bpjs_tk_checklist" },
+      { column: "bank_checklist", param: "bank_checklist", sqlType: sql.NVarChar(1), value: boolToYN(checklist.bank_checklist), gate: "bank_checklist" },
+    ]
+      .filter((f) => checklistTableCols.has(f.column) && canWrite("checklist", f.gate))
+      .map((f) => ({ column: f.column, param: f.param, sqlType: f.sqlType, value: f.value }));
+
+    const notesFields = [
+      { column: "batch", param: "batch", sqlType: sql.NVarChar(50), value: notes.batch ? String(notes.batch) : null, gate: "batch" },
+      { column: "note", param: "note", sqlType: sql.NVarChar(sql.MAX), value: notes.note ? String(notes.note) : null, gate: "note" },
+    ]
+      .filter((f) => notesTableCols.has(f.column) && canWrite("notes", f.gate))
+      .map((f) => ({ column: f.column, param: f.param, sqlType: f.sqlType, value: f.value }));
+
+    const totalUpdates =
+      coreFields.length +
+      contactFields.length +
+      employmentFields.length +
+      onboardFields.length +
+      bankFields.length +
+      insuranceFields.length +
+      travelFields.length +
+      checklistFields.length +
+      notesFields.length;
+    if (totalUpdates === 0) {
+      return res.status(403).json({ error: "FORBIDDEN_UPDATE_EMPLOYEE", reason: "NO_ALLOWED_FIELDS" });
+    }
+
     await trx.begin();
-    const request = new sql.Request(trx);
-    const core = (body && body.core) ? body.core : body;
-    const contact = (body && body.contact) ? body.contact : body;
-    const employment = (body && body.employment) ? body.employment : body;
-    const onboard = (body && body.onboard) ? body.onboard : body;
-    const bank = (body && body.bank) ? body.bank : body;
-    const insurance = (body && body.insurance) ? body.insurance : body;
-    const travel = (body && body.travel) ? body.travel : body;
-    const checklist = (body && body.checklist) ? body.checklist : body;
-    const notes = (body && body.notes) ? body.notes : body;
-    request.input("employee_id", sql.VarChar(100), id);
-    request.input("name", sql.NVarChar(200), core.name || null);
-    request.input("gender", sql.Char(1), genderToCode(core.gender));
-    request.input("place_of_birth", sql.NVarChar(100), core.place_of_birth || null);
-    request.input("date_of_birth", sql.Date, parseDate(core.date_of_birth));
-    request.input("marital_status", sql.NVarChar(50), core.marital_status || null);
-    request.input("religion", sql.NVarChar(50), core.religion || null);
-    request.input("nationality", sql.NVarChar(100), core.nationality || null);
-    request.input("blood_type", sql.NVarChar(5), core.blood_type || null);
-    request.input("kartu_keluarga_no", sql.NVarChar(50), core.kartu_keluarga_no || null);
-    request.input("ktp_no", sql.NVarChar(50), core.ktp_no || null);
-    request.input("npwp", sql.NVarChar(30), core.npwp || null);
-    request.input("tax_status", sql.NVarChar(20), core.tax_status || null);
-    request.input("education", sql.NVarChar(100), core.education || null);
-    request.input("imip_id", sql.NVarChar(50), core.imip_id || null);
-    request.input("branch", sql.NVarChar(50), core.branch || null);
-    request.input("branch_id", sql.NVarChar(50), core.branch_id || null);
-    request.input("office_email", sql.NVarChar(255), core.office_email || null);
-    const idCardVal =
-      core.id_card_mti === true ? 1 :
-      core.id_card_mti === false ? 0 : null;
-    request.input("id_card_mti", sql.Bit, idCardVal);
-    request.input("field", sql.NVarChar(100), (core.field ?? employment.field) || null);
-    phase = "core_upsert";
-    console.log("employees.put", { id, phase, params: Object.keys(((request as unknown as { parameters?: Record<string, unknown> }).parameters) || {}) });
-    await request.query(`
-      IF EXISTS (SELECT 1 FROM dbo.employee_core WHERE employee_id = @employee_id)
-        UPDATE dbo.employee_core
-        SET name=@name, gender=@gender, place_of_birth=@place_of_birth, date_of_birth=@date_of_birth,
-            marital_status=@marital_status, religion=@religion, nationality=@nationality, blood_type=@blood_type,
-            kartu_keluarga_no=@kartu_keluarga_no, ktp_no=@ktp_no, npwp=@npwp, tax_status=@tax_status,
-            education=@education, imip_id=@imip_id, branch=@branch, branch_id=@branch_id, office_email=@office_email, id_card_mti=@id_card_mti, field=@field
-        WHERE employee_id=@employee_id
-      ELSE
-        INSERT INTO dbo.employee_core (employee_id, name, gender, place_of_birth, date_of_birth, marital_status, religion, nationality, blood_type, kartu_keluarga_no, ktp_no, npwp, tax_status, education, imip_id, branch, branch_id, office_email, id_card_mti, field)
-        VALUES (@employee_id, @name, @gender, @place_of_birth, @date_of_birth, @marital_status, @religion, @nationality, @blood_type, @kartu_keluarga_no, @ktp_no, @npwp, @tax_status, @education, @imip_id, @branch, @branch_id, @office_email, @id_card_mti, @field);
-    `);
-    request.parameters = {};
-    request.input("employee_id", sql.VarChar(100), id);
-    request.input("phone_number", sql.NVarChar(50), contact.phone_number || null);
-    request.input("email", sql.NVarChar(200), contact.email || null);
-    request.input("address", sql.NVarChar(255), contact.address || null);
-    request.input("city", sql.NVarChar(100), contact.city || null);
-    request.input("spouse_name", sql.NVarChar(200), contact.spouse_name || null);
-    request.input("child_name_1", sql.NVarChar(200), contact.child_name_1 || null);
-    request.input("child_name_2", sql.NVarChar(200), contact.child_name_2 || null);
-    request.input("child_name_3", sql.NVarChar(200), contact.child_name_3 || null);
-    request.input("emergency_contact_name", sql.NVarChar(200), contact.emergency_contact_name || null);
-    request.input("emergency_contact_phone", sql.NVarChar(50), contact.emergency_contact_phone || null);
-    phase = "contact_upsert";
-    console.log("employees.put", { id, phase, params: Object.keys(((request as unknown as { parameters?: Record<string, unknown> }).parameters) || {}) });
-    await request.query(`
-      IF EXISTS (SELECT 1 FROM dbo.employee_contact WHERE employee_id = @employee_id)
-        UPDATE dbo.employee_contact
-        SET phone_number=@phone_number, email=@email, address=@address, city=@city, spouse_name=@spouse_name,
-            child_name_1=@child_name_1, child_name_2=@child_name_2, child_name_3=@child_name_3,
-            emergency_contact_name=@emergency_contact_name, emergency_contact_phone=@emergency_contact_phone
-        WHERE employee_id=@employee_id
-      ELSE
-        INSERT INTO dbo.employee_contact (employee_id, phone_number, email, address, city, spouse_name, child_name_1, child_name_2, child_name_3, emergency_contact_name, emergency_contact_phone)
-        VALUES (@employee_id, @phone_number, @email, @address, @city, @spouse_name, @child_name_1, @child_name_2, @child_name_3, @emergency_contact_name, @emergency_contact_phone);
-    `);
-    request.parameters = {};
-    request.input("employee_id", sql.VarChar(100), id);
-    request.input("employment_status", sql.NVarChar(50), employment.employment_status || null);
-    request.input("status", sql.NVarChar(50), employment.status || "Active");
-    request.input("division", sql.NVarChar(100), employment.division || null);
-    request.input("department", sql.NVarChar(100), employment.department || null);
-    request.input("section", sql.NVarChar(100), employment.section || null);
-    request.input("job_title", sql.NVarChar(100), employment.job_title || null);
-    request.input("grade", sql.NVarChar(20), employment.grade || null);
-    request.input("position_grade", sql.NVarChar(50), employment.position_grade || null);
-    request.input("group_job_title", sql.NVarChar(100), employment.group_job_title || null);
-    request.input("direct_report", sql.NVarChar(100), employment.direct_report || null);
-    request.input("company_office", sql.NVarChar(100), employment.company_office || null);
-    request.input("work_location", sql.NVarChar(100), employment.work_location || null);
-    request.input("locality_status", sql.NVarChar(50), employment.locality_status || null);
-    request.input("blacklist_mti", sql.NVarChar(1), boolToYN((employment as unknown as { blacklist_mti?: boolean }).blacklist_mti));
-    request.input("blacklist_imip", sql.NVarChar(1), boolToYN((employment as unknown as { blacklist_imip?: boolean }).blacklist_imip));
-    phase = "employment_upsert";
-    console.log("employees.put", { id, phase, params: Object.keys(((request as unknown as { parameters?: Record<string, unknown> }).parameters) || {}) });
-    await request.query(`
-      IF EXISTS (SELECT 1 FROM dbo.employee_employment WHERE employee_id = @employee_id)
-        UPDATE dbo.employee_employment
-        SET employment_status=@employment_status, status=@status, division=@division, department=@department, section=@section,
-            job_title=@job_title, grade=@grade, position_grade=@position_grade, group_job_title=@group_job_title,
-            direct_report=@direct_report, company_office=@company_office, work_location=@work_location,
-            locality_status=@locality_status, blacklist_mti=@blacklist_mti, blacklist_imip=@blacklist_imip
-        WHERE employee_id=@employee_id
-      ELSE
-        INSERT INTO dbo.employee_employment (employee_id, employment_status, status, division, department, section, job_title, grade, position_grade, group_job_title, direct_report, company_office, work_location, locality_status, blacklist_mti, blacklist_imip)
-        VALUES (@employee_id, @employment_status, @status, @division, @department, @section, @job_title, @grade, @position_grade, @group_job_title, @direct_report, @company_office, @work_location, @locality_status, @blacklist_mti, @blacklist_imip);
-    `);
-    request.parameters = {};
-    request.input("employee_id", sql.VarChar(100), id);
-    request.input("point_of_hire", sql.NVarChar(100), onboard.point_of_hire || null);
-    request.input("point_of_origin", sql.NVarChar(100), onboard.point_of_origin || null);
-    request.input("schedule_type", sql.NVarChar(50), onboard.schedule_type || null);
-    request.input("first_join_date_merdeka", sql.Date, parseDate(onboard.first_join_date_merdeka));
-    request.input("transfer_merdeka", sql.Date, parseDate(onboard.transfer_merdeka));
-    request.input("first_join_date", sql.Date, parseDate(onboard.first_join_date));
-    request.input("join_date", sql.Date, parseDate(onboard.join_date));
-    request.input("end_contract", sql.Date, parseDate(onboard.end_contract));
-    phase = "onboard_upsert";
-    console.log("employees.put", { id, phase, params: Object.keys(((request as unknown as { parameters?: Record<string, unknown> }).parameters) || {}) });
-    await request.query(`
-      IF EXISTS (SELECT 1 FROM dbo.employee_onboard WHERE employee_id = @employee_id)
-        UPDATE dbo.employee_onboard
-        SET point_of_hire=@point_of_hire, point_of_origin=@point_of_origin, schedule_type=@schedule_type,
-            first_join_date_merdeka=@first_join_date_merdeka, transfer_merdeka=@transfer_merdeka,
-            first_join_date=@first_join_date, join_date=@join_date, end_contract=@end_contract
-        WHERE employee_id=@employee_id
-      ELSE
-        INSERT INTO dbo.employee_onboard (employee_id, point_of_hire, point_of_origin, schedule_type, first_join_date_merdeka, transfer_merdeka, first_join_date, join_date, end_contract)
-        VALUES (@employee_id, @point_of_hire, @point_of_origin, @schedule_type, @first_join_date_merdeka, @transfer_merdeka, @first_join_date, @join_date, @end_contract);
-    `);
-    request.parameters = {};
-    request.input("employee_id", sql.VarChar(100), id);
-    request.input("bank_name", sql.NVarChar(100), bank.bank_name || null);
-    request.input("account_name", sql.NVarChar(100), bank.account_name || null);
-    request.input("account_no", sql.NVarChar(50), bank.account_no || null);
-    request.input("bank_code", sql.NVarChar(50), bank.bank_code || null);
-    request.input("icbc_bank_account_no", sql.NVarChar(50), bank.icbc_bank_account_no || null);
-    request.input("icbc_username", sql.NVarChar(50), bank.icbc_username || null);
-    phase = "bank_upsert";
-    console.log("employees.put", { id, phase, params: Object.keys(((request as unknown as { parameters?: Record<string, unknown> }).parameters) || {}) });
-    await request.query(`
-      IF EXISTS (SELECT 1 FROM dbo.employee_bank WHERE employee_id = @employee_id)
-        UPDATE dbo.employee_bank
-        SET bank_name=@bank_name, account_name=@account_name, account_no=@account_no, bank_code=@bank_code,
-            icbc_bank_account_no=@icbc_bank_account_no, icbc_username=@icbc_username
-        WHERE employee_id=@employee_id
-      ELSE
-        INSERT INTO dbo.employee_bank (employee_id, bank_name, account_name, account_no, bank_code, icbc_bank_account_no, icbc_username)
-        VALUES (@employee_id, @bank_name, @account_name, @account_no, @bank_code, @icbc_bank_account_no, @icbc_username);
-    `);
-    request.parameters = {};
-    request.input("employee_id", sql.VarChar(100), id);
-    request.input("bpjs_tk", sql.NVarChar(50), insurance.bpjs_tk || null);
-    request.input("bpjs_kes", sql.NVarChar(50), insurance.bpjs_kes || null);
-    request.input("status_bpjs_kes", sql.NVarChar(50), insurance.status_bpjs_kes || null);
-    request.input("insurance_endorsement", sql.NVarChar(1), boolToYN(insurance.insurance_endorsement));
-    request.input("insurance_owlexa", sql.NVarChar(1), boolToYN(insurance.insurance_owlexa));
-    request.input("insurance_fpg", sql.NVarChar(1), boolToYN(insurance.insurance_fpg));
-    phase = "insurance_upsert";
-    console.log("employees.put", { id, phase, params: Object.keys(((request as unknown as { parameters?: Record<string, unknown> }).parameters) || {}) });
-    await request.query(`
-      IF EXISTS (SELECT 1 FROM dbo.employee_insurance WHERE employee_id = @employee_id)
-        UPDATE dbo.employee_insurance
-        SET bpjs_tk=@bpjs_tk, bpjs_kes=@bpjs_kes, status_bpjs_kes=@status_bpjs_kes,
-            insurance_endorsement=@insurance_endorsement, insurance_owlexa=@insurance_owlexa, insurance_fpg=@insurance_fpg
-        WHERE employee_id=@employee_id
-      ELSE
-        INSERT INTO dbo.employee_insurance (employee_id, bpjs_tk, bpjs_kes, status_bpjs_kes, insurance_endorsement, insurance_owlexa, insurance_fpg)
-        VALUES (@employee_id, @bpjs_tk, @bpjs_kes, @status_bpjs_kes, @insurance_endorsement, @insurance_owlexa, @insurance_fpg);
-    `);
-    request.parameters = {};
-    request.input("employee_id", sql.VarChar(100), id);
-    request.input("passport_no", sql.NVarChar(50), travel.passport_no || null);
-    request.input("name_as_passport", sql.NVarChar(100), travel.name_as_passport || null);
-    request.input("passport_expiry", sql.Date, parseDate(travel.passport_expiry));
-    request.input("kitas_no", sql.NVarChar(50), travel.kitas_no || null);
-    request.input("kitas_expiry", sql.Date, parseDate(travel.kitas_expiry));
-    request.input("kitas_address", sql.NVarChar(255), travel.kitas_address || null);
-    request.input("imta", sql.NVarChar(50), travel.imta || null);
-    request.input("rptka_no", sql.NVarChar(50), travel.rptka_no || null);
-    request.input("rptka_position", sql.NVarChar(100), travel.rptka_position || null);
-    request.input("job_title_kitas", sql.NVarChar(100), travel.job_title_kitas || null);
-    phase = "travel_upsert";
-    console.log("employees.put", { id, phase, params: Object.keys(((request as unknown as { parameters?: Record<string, unknown> }).parameters) || {}) });
-    await request.query(`
-      IF EXISTS (SELECT 1 FROM dbo.employee_travel WHERE employee_id = @employee_id)
-        UPDATE dbo.employee_travel
-        SET passport_no=@passport_no, name_as_passport=@name_as_passport, passport_expiry=@passport_expiry,
-            kitas_no=@kitas_no, kitas_expiry=@kitas_expiry, kitas_address=@kitas_address, imta=@imta,
-            rptka_no=@rptka_no, rptka_position=@rptka_position, job_title_kitas=@job_title_kitas
-        WHERE employee_id=@employee_id
-      ELSE
-        INSERT INTO dbo.employee_travel (employee_id, passport_no, name_as_passport, passport_expiry, kitas_no, kitas_expiry, kitas_address, imta, rptka_no, rptka_position, job_title_kitas)
-        VALUES (@employee_id, @passport_no, @name_as_passport, @passport_expiry, @kitas_no, @kitas_expiry, @kitas_address, @imta, @rptka_no, @rptka_position, @job_title_kitas);
-    `);
-    request.parameters = {};
-    request.input("employee_id", sql.VarChar(100), id);
-    request.input("paspor_checklist", sql.NVarChar(1), boolToYN(checklist.passport_checklist));
-    request.input("kitas_checklist", sql.NVarChar(1), boolToYN(checklist.kitas_checklist));
-    request.input("imta_checklist", sql.NVarChar(1), boolToYN(checklist.imta_checklist));
-    request.input("rptka_checklist", sql.NVarChar(1), boolToYN(checklist.rptka_checklist));
-    request.input("npwp_checklist", sql.NVarChar(1), boolToYN(checklist.npwp_checklist));
-    request.input("bpjs_kes_checklist", sql.NVarChar(1), boolToYN(checklist.bpjs_kes_checklist));
-    request.input("bpjs_tk_checklist", sql.NVarChar(1), boolToYN(checklist.bpjs_tk_checklist));
-    request.input("bank_checklist", sql.NVarChar(1), boolToYN(checklist.bank_checklist));
-    phase = "checklist_upsert";
-    console.log("employees.put", { id, phase, params: Object.keys(((request as unknown as { parameters?: Record<string, unknown> }).parameters) || {}) });
-    await request.query(`
-      IF EXISTS (SELECT 1 FROM dbo.employee_checklist WHERE employee_id = @employee_id)
-        UPDATE dbo.employee_checklist
-        SET paspor_checklist=@paspor_checklist, kitas_checklist=@kitas_checklist, imta_checklist=@imta_checklist,
-            rptka_checklist=@rptka_checklist, npwp_checklist=@npwp_checklist, bpjs_kes_checklist=@bpjs_kes_checklist,
-            bpjs_tk_checklist=@bpjs_tk_checklist, bank_checklist=@bank_checklist
-        WHERE employee_id=@employee_id
-      ELSE
-        INSERT INTO dbo.employee_checklist (employee_id, paspor_checklist, kitas_checklist, imta_checklist, rptka_checklist, npwp_checklist, bpjs_kes_checklist, bpjs_tk_checklist, bank_checklist)
-        VALUES (@employee_id, @paspor_checklist, @kitas_checklist, @imta_checklist, @rptka_checklist, @npwp_checklist, @bpjs_kes_checklist, @bpjs_tk_checklist, @bank_checklist);
-    `);
-    request.parameters = {};
-    request.input("employee_id", sql.VarChar(100), id);
-    request.input("batch", sql.NVarChar(50), notes.batch || null);
-    request.input("note", sql.NVarChar(sql.MAX), notes.note || null);
-    phase = "notes_upsert";
-    console.log("employees.put", { id, phase, params: Object.keys(((request as unknown as { parameters?: Record<string, unknown> }).parameters) || {}) });
-    await request.query(`
-      IF EXISTS (SELECT 1 FROM dbo.employee_notes WHERE employee_id = @employee_id)
-        UPDATE dbo.employee_notes
-        SET batch=@batch, note=@note
-        WHERE employee_id=@employee_id
-      ELSE
-        INSERT INTO dbo.employee_notes (employee_id, batch, note)
-        VALUES (@employee_id, @batch, @note);
-    `);
-    await trx.commit();
+    try {
+      await upsertEmployeeSection(trx, "employee_core", id, coreFields);
+      await upsertEmployeeSection(trx, "employee_contact", id, contactFields);
+      await upsertEmployeeSection(trx, "employee_employment", id, employmentFields);
+      await upsertEmployeeSection(trx, "employee_onboard", id, onboardFields);
+      await upsertEmployeeSection(trx, "employee_bank", id, bankFields);
+      await upsertEmployeeSection(trx, "employee_insurance", id, insuranceFields);
+      await upsertEmployeeSection(trx, "employee_travel", id, travelFields);
+      await upsertEmployeeSection(trx, "employee_checklist", id, checklistFields);
+      await upsertEmployeeSection(trx, "employee_notes", id, notesFields);
+      await trx.commit();
+    } catch (err: unknown) {
+      await trx.rollback();
+      throw err;
+    }
     return res.json({ ok: true, employee_id: id });
   } catch (err: unknown) {
-    await trx.rollback();
     const message = err instanceof Error ? err.message : "FAILED_TO_UPDATE_EMPLOYEE";
     const details = extractDbErrorDetails(err);
-    console.error("employees.put.error", { id, phase, message, details });
     return res.status(500).json({ error: message, details });
   } finally {
     await pool.close();

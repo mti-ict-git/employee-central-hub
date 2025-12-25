@@ -187,6 +187,7 @@ interface ChecklistEditorProps {
   };
   employeeType: EmployeeType;
   employeeStatus: EmployeeStatus;
+  canWrite?: (section: string, column: string) => boolean;
   onChecklistChange: (key: keyof EmployeeChecklist, value: boolean) => void;
   onInsuranceChange: (key: 'insurance_endorsement' | 'insurance_owlexa' | 'insurance_fpg', value: boolean) => void;
   onEmploymentChange: (key: 'blacklist_mti' | 'blacklist_imip', value: boolean) => void;
@@ -200,6 +201,7 @@ export const ChecklistEditor = ({
   core,
   employeeType,
   employeeStatus,
+  canWrite,
   onChecklistChange,
   onInsuranceChange,
   onEmploymentChange,
@@ -274,7 +276,11 @@ export const ChecklistEditor = ({
                   label={item.label}
                   description={item.description}
                   checked={!!checklist[item.key]}
-                  onChange={(checked) => onChecklistChange(item.key, checked)}
+                  disabled={canWrite ? !canWrite("checklist", String(item.key)) : false}
+                  onChange={(checked) => {
+                    if (canWrite && !canWrite("checklist", String(item.key))) return;
+                    onChecklistChange(item.key, checked);
+                  }}
                 />
               ))}
             </div>
@@ -302,7 +308,11 @@ export const ChecklistEditor = ({
                   label={item.label}
                   description={item.description}
                   checked={!!insurance[item.key]}
-                  onChange={(checked) => onInsuranceChange(item.key, checked)}
+                  disabled={canWrite ? !canWrite("insurance", item.key) : false}
+                  onChange={(checked) => {
+                    if (canWrite && !canWrite("insurance", item.key)) return;
+                    onInsuranceChange(item.key, checked);
+                  }}
                 />
               ))}
             </div>
@@ -324,7 +334,11 @@ export const ChecklistEditor = ({
               label="ID Card MTI"
               description="MTI ID Card has been issued"
               checked={!!core.id_card_mti}
-              onChange={(checked) => onCoreChange('id_card_mti', checked)}
+              disabled={canWrite ? !canWrite("core", "id_card_mti") : false}
+              onChange={(checked) => {
+                if (canWrite && !canWrite("core", "id_card_mti")) return;
+                onCoreChange('id_card_mti', checked);
+              }}
             />
           </CardContent>
         </Card>
@@ -350,7 +364,11 @@ export const ChecklistEditor = ({
                   label={item.label}
                   description={item.description}
                   checked={!!employment[item.key]}
-                  onChange={(checked) => onEmploymentChange(item.key, checked)}
+                  disabled={canWrite ? !canWrite("employment", item.key) : false}
+                  onChange={(checked) => {
+                    if (canWrite && !canWrite("employment", item.key)) return;
+                    onEmploymentChange(item.key, checked);
+                  }}
                   variant="destructive"
                 />
               ))}
@@ -382,24 +400,29 @@ interface ChecklistItemRowProps {
   checked: boolean;
   onChange: (checked: boolean) => void;
   variant?: 'default' | 'destructive';
+  disabled?: boolean;
 }
 
-const ChecklistItemRow = ({ label, description, checked, onChange, variant = 'default' }: ChecklistItemRowProps) => (
+const ChecklistItemRow = ({ label, description, checked, onChange, variant = 'default', disabled = false }: ChecklistItemRowProps) => (
   <TooltipProvider>
     <div 
       className={cn(
-        "flex items-start space-x-3 rounded-lg border p-4 transition-colors cursor-pointer",
+        "flex items-start space-x-3 rounded-lg border p-4 transition-colors",
         checked 
           ? variant === 'destructive' 
             ? "border-destructive/50 bg-destructive/5" 
             : "border-primary/50 bg-primary/5"
           : "border-border hover:bg-muted/50"
       )}
-      onClick={() => onChange(!checked)}
+      onClick={() => {
+        if (disabled) return;
+        onChange(!checked);
+      }}
     >
       <Checkbox 
         checked={checked} 
         onCheckedChange={onChange}
+        disabled={disabled}
         className={cn(
           "mt-0.5",
           variant === 'destructive' && "data-[state=checked]:bg-destructive data-[state=checked]:border-destructive"
@@ -407,7 +430,7 @@ const ChecklistItemRow = ({ label, description, checked, onChange, variant = 'de
       />
       <div className="flex-1 space-y-1">
         <div className="flex items-center gap-2">
-          <Label className="cursor-pointer font-medium">{label}</Label>
+          <Label className={cn("font-medium", !disabled && "cursor-pointer")}>{label}</Label>
           <Tooltip>
             <TooltipTrigger asChild>
               <Info className="h-3.5 w-3.5 text-muted-foreground" />

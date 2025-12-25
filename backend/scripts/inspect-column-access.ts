@@ -30,6 +30,10 @@ async function scanColumns(pool: sql.ConnectionPool, table: string) {
   return (res.recordset || []).map((r) => String((r as { COLUMN_NAME: string }).COLUMN_NAME).toLowerCase());
 }
 
+function isRecord(value: unknown): value is Record<string, unknown> {
+  return typeof value === "object" && value !== null && !Array.isArray(value);
+}
+
 function toLabel(s: string) {
   return String(s || "")
     .replace(/_/g, " ")
@@ -40,6 +44,7 @@ function toLabel(s: string) {
 }
 
 async function main() {
+  const employeeIdArg = String(process.argv[2] || "").trim();
   const pool = new sql.ConnectionPool({
     server: DB.SERVER,
     database: DB.DATABASE,
@@ -53,6 +58,46 @@ async function main() {
   });
   await pool.connect();
   try {
+    if (employeeIdArg) {
+      const natRes = await new sql.Request(pool)
+        .input("employee_id", sql.VarChar(100), employeeIdArg)
+        .query(`SELECT TOP 1 nationality FROM dbo.employee_core WHERE employee_id=@employee_id`);
+      const natRow = (natRes.recordset || [])[0];
+      const nat = String((isRecord(natRow) ? natRow.nationality : "") || "")
+        .trim()
+        .toLowerCase();
+      const employeeType: "indonesia" | "expat" = nat === "indonesia" || nat.startsWith("indo") ? "indonesia" : "expat";
+
+      const tcaCols = await scanColumns(pool, "type_column_access");
+      if (tcaCols.includes("employee_type") && tcaCols.includes("section") && tcaCols.includes("column")) {
+        const typeRes = await new sql.Request(pool)
+          .input("employee_type", sql.NVarChar(20), employeeType)
+          .query(`SELECT [employee_type],[section],[column],[accessible] FROM dbo.type_column_access WHERE employee_type=@employee_type`);
+        const bankRows = (typeRes.recordset || []).filter((r) => {
+          const sec = String((isRecord(r) ? r.section : "") || "").toLowerCase();
+          return sec.includes("bank");
+        });
+        const denied = bankRows.filter((r) => {
+          const acc = isRecord(r) ? r.accessible : undefined;
+          return !(acc === true || acc === 1);
+        });
+        console.log(
+          JSON.stringify(
+            {
+              employee_id: employeeIdArg,
+              nationality: natRes.recordset && (natRes.recordset[0] as { nationality?: unknown } | undefined)?.nationality,
+              employee_type: employeeType,
+              type_bank_rows: bankRows.length,
+              type_bank_denied: denied.length,
+              type_bank_denied_sample: denied.slice(0, 10),
+            },
+            null,
+            2,
+          ),
+        );
+      }
+    }
+
     const cols = await scanColumns(pool, "role_column_access");
     const hasNormalized = cols.includes("role_id") && cols.includes("column_id");
     let rows: Array<{ role: string; section: string; column: string; read: boolean; write: boolean }> = [];

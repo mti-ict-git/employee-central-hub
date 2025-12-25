@@ -82,6 +82,19 @@ const EmployeeDetail = () => {
     if (!caps) return false;
     return caps.canColumn(section, column, "read");
   };
+
+  const canWriteCol = (section: string, column: string) => {
+    if (!hasSectionData(section)) return false;
+    const key = String(section || "").toLowerCase();
+    const t = String(employee?.type || "").trim().toLowerCase();
+    const nat = String(employee?.core?.nationality || "").trim().toLowerCase();
+    const type = t.startsWith("expat") ? "expat" : (nat === "indonesia" || nat.startsWith("indo") ? "indonesia" : "expat");
+    const applicable = typeAccess?.[type]?.[key]?.[column];
+    if (applicable === false) return false;
+    if (!caps) return false;
+    if (column === "employee_id") return false;
+    return caps.canColumn(section, column, "write");
+  };
   const computeAge = (dob?: string | Date | null) => {
     if (!dob) return "";
     const d = typeof dob === "string" ? new Date(dob) : dob;
@@ -154,6 +167,19 @@ const EmployeeDetail = () => {
   }
 
   const isActive = employee.employment?.status === 'Active';
+  const canEditEmployee = (() => {
+    if (!caps) return false;
+    const obj = (employee as unknown as Record<string, unknown>) || {};
+    for (const [section, value] of Object.entries(obj)) {
+      if (section === "type") continue;
+      if (!value || typeof value !== "object") continue;
+      const sectionObj = value as Record<string, unknown>;
+      for (const col of Object.keys(sectionObj)) {
+        if (canWriteCol(section, col)) return true;
+      }
+    }
+    return false;
+  })();
 
   return (
     <MainLayout title="Employee Details" subtitle={employee.core?.name || ""}>
@@ -165,7 +191,7 @@ const EmployeeDetail = () => {
             Back to List
           </Link>
         </Button>
-        {caps?.canUpdateEmployees && (
+        {canEditEmployee && (
           <Button asChild>
             <Link to={`/employees/${id}/edit`}>
               <Pencil className="mr-2 h-4 w-4" />

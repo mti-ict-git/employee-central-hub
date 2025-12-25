@@ -198,3 +198,27 @@ Wednesday, December 17, 2025 4:24:46 PM - Secured env handling: added .env to .g
 - Fixed employee detail section filtering to respect `role_column_access` regardless of `can_read` vs `can_view` schema.
 - This ensures roles with Contact column read access receive the `contact` section in `/api/employees/:id` responses.
 
+## 2025-12-24 23:16:57 — Employee Edit Permissions Hardening
+
+- Fixed a double-commit bug in the employee update transaction (`backend/src/routes/employees.ts:618–641`).
+- Normalized `type_column_access` and `role_column_access` column keys to lowercase in the frontend RBAC index to avoid case-mismatch permission leaks (`src/lib/rbac.ts:93–148`).
+
+## 2025-12-24 23:30:36 — Edit Employee Crash Fix
+
+- Fixed `EditEmployee` crashing when API omits nested sections (e.g. missing `employment`) by normalizing the fetched employee payload (`src/pages/EditEmployee.tsx:124–159`).
+
+## 2025-12-24 23:47:22 — Department Rep Bank Write 403 Fix
+
+- Fixed `PUT /api/employees/:id` write checks to support normalized `role_column_access` schemas (`backend/src/routes/employees.ts:66–180`).
+- This unblocks per-column write permissions (e.g. `department_rep` editing `bank.*`) when RBAC is stored using `role_id` + `column_id` with `column_catalog` joins.
+
+## 2025-12-25 00:11:12 — Department Rep Role Alias Support
+
+- Fixed `PUT /api/employees/:id` RBAC write checks to accept `dep_rep` role rows as `department_rep` (`backend/src/routes/employees.ts:94–126`).
+
+## 2025-12-25 00:30:51 — Integrity Checks
+
+- Ran `npm run lint` (0 errors; warnings only).
+- Ran `npx tsc --noEmit -p tsconfig.json` and `npm --prefix backend run typecheck` — passed.
+- Ran `npm --prefix backend run build` — passed.
+

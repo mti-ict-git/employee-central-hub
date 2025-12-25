@@ -25,7 +25,138 @@ interface EmployeeTableProps {
 }
 
 export function EmployeeTable({ employees, onDelete, selectable = false, selected, onToggleSelect, onToggleAll }: EmployeeTableProps) {
-  const { caps } = useRBAC();
+  const { caps, typeAccess } = useRBAC();
+
+  const editableColumnsBySection: Record<string, string[]> = {
+    core: [
+      "imip_id",
+      "name",
+      "gender",
+      "place_of_birth",
+      "date_of_birth",
+      "marital_status",
+      "religion",
+      "nationality",
+      "blood_type",
+      "ktp_no",
+      "kartu_keluarga_no",
+      "npwp",
+      "tax_status",
+      "education",
+      "office_email",
+      "id_card_mti",
+      "field",
+      "branch_id",
+      "branch",
+    ],
+    contact: [
+      "phone_number",
+      "email",
+      "address",
+      "city",
+      "spouse_name",
+      "child_name_1",
+      "child_name_2",
+      "child_name_3",
+      "emergency_contact_name",
+      "emergency_contact_phone",
+    ],
+    employment: [
+      "employment_status",
+      "status",
+      "division",
+      "department",
+      "section",
+      "job_title",
+      "grade",
+      "position_grade",
+      "group_job_title",
+      "direct_report",
+      "company_office",
+      "work_location",
+      "locality_status",
+      "blacklist_mti",
+      "blacklist_imip",
+    ],
+    onboard: [
+      "point_of_hire",
+      "point_of_origin",
+      "schedule_type",
+      "first_join_date_merdeka",
+      "transfer_merdeka",
+      "first_join_date",
+      "join_date",
+      "end_contract",
+    ],
+    bank: [
+      "bank_name",
+      "account_name",
+      "account_no",
+      "bank_code",
+      "icbc_bank_account_no",
+      "icbc_username",
+    ],
+    insurance: [
+      "bpjs_tk",
+      "bpjs_kes",
+      "status_bpjs_kes",
+      "insurance_endorsement",
+      "insurance_owlexa",
+      "insurance_fpg",
+      "fpg_no",
+      "owlexa_no",
+      "social_insurance_no_alt",
+      "bpjs_kes_no_alt",
+    ],
+    travel: [
+      "passport_no",
+      "name_as_passport",
+      "passport_expiry",
+      "kitas_no",
+      "kitas_expiry",
+      "kitas_address",
+      "imta",
+      "rptka_no",
+      "rptka_position",
+      "job_title_kitas",
+      "travel_in",
+      "travel_out",
+    ],
+    checklist: [
+      "passport_checklist",
+      "kitas_checklist",
+      "imta_checklist",
+      "rptka_checklist",
+      "npwp_checklist",
+      "bpjs_kes_checklist",
+      "bpjs_tk_checklist",
+      "bank_checklist",
+    ],
+    notes: ["batch", "note"],
+  };
+
+  const canWriteForType = (employeeType: "indonesia" | "expat", section: string, column: string) => {
+    if (!caps) return false;
+    if (column === "employee_id") return false;
+    const key = String(section || "").toLowerCase();
+    const applicable = typeAccess?.[employeeType]?.[key]?.[column];
+    if (applicable === false) return false;
+    return caps.canColumn(section, column, "write");
+  };
+
+  const computeCanEditForType = (employeeType: "indonesia" | "expat") => {
+    if (!caps) return false;
+    for (const [section, cols] of Object.entries(editableColumnsBySection)) {
+      for (const col of cols) {
+        if (canWriteForType(employeeType, section, col)) return true;
+      }
+    }
+    return false;
+  };
+
+  const canEditIndonesia = computeCanEditForType("indonesia");
+  const canEditExpat = computeCanEditForType("expat");
+
   return (
     <div className="rounded-xl border border-border bg-card shadow-card overflow-hidden">
       <Table>
@@ -101,7 +232,7 @@ export function EmployeeTable({ employees, onDelete, selectable = false, selecte
                       <Eye className="h-4 w-4" />
                     </Link>
                   </Button>
-                  {caps?.canUpdateEmployees && (
+                  {((employee.type === "indonesia" ? canEditIndonesia : canEditExpat)) && (
                     <Button variant="ghost" size="icon" asChild>
                       <Link to={`/employees/${employee.core.employee_id}/edit`}>
                         <Pencil className="h-4 w-4" />
