@@ -269,20 +269,7 @@ const ImportEmployees = () => {
     setIsImporting(true);
 
     try {
-      const rows = validRecords.map(v => ({
-        employee_id: v.data.employee_id,
-        name: v.data.name,
-        gender: v.data.gender,
-        nationality: v.data.nationality,
-        status: v.data.status,
-        department: v.data.department,
-        job_title: v.data.job_title,
-        employment_status: v.data.employment_status,
-        join_date: v.data.join_date,
-        terminated_type: v.data.terminated_type,
-        terminated_date: v.data.terminated_date,
-        terminated_reason: v.data.terminated_reason,
-      }));
+      const rows = validRecords.map(v => v.data);
       const res = await apiFetch(`/employees/import`, {
         method: "POST",
         headers: { "Content-Type": "application/json" },

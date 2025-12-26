@@ -16,7 +16,11 @@
     "ensure:note": "tsx scripts/ensure-note-column.ts",
     "test:import": "tsx scripts/import-smoke-test.ts",
     "test:import:csv": "tsx scripts/import-from-public-csv.ts",
-    "verify:import:csv": "tsx scripts/verify-import-indonesia-csv.ts"
+    "verify:import:csv": "tsx scripts/verify-import-indonesia-csv.ts",
+    "import:csv:full": "tsx scripts/import-from-importfile.ts",
+    "list:employees": "tsx scripts/list-employees.ts",
+    "get:employee": "tsx scripts/get-employee.ts",
+    "verify:import:db": "tsx scripts/verify-import-db.ts"
   },
   "dependencies": {
     "cors": "^2.8.5",

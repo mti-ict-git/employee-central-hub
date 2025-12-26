@@ -1207,21 +1207,7 @@ employeesRouter.post("/", async (req, res) => {
 });
 
 employeesRouter.post("/import", async (req, res) => {
-  interface ImportEmployeeRow {
-    employee_id: string;
-    name?: string | null;
-    gender?: string | null;
-    nationality?: string | null;
-    status?: string | null;
-    employment_status?: string | null;
-    department?: string | null;
-    job_title?: string | null;
-    join_date?: string | Date | null;
-    terminated_date?: string | Date | null;
-    terminated_type?: string | null;
-    terminated_reason?: string | null;
-  }
-  const rows: ImportEmployeeRow[] = Array.isArray(req.body) ? req.body : [];
+  const rows: Array<Record<string, unknown>> = Array.isArray(req.body) ? (req.body as Array<Record<string, unknown>>) : [];
   if (!rows.length) return res.status(400).json({ error: "NO_ROWS" });
   const pool = getPool();
   const conn = await pool.connect();
@@ -1232,66 +1218,126 @@ employeesRouter.post("/import", async (req, res) => {
     const trx = new sql.Transaction(conn);
     try {
       await trx.begin();
-      const request = new sql.Request(trx);
-      const id = String(r.employee_id || "").trim();
+      const id = String((r as any).employee_id || "").trim();
       if (!id) throw new Error("EMPLOYEE_ID_REQUIRED");
-      request.input("employee_id", sql.VarChar(100), id);
-      request.input("name", sql.NVarChar(200), r.name || null);
-      request.input("gender", sql.Char(1), genderToCode(r.gender));
-      request.input("nationality", sql.NVarChar(100), r.nationality || null);
-      request.input("imip_id", sql.NVarChar(50), id);
-      await request.query(`
-        IF EXISTS (SELECT 1 FROM dbo.employee_core WHERE employee_id = @employee_id)
-          UPDATE dbo.employee_core SET name=@name, gender=@gender, nationality=@nationality WHERE employee_id=@employee_id
-        ELSE
-          INSERT INTO dbo.employee_core (employee_id, name, gender, nationality, imip_id) VALUES (@employee_id, @name, @gender, @nationality, @imip_id);
-      `);
-      request.parameters = {};
-      request.input("employee_id", sql.VarChar(100), id);
-      const rawEmploymentStatus = r.employment_status;
+      const rawEmploymentStatus = (r as any).employment_status;
       const normalizedEmploymentStatus = normalizeEmploymentStatus(rawEmploymentStatus);
       const hasEmploymentStatus = String(rawEmploymentStatus || "").trim() !== "";
       if (hasEmploymentStatus && normalizedEmploymentStatus === null) throw new Error("INVALID_EMPLOYMENT_STATUS");
-      request.input(
-        "employment_status",
-        sql.NVarChar(50),
-        (normalizedEmploymentStatus === undefined || normalizedEmploymentStatus === null) ? "active" : normalizedEmploymentStatus,
-      );
-      const rawStatus = r.status;
+      const employmentStatusValue =
+        (normalizedEmploymentStatus === undefined || normalizedEmploymentStatus === null) ? "active" : normalizedEmploymentStatus;
+      const rawStatus = (r as any).status;
       const normalizedStatus = normalizeStatus(rawStatus);
       const hasStatus = String(rawStatus || "").trim() !== "";
       if (hasStatus && normalizedStatus === null) throw new Error("INVALID_STATUS");
-      request.input("status", sql.NVarChar(50), normalizedStatus || null);
-      const terminatedDate = parseDate(r.terminated_date);
-      const terminatedType = r.terminated_type ? String(r.terminated_type) : null;
-      const terminatedReason = r.terminated_reason ? String(r.terminated_reason) : null;
+      const statusValue = normalizedStatus || null;
+      const terminatedDate = parseDate((r as any).terminated_date);
+      const terminatedType = (r as any).terminated_type ? String((r as any).terminated_type) : null;
+      const terminatedReason = (r as any).terminated_reason ? String((r as any).terminated_reason) : null;
       if (normalizedStatus === "terminated") {
         if (!terminatedDate || !terminatedType) throw new Error("TERMINATION_FIELDS_REQUIRED");
       }
-      request.input("terminated_date", sql.Date, terminatedDate || null);
-      request.input("terminated_type", sql.NVarChar(50), terminatedType);
-      request.input("terminated_reason", sql.NVarChar(200), terminatedReason);
-      request.input("department", sql.NVarChar(100), r.department || null);
-      request.input("job_title", sql.NVarChar(100), r.job_title || null);
-      request.input("join_date", sql.Date, r.join_date || null);
-      await request.query(`
-        IF EXISTS (SELECT 1 FROM dbo.employee_employment WHERE employee_id = @employee_id)
-          UPDATE dbo.employee_employment SET employment_status=@employment_status, status=@status, department=@department, job_title=@job_title, terminated_date=@terminated_date, terminated_type=@terminated_type, terminated_reason=@terminated_reason WHERE employee_id=@employee_id
+      const coreFields = [
+        { column: "name", param: "name", sqlType: sql.NVarChar(200), value: (r as any).name || null },
+        { column: "gender", param: "gender", sqlType: sql.Char(1), value: genderToCode((r as any).gender) },
+        { column: "place_of_birth", param: "place_of_birth", sqlType: sql.NVarChar(100), value: (r as any).place_of_birth || null },
+        { column: "date_of_birth", param: "date_of_birth", sqlType: sql.Date(), value: parseDate((r as any).date_of_birth) },
+        { column: "marital_status", param: "marital_status", sqlType: sql.NVarChar(50), value: (r as any).marital_status || null },
+        { column: "tax_status", param: "tax_status", sqlType: sql.NVarChar(20), value: (r as any).tax_status || null },
+        { column: "religion", param: "religion", sqlType: sql.NVarChar(50), value: (r as any).religion || null },
+        { column: "nationality", param: "nationality", sqlType: sql.NVarChar(100), value: (r as any).nationality || null },
+        { column: "blood_type", param: "blood_type", sqlType: sql.NVarChar(5), value: (r as any).blood_type || null },
+        { column: "education", param: "education", sqlType: sql.NVarChar(100), value: (r as any).education || null },
+        { column: "kartu_keluarga_no", param: "kartu_keluarga_no", sqlType: sql.NVarChar(50), value: (r as any).kartu_keluarga_no || null },
+        { column: "ktp_no", param: "ktp_no", sqlType: sql.NVarChar(50), value: (r as any).ktp_no || null },
+        { column: "npwp", param: "npwp", sqlType: sql.NVarChar(30), value: (r as any).npwp || null },
+        { column: "office_email", param: "office_email", sqlType: sql.NVarChar(255), value: (r as any).office_email || null },
+        { column: "branch", param: "branch", sqlType: sql.NVarChar(50), value: (r as any).branch || null },
+        { column: "branch_id", param: "branch_id", sqlType: sql.NVarChar(50), value: (r as any).branch_id || null },
+        { column: "imip_id", param: "imip_id", sqlType: sql.NVarChar(50), value: ((r as any).imip_id ? String((r as any).imip_id) : id) },
+        { column: "id_card_mti", param: "id_card_mti", sqlType: sql.Bit(), value: (() => { const v = String((r as any).id_card_mti || "").trim().toLowerCase(); if (!v) return null; if (v === "1" || v === "y" || v === "yes" || v === "true") return 1; if (v === "0" || v === "n" || v === "no" || v === "false") return 0; return null; })() },
+      ];
+      const contactFields = [
+        { column: "phone_number", param: "phone_number", sqlType: sql.NVarChar(50), value: (r as any).phone_number || null },
+        { column: "email", param: "email", sqlType: sql.NVarChar(200), value: (r as any).email || null },
+        { column: "address", param: "address", sqlType: sql.NVarChar(255), value: (r as any).address || null },
+        { column: "city", param: "city", sqlType: sql.NVarChar(100), value: (r as any).city || null },
+        { column: "spouse_name", param: "spouse_name", sqlType: sql.NVarChar(200), value: (r as any).spouse_name || null },
+        { column: "child_name_1", param: "child_name_1", sqlType: sql.NVarChar(200), value: (r as any).child_name_1 || null },
+        { column: "child_name_2", param: "child_name_2", sqlType: sql.NVarChar(200), value: (r as any).child_name_2 || null },
+        { column: "child_name_3", param: "child_name_3", sqlType: sql.NVarChar(200), value: (r as any).child_name_3 || null },
+        { column: "emergency_contact_name", param: "emergency_contact_name", sqlType: sql.NVarChar(200), value: (r as any).emergency_contact_name || null },
+        { column: "emergency_contact_phone", param: "emergency_contact_phone", sqlType: sql.NVarChar(50), value: (r as any).emergency_contact_phone || null },
+      ];
+      const employmentFields = [
+        { column: "employment_status", param: "employment_status", sqlType: sql.NVarChar(50), value: employmentStatusValue },
+        { column: "status", param: "status", sqlType: sql.NVarChar(50), value: statusValue },
+        { column: "division", param: "division", sqlType: sql.NVarChar(100), value: (r as any).division || null },
+        { column: "department", param: "department", sqlType: sql.NVarChar(100), value: (r as any).department || null },
+        { column: "section", param: "section", sqlType: sql.NVarChar(100), value: (r as any).section || null },
+        { column: "job_title", param: "job_title", sqlType: sql.NVarChar(100), value: (r as any).job_title || null },
+        { column: "grade", param: "grade", sqlType: sql.NVarChar(20), value: (r as any).grade || null },
+        { column: "position_grade", param: "position_grade", sqlType: sql.NVarChar(50), value: (r as any).position_grade || null },
+        { column: "group_job_title", param: "group_job_title", sqlType: sql.NVarChar(100), value: (r as any).group_job_title || null },
+        { column: "direct_report", param: "direct_report", sqlType: sql.NVarChar(100), value: (r as any).direct_report || null },
+        { column: "company_office", param: "company_office", sqlType: sql.NVarChar(100), value: (r as any).company_office || null },
+        { column: "work_location", param: "work_location", sqlType: sql.NVarChar(100), value: (r as any).work_location || null },
+        { column: "locality_status", param: "locality_status", sqlType: sql.NVarChar(50), value: (r as any).locality_status || null },
+        { column: "terminated_date", param: "terminated_date", sqlType: sql.Date(), value: terminatedDate || null },
+        { column: "terminated_type", param: "terminated_type", sqlType: sql.NVarChar(50), value: terminatedType },
+        { column: "terminated_reason", param: "terminated_reason", sqlType: sql.NVarChar(200), value: terminatedReason },
+        { column: "blacklist_mti", param: "blacklist_mti", sqlType: sql.NVarChar(1), value: (() => { const v = String((r as any).blacklist_mti || "").trim(); if (!v) return null; return v === "1" ? "Y" : "N"; })() },
+        { column: "blacklist_imip", param: "blacklist_imip", sqlType: sql.NVarChar(1), value: (() => { const v = String((r as any).blacklist_imip || "").trim(); if (!v) return null; return v === "1" ? "Y" : "N"; })() },
+      ];
+      const onboardFields = [
+        { column: "point_of_hire", param: "point_of_hire", sqlType: sql.NVarChar(100), value: (r as any).point_of_hire || null },
+        { column: "point_of_origin", param: "point_of_origin", sqlType: sql.NVarChar(100), value: (r as any).point_of_origin || null },
+        { column: "schedule_type", param: "schedule_type", sqlType: sql.NVarChar(50), value: (r as any).schedule_type || null },
+        { column: "first_join_date_merdeka", param: "first_join_date_merdeka", sqlType: sql.Date(), value: parseDate((r as any).first_join_date_merdeka) },
+        { column: "transfer_merdeka", param: "transfer_merdeka", sqlType: sql.Date(), value: parseDate((r as any).transfer_merdeka) },
+        { column: "first_join_date", param: "first_join_date", sqlType: sql.Date(), value: parseDate((r as any).first_join_date) },
+        { column: "join_date", param: "join_date", sqlType: sql.Date(), value: parseDate((r as any).join_date) },
+        { column: "end_contract", param: "end_contract", sqlType: sql.Date(), value: parseDate((r as any).end_contract) },
+      ];
+      const bankFields = [
+        { column: "bank_name", param: "bank_name", sqlType: sql.NVarChar(100), value: (r as any).bank_name || null },
+        { column: "account_name", param: "account_name", sqlType: sql.NVarChar(100), value: (r as any).account_name || null },
+        { column: "account_no", param: "account_no", sqlType: sql.NVarChar(50), value: (r as any).account_no || null },
+      ];
+      const insuranceFields = [
+        { column: "bpjs_tk", param: "bpjs_tk", sqlType: sql.NVarChar(50), value: (r as any).bpjs_tk || null },
+        { column: "bpjs_kes", param: "bpjs_kes", sqlType: sql.NVarChar(50), value: (r as any).bpjs_kes || null },
+        { column: "status_bpjs_kes", param: "status_bpjs_kes", sqlType: sql.NVarChar(50), value: (r as any).status_bpjs_kes || null },
+        { column: "social_insurance_no_alt", param: "social_insurance_no_alt", sqlType: sql.NVarChar(100), value: (r as any).social_insurance_no_alt || null },
+        { column: "bpjs_kes_no_alt", param: "bpjs_kes_no_alt", sqlType: sql.NVarChar(100), value: (r as any).bpjs_kes_no_alt || null },
+        { column: "insurance_endorsement", param: "insurance_endorsement", sqlType: sql.NVarChar(1), value: (() => { const v = String((r as any).insurance_endorsement || "").trim(); if (!v) return null; return v === "1" ? "Y" : "N"; })() },
+        { column: "insurance_owlexa", param: "insurance_owlexa", sqlType: sql.NVarChar(1), value: (() => { const v = String((r as any).insurance_owlexa || "").trim(); if (!v) return null; return v === "1" ? "Y" : "N"; })() },
+        { column: "insurance_fpg", param: "insurance_fpg", sqlType: sql.NVarChar(1), value: (() => { const v = String((r as any).insurance_fpg || "").trim(); if (!v) return null; return v === "1" ? "Y" : "N"; })() },
+        { column: "fpg_no", param: "fpg_no", sqlType: sql.NVarChar(50), value: (r as any).fpg_no || null },
+        { column: "owlexa_no", param: "owlexa_no", sqlType: sql.NVarChar(50), value: (r as any).owlexa_no || null },
+      ];
+      const travelFields = [
+        { column: "travel_in", param: "travel_in", sqlType: sql.Date(), value: parseDate((r as any).travel_in) },
+        { column: "travel_out", param: "travel_out", sqlType: sql.Date(), value: parseDate((r as any).travel_out) },
+      ];
+      const reqCore = new sql.Request(trx);
+      for (const f of coreFields) reqCore.input(f.param, f.sqlType, f.value);
+      reqCore.input("employee_id", sql.VarChar(100), id);
+      await reqCore.query(`
+        IF EXISTS (SELECT 1 FROM dbo.employee_core WHERE employee_id = @employee_id)
+          UPDATE dbo.employee_core SET ${coreFields.map(f => `[${f.column}]=@${f.param}`).join(", ")} WHERE employee_id=@employee_id
         ELSE
-          INSERT INTO dbo.employee_employment (employee_id, employment_status, status, department, job_title, terminated_date, terminated_type, terminated_reason) VALUES (@employee_id, @employment_status, @status, @department, @job_title, @terminated_date, @terminated_type, @terminated_reason);
+          INSERT INTO dbo.employee_core ([employee_id], ${coreFields.map(f => `[${f.column}]`).join(", ")}) VALUES (@employee_id, ${coreFields.map(f => `@${f.param}`).join(", ")});
       `);
-      request.parameters = {};
-      request.input("employee_id", sql.VarChar(100), id);
-      request.input("join_date", sql.Date, r.join_date || null);
-      await request.query(`
-        IF EXISTS (SELECT 1 FROM dbo.employee_onboard WHERE employee_id = @employee_id)
-          UPDATE dbo.employee_onboard SET join_date=@join_date WHERE employee_id=@employee_id
-        ELSE
-          INSERT INTO dbo.employee_onboard (employee_id, join_date) VALUES (@employee_id, @join_date);
-      `);
+      await upsertEmployeeSection(trx, "employee_contact", id, contactFields);
+      await upsertEmployeeSection(trx, "employee_employment", id, employmentFields);
+      await upsertEmployeeSection(trx, "employee_onboard", id, onboardFields);
+      await upsertEmployeeSection(trx, "employee_bank", id, bankFields);
+      await upsertEmployeeSection(trx, "employee_insurance", id, insuranceFields);
+      await upsertEmployeeSection(trx, "employee_travel", id, travelFields);
       await trx.commit();
       success += 1;
-      results.push({ employee_id: String(r.employee_id || ""), status: "success" });
+      results.push({ employee_id: String((r as any).employee_id || ""), status: "success" });
     } catch (e: unknown) {
       await trx.rollback();
       failed += 1;
