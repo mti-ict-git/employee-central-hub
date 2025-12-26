@@ -97,7 +97,7 @@ export function BasicInfoStep({ form }: BasicInfoStepProps) {
           name="employee_id"
           render={({ field }) => (
             <FormItem>
-              <FormLabel>Employee ID *</FormLabel>
+              <FormLabel>Employee ID (optional)</FormLabel>
               <FormControl>
                 <Input placeholder="e.g. MTI12345" {...field} />
               </FormControl>

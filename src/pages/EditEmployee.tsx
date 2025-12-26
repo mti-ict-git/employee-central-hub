@@ -301,7 +301,11 @@ const EditEmployee = () => {
     );
   }
 
-  const employeeStatus: EmployeeStatus = employee.employment?.status === 'Active' ? 'active' : 'inactive';
+  const employeeStatus: EmployeeStatus = (() => {
+    const raw = String(employee.employment?.status || '').trim().toLowerCase();
+    if (raw === 'active') return 'active';
+    return 'inactive';
+  })();
   const hasPersonalWrites = [
     "imip_id",
     "name",

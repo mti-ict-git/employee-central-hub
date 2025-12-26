@@ -538,6 +538,22 @@ function parseDate(input: unknown): Date | null {
   if (input instanceof Date) return isNaN(input.getTime()) ? null : input;
   const s = String(input).trim();
   if (!s) return null;
+  if (/^\d{4}-\d{2}-\d{2}$/.test(s)) {
+    const d = new Date(s);
+    return isNaN(d.getTime()) ? null : d;
+  }
+  const m = s.match(/^(\d{1,2})[/\-.](\d{1,2})[/\-.](\d{4})$/);
+  if (m) {
+    const a = parseInt(m[1], 10);
+    const b = parseInt(m[2], 10);
+    const y = parseInt(m[3], 10);
+    const mm = a > 12 ? a : b;
+    const dd = a > 12 ? b : a;
+    const pad = (n: number) => (n < 10 ? `0${n}` : `${n}`);
+    const iso = `${y}-${pad(mm)}-${pad(dd)}`;
+    const d = new Date(iso);
+    return isNaN(d.getTime()) ? null : d;
+  }
   const d = new Date(s);
   return isNaN(d.getTime()) ? null : d;
 }
@@ -670,6 +686,26 @@ function extractDbErrorDetails(err: unknown): { code?: string; number?: number; 
     await pool.close();
   }
 });
+
+function generateTempEmployeeId(): string {
+  const base = Date.now().toString(36).toUpperCase();
+  const rand = Math.floor(Math.random() * 1679616).toString(36).toUpperCase(); // up to 36^6
+  const raw = `TMP${base}${rand}`;
+  return raw.slice(0, 20);
+}
+async function ensureUniqueTempId(pool: sql.ConnectionPool): Promise<string> {
+  for (let i = 0; i < 5; i++) {
+    const candidate = generateTempEmployeeId();
+    const req = new sql.Request(pool);
+    req.input("employee_id", sql.VarChar(100), candidate);
+    const exists = await req.query(`
+      SELECT TOP 1 employee_id FROM dbo.employee_core WHERE employee_id = @employee_id
+    `);
+    const row = (exists.recordset || [])[0] as { employee_id?: unknown } | undefined;
+    if (!row || !row.employee_id) return candidate;
+  }
+  throw new Error("FAILED_TO_GENERATE_UNIQUE_TEMP_ID");
+}
 
 employeesRouter.delete("/:id", async (req, res) => {
   const id = String(req.params.id || "").trim();
@@ -968,11 +1004,27 @@ employeesRouter.put("/:id", async (req, res) => {
 
 employeesRouter.post("/", async (req, res) => {
   const body = req.body || {};
-  const id = String(body.employee_id || "").trim();
-  if (!id) return res.status(400).json({ error: "EMPLOYEE_ID_REQUIRED" });
+  let id = String(body.employee_id || "").trim();
   const pool = getPool();
   const trx = new sql.Transaction(await pool.connect());
   try {
+    if (!id) {
+      id = await ensureUniqueTempId(await pool.connect());
+    } else {
+      if (id.length > 20) {
+        await trx.rollback();
+        return res.status(400).json({ error: "EMPLOYEE_ID_TOO_LONG", max: 20 });
+      }
+      const checkReq = new sql.Request(await pool.connect());
+      checkReq.input("employee_id", sql.VarChar(100), id);
+      const exists = await checkReq.query(`
+        SELECT TOP 1 employee_id FROM dbo.employee_core WHERE employee_id = @employee_id
+      `);
+      if ((exists.recordset || []).length > 0) {
+        await trx.rollback();
+        return res.status(409).json({ error: "EMPLOYEE_ID_ALREADY_EXISTS" });
+      }
+    }
     await trx.begin();
     const request = new sql.Request(trx);
     const core = (body && body.core) ? body.core : body;
@@ -1206,6 +1258,54 @@ employeesRouter.post("/", async (req, res) => {
   }
 });
 
+employeesRouter.post("/:id/assign_id", async (req, res) => {
+  const oldId = String(req.params.id || "").trim();
+  const newId = String((req.body || {}).new_employee_id || "").trim();
+  if (!oldId) return res.status(400).json({ error: "OLD_EMPLOYEE_ID_REQUIRED" });
+  if (!newId) return res.status(400).json({ error: "NEW_EMPLOYEE_ID_REQUIRED" });
+  if (newId.length > 20) return res.status(400).json({ error: "EMPLOYEE_ID_TOO_LONG", max: 20 });
+  const roles = req.user?.roles || [];
+  const canUpdate = roles.some((r) => can(String(r).toLowerCase(), "update", "employees"));
+  if (!canUpdate) return res.status(403).json({ error: "FORBIDDEN_ASSIGN_EMPLOYEE_ID" });
+  const pool = getPool();
+  const conn = await pool.connect();
+  const trx = new sql.Transaction(conn);
+  try {
+    const checkReq = new sql.Request(conn);
+    checkReq.input("new_id", sql.VarChar(100), newId);
+    const existing = await checkReq.query(`
+      SELECT TOP 1 employee_id FROM dbo.employee_core WHERE employee_id = @new_id
+    `);
+    if ((existing.recordset || []).length > 0) {
+      return res.status(409).json({ error: "EMPLOYEE_ID_ALREADY_EXISTS" });
+    }
+    await trx.begin();
+    const req = new sql.Request(trx);
+    req.input("old_id", sql.VarChar(100), oldId);
+    req.input("new_id", sql.VarChar(100), newId);
+    await req.query(`
+      UPDATE dbo.employee_contact SET employee_id=@new_id WHERE employee_id=@old_id;
+      UPDATE dbo.employee_employment SET employee_id=@new_id WHERE employee_id=@old_id;
+      UPDATE dbo.employee_onboard SET employee_id=@new_id WHERE employee_id=@old_id;
+      UPDATE dbo.employee_bank SET employee_id=@new_id WHERE employee_id=@old_id;
+      UPDATE dbo.employee_insurance SET employee_id=@new_id WHERE employee_id=@old_id;
+      UPDATE dbo.employee_travel SET employee_id=@new_id WHERE employee_id=@old_id;
+      UPDATE dbo.employee_checklist SET employee_id=@new_id WHERE employee_id=@old_id;
+      UPDATE dbo.employee_notes SET employee_id=@new_id WHERE employee_id=@old_id;
+      UPDATE dbo.employee_core SET employee_id=@new_id WHERE employee_id=@old_id;
+    `);
+    await trx.commit();
+    return res.json({ ok: true, old_employee_id: oldId, employee_id: newId });
+  } catch (err: unknown) {
+    try { await trx.rollback(); } catch {}
+    const message = err instanceof Error ? err.message : "FAILED_TO_ASSIGN_EMPLOYEE_ID";
+    const details = extractDbErrorDetails(err);
+    return res.status(500).json({ error: message, details });
+  } finally {
+    await pool.close();
+  }
+});
+
 employeesRouter.post("/import", async (req, res) => {
   const rows: Array<Record<string, unknown>> = Array.isArray(req.body) ? (req.body as Array<Record<string, unknown>>) : [];
   if (!rows.length) return res.status(400).json({ error: "NO_ROWS" });
@@ -1317,8 +1417,39 @@ employeesRouter.post("/import", async (req, res) => {
         { column: "owlexa_no", param: "owlexa_no", sqlType: sql.NVarChar(50), value: (r as any).owlexa_no || null },
       ];
       const travelFields = [
+        { column: "passport_no", param: "passport_no", sqlType: sql.NVarChar(50), value: (r as any).passport_no || null },
+        { column: "name_as_passport", param: "name_as_passport", sqlType: sql.NVarChar(200), value: (r as any).name_as_passport || null },
+        { column: "passport_expiry", param: "passport_expiry", sqlType: sql.Date(), value: parseDate((r as any).passport_expiry) },
+        { column: "kitas_no", param: "kitas_no", sqlType: sql.NVarChar(50), value: (r as any).kitas_no || null },
+        { column: "kitas_expiry", param: "kitas_expiry", sqlType: sql.Date(), value: parseDate((r as any).kitas_expiry) },
+        { column: "kitas_address", param: "kitas_address", sqlType: sql.NVarChar(255), value: (r as any).kitas_address || null },
+        { column: "imta", param: "imta", sqlType: sql.NVarChar(100), value: (r as any).imta || null },
+        { column: "rptka_no", param: "rptka_no", sqlType: sql.NVarChar(100), value: (r as any).rptka_no || null },
+        { column: "rptka_position", param: "rptka_position", sqlType: sql.NVarChar(100), value: (r as any).rptka_position || null },
+        { column: "job_title_kitas", param: "job_title_kitas", sqlType: sql.NVarChar(100), value: (r as any).job_title_kitas || null },
         { column: "travel_in", param: "travel_in", sqlType: sql.Date(), value: parseDate((r as any).travel_in) },
         { column: "travel_out", param: "travel_out", sqlType: sql.Date(), value: parseDate((r as any).travel_out) },
+      ];
+      const toBit = (v: unknown): number | null => {
+        const s = String(v || "").trim().toLowerCase();
+        if (!s) return null;
+        if (s === "1" || s === "y" || s === "yes" || s === "true") return 1;
+        if (s === "0" || s === "n" || s === "no" || s === "false") return 0;
+        return null;
+      };
+      const checklistFields = [
+        { column: "paspor_checklist", param: "paspor_checklist", sqlType: sql.Bit(), value: toBit((r as any).paspor_checklist) },
+        { column: "kitas_checklist", param: "kitas_checklist", sqlType: sql.Bit(), value: toBit((r as any).kitas_checklist) },
+        { column: "imta_checklist", param: "imta_checklist", sqlType: sql.Bit(), value: toBit((r as any).imta_checklist) },
+        { column: "rptka_checklist", param: "rptka_checklist", sqlType: sql.Bit(), value: toBit((r as any).rptka_checklist) },
+        { column: "npwp_checklist", param: "npwp_checklist", sqlType: sql.Bit(), value: toBit((r as any).npwp_checklist) },
+        { column: "bpjs_kes_checklist", param: "bpjs_kes_checklist", sqlType: sql.Bit(), value: toBit((r as any).bpjs_kes_checklist) },
+        { column: "bpjs_tk_checklist", param: "bpjs_tk_checklist", sqlType: sql.Bit(), value: toBit((r as any).bpjs_tk_checklist) },
+        { column: "bank_checklist", param: "bank_checklist", sqlType: sql.Bit(), value: toBit((r as any).bank_checklist) },
+      ];
+      const notesFields = [
+        { column: "batch", param: "batch", sqlType: sql.NVarChar(100), value: (r as any).batch || null },
+        { column: "note", param: "note", sqlType: sql.NVarChar(4000), value: (r as any).note || null },
       ];
       const reqCore = new sql.Request(trx);
       for (const f of coreFields) reqCore.input(f.param, f.sqlType, f.value);
@@ -1335,11 +1466,17 @@ employeesRouter.post("/import", async (req, res) => {
       await upsertEmployeeSection(trx, "employee_bank", id, bankFields);
       await upsertEmployeeSection(trx, "employee_insurance", id, insuranceFields);
       await upsertEmployeeSection(trx, "employee_travel", id, travelFields);
+      await upsertEmployeeSection(trx, "employee_checklist", id, checklistFields);
+      await upsertEmployeeSection(trx, "employee_notes", id, notesFields);
       await trx.commit();
       success += 1;
       results.push({ employee_id: String((r as any).employee_id || ""), status: "success" });
     } catch (e: unknown) {
-      await trx.rollback();
+      try {
+        await trx.rollback();
+      } catch (rbErr) {
+        console.error("employees.import.rollback.error", { employee_id: String(r.employee_id || ""), message: (rbErr as Error)?.message });
+      }
       failed += 1;
       const msg = e instanceof Error ? e.message : "FAILED";
       const details = extractDbErrorDetails(e);

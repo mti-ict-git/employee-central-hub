@@ -88,6 +88,23 @@ const ImportEmployees = () => {
   const [isDragging, setIsDragging] = useState(false);
   const [isImporting, setIsImporting] = useState(false);
 
+  const normalizeDate = (v: string | undefined): string | null => {
+    if (!v) return null;
+    const s = String(v).trim();
+    if (!s) return null;
+    if (/^\d{4}-\d{2}-\d{2}$/.test(s)) return s;
+    const m = s.match(/^(\d{1,2})[/\-.](\d{1,2})[/\-.](\d{4})$/);
+    if (m) {
+      const d1 = parseInt(m[1], 10);
+      const d2 = parseInt(m[2], 10);
+      const y = m[3];
+      const dd = d1 > 12 ? d1 : d2;
+      const mm = d1 > 12 ? d2 : d1;
+      const pad = (n: number) => (n < 10 ? `0${n}` : `${n}`);
+      if (mm >= 1 && mm <= 12 && dd >= 1 && dd <= 31) return `${y}-${pad(mm)}-${pad(dd)}`;
+    }
+    return null;
+  };
   const validateRow = (row: Record<string, string>, type: "indonesia" | "expat"): string[] => {
     const errors: string[] = [];
     const required = requiredFields[type];
@@ -128,9 +145,14 @@ const ImportEmployees = () => {
     }
 
     // Validate date format (basic check)
-    const dateFields = ["date_of_birth", "join_date", "first_join_date", "end_contract", "terminated_date", "passport_expiry", "kitas_expiry"];
+    const dateFields = ["date_of_birth", "join_date", "first_join_date", "end_contract", "terminated_date", "passport_expiry", "kitas_expiry", "first_join_date_merdeka", "travel_in", "travel_out"];
     dateFields.forEach((field) => {
       if (row[field] && !/^\d{4}-\d{2}-\d{2}$/.test(row[field])) {
+        const n = normalizeDate(row[field]);
+        if (n) {
+          row[field] = n;
+          return;
+        }
         errors.push(`${field} should be in YYYY-MM-DD format`);
       }
     });

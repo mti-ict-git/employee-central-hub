@@ -20,6 +20,7 @@ import {
 import { cn } from "@/lib/utils";
 import { useRBAC } from "@/hooks/useRBAC";
 import { apiFetch } from "@/lib/api";
+import { Input } from "@/components/ui/input";
 
 const InfoRow = ({ label, value, visible = true }: { label: string; value?: string | boolean | null; visible?: boolean }) => {
   if (!visible) return null;
@@ -51,6 +52,9 @@ const EmployeeDetail = () => {
   const [employee, setEmployee] = useState<Employee | null>(null);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const [assigning, setAssigning] = useState(false);
+  const [newId, setNewId] = useState("");
+  const [assignError, setAssignError] = useState<string | null>(null);
   const toLabel = (s: string) =>
     String(s || "")
       .replace(/_/g, " ")
@@ -200,6 +204,56 @@ const EmployeeDetail = () => {
           </Button>
         )}
       </div>
+
+      {caps?.can("employees","update") && String(employee.core?.employee_id || "").startsWith("TMP") && (
+        <div className="mb-6 rounded-xl border border-border bg-card p-6 shadow-card animate-fade-in" style={{ animationDelay: '0.05s' }}>
+          <div className="flex flex-col gap-3">
+            <h3 className="font-display text-lg font-semibold">Assign Official Employee ID</h3>
+            <p className="text-sm text-muted-foreground">
+              Current ID is temporary. Enter the official ID once available to update all records.
+            </p>
+            <div className="flex flex-wrap items-center gap-3">
+              <Input
+                placeholder="e.g. MTI12345"
+                value={newId}
+                onChange={(e) => setNewId(e.target.value)}
+                className="max-w-sm"
+              />
+              <Button
+                onClick={async () => {
+                  if (!newId.trim()) { setAssignError("New ID cannot be empty"); return; }
+                  try {
+                    setAssigning(true);
+                    setAssignError(null);
+                    const res = await apiFetch(`/employees/${encodeURIComponent(String(id || ""))}/assign_id`, {
+                      method: "POST",
+                      headers: { "Content-Type": "application/json" },
+                      credentials: "include",
+                      body: JSON.stringify({ new_employee_id: newId.trim() }),
+                    });
+                    const data = await res.json().catch(() => null);
+                    if (!res.ok) {
+                      const msg = data?.error || `HTTP_${res.status}`;
+                      throw new Error(msg);
+                    }
+                    const assigned = String(data?.employee_id || newId.trim());
+                    setNewId("");
+                    setEmployee((prev) => prev ? { ...prev, core: { ...prev.core, employee_id: assigned } } : prev);
+                  } catch (e: unknown) {
+                    setAssignError(e instanceof Error ? e.message : "Failed to assign ID");
+                  } finally {
+                    setAssigning(false);
+                  }
+                }}
+                disabled={assigning}
+              >
+                {assigning ? "Assigning..." : "Assign ID"}
+              </Button>
+            </div>
+            {assignError && <p className="text-sm text-destructive">{assignError}</p>}
+          </div>
+        </div>
+      )}
 
       {/* Employee Header Card */}
       <div className="rounded-xl border border-border bg-card p-6 shadow-card mb-6 animate-fade-in">

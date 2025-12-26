@@ -184,12 +184,21 @@ const AddEmployee = () => {
         credentials: "include",
         body: JSON.stringify(payload),
       });
-      if (!res.ok) throw new Error(`HTTP_${res.status}`);
+      const result = await res.json().catch(() => null);
+      if (!res.ok) {
+        const msg = result?.error || `HTTP_${res.status}`;
+        throw new Error(msg);
+      }
+      const createdId = String(result?.employee_id || data.employee_id || "");
       toast({
         title: "Employee Created",
-        description: `${data.name} has been successfully added to the system.`,
+        description: createdId ? `${data.name} created (ID: ${createdId}).` : `${data.name} has been successfully added.`,
       });
-      navigate("/employees");
+      if (createdId) {
+        navigate(`/employees/${encodeURIComponent(createdId)}`);
+      } else {
+        navigate("/employees");
+      }
     } catch (error) {
       toast({
         title: "Error",

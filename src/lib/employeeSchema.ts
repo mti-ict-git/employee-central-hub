@@ -5,7 +5,7 @@ export const basicInfoSchema = z.object({
   employee_type: z.enum(["indonesia", "expat"], {
     required_error: "Please select employee type",
   }),
-  employee_id: z.string().min(1, "Employee ID is required").max(20),
+  employee_id: z.string().max(20).optional().or(z.literal("")),
   imip_id: z.string().max(20).optional(),
   name: z.string().min(1, "Name is required").max(100),
   gender: z.enum(["Male", "Female"], {

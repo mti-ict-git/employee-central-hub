@@ -208,7 +208,7 @@ export function EmployeeTable({ employees, onDelete, selectable = false, selecte
                 </div>
               </TableCell>
               <TableCell>
-                <Badge variant={employee.type === 'indonesia' ? 'default' : 'secondary'}>
+                <Badge variant={employee.type === 'indonesia' ? 'default' : 'warning'}>
                   {employee.type === 'indonesia' ? 'Indonesia' : 'Expatriate'}
                 </Badge>
               </TableCell>
