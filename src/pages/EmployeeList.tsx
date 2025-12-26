@@ -84,7 +84,7 @@ const EmployeeList = () => {
 
   useEffect(() => {
     const ctrl = new AbortController();
-    const toTitle = (s: string) => s.replace(/[_\-]+/g, " ").split(" ").filter(Boolean).map((w) => w[0] ? w[0].toUpperCase() + w.slice(1) : "").join(" ");
+    const toTitle = (s: string) => s.replace(/[-_]+/g, " ").split(" ").filter(Boolean).map((w) => w[0] ? w[0].toUpperCase() + w.slice(1) : "").join(" ");
     const canonical = (section: string) => {
       const raw = String(section || "");
       const withoutEmployeeWord = raw.startsWith("Employee ") ? raw.slice("Employee ".length) : raw;

@@ -166,7 +166,7 @@ export function EmployeeTable({ employees, onDelete, selectable = false, selecte
     const parts = key.split(".");
     if (parts.length === 2) {
       const [section, column] = parts;
-      const toTitle = (s: string) => s.replace(/[_\-]+/g, " ").split(" ").filter(Boolean).map((w) => w[0] ? w[0].toUpperCase() + w.slice(1) : "").join(" ");
+      const toTitle = (s: string) => s.replace(/[-_]+/g, " ").split(" ").filter(Boolean).map((w) => w[0] ? w[0].toUpperCase() + w.slice(1) : "").join(" ");
       return `${toTitle(section)} • ${toTitle(column)}`;
     }
     return key;
@@ -182,24 +182,29 @@ export function EmployeeTable({ employees, onDelete, selectable = false, selecte
     }
     const parts = key.split(".");
     if (parts.length === 2) {
-      const [section, column] = parts as [keyof Employee, string];
-      const val = (employee[section] as any)?.[column];
+      const [section, column] = parts as [string, string];
+      const isSectionKey = (s: string): s is keyof Employee =>
+        s === "core" || s === "contact" || s === "employment" || s === "onboard" || s === "bank" || s === "insurance" || s === "travel" || s === "checklist" || s === "notes";
+      if (!isSectionKey(section)) return "-";
+      const sectionObj = employee[section] as unknown as Record<string, unknown> | undefined;
+      const val: unknown = sectionObj ? sectionObj[column] : undefined;
       if (section === "employment" && column === "status") {
+        const statusStr = typeof val === "string" ? val : undefined;
         return (
           <Badge 
             className={cn(
-              val === 'Active' 
+              statusStr === 'Active' 
                 ? "bg-success/10 text-success hover:bg-success/20" 
                 : "bg-destructive/10 text-destructive hover:bg-destructive/20"
             )}
           >
-            {val || 'Unknown'}
+            {statusStr || 'Unknown'}
           </Badge>
         );
       }
-      if (typeof val === "string" && val.length > 0) return val;
-      if (typeof val === "number") return String(val);
-      if (typeof val === "boolean") return val ? "Yes" : "No";
+      if (typeof val === "string" && val.length > 0) return val as string;
+      if (typeof val === "number") return String(val as number);
+      if (typeof val === "boolean") return (val as boolean) ? "Yes" : "No";
       return "-";
     }
     return "-";
