@@ -17,18 +17,20 @@ export default function AdminPermissions() {
   const [dirty, setDirty] = useState(false);
   type Draft = Record<string, Record<string, boolean>>;
   const [draft, setDraft] = useState<Draft>({});
-  const actions: Array<{ key: "read"|"create"|"update"|"delete"|"manage_users"; label: string }> = [
+  const actions: Array<{ key: "read"|"create"|"update"|"delete"|"manage_users"|"report_read"|"report_export"; label: string }> = [
     { key: "read", label: "Read" },
     { key: "create", label: "Create" },
     { key: "update", label: "Update" },
     { key: "delete", label: "Delete" },
     { key: "manage_users", label: "Manage Users" },
+    { key: "report_read", label: "Reports: Read" },
+    { key: "report_export", label: "Reports: Export" },
   ];
 
   const buildDraft = (rs: string[], perms: RolePermission[]): Draft => {
     const d: Draft = {};
     for (const r of rs) {
-      d[r] = { read: false, create: false, update: false, delete: false, manage_users: false };
+      d[r] = { read: false, create: false, update: false, delete: false, manage_users: false, report_read: false, report_export: false };
     }
     for (const p of perms) {
       if (!d[p.role]) continue;
@@ -37,6 +39,12 @@ export default function AdminPermissions() {
       }
       if (p.module === "users" && p.action === "manage_users") {
         d[p.role].manage_users = !!p.allowed;
+      }
+      if (p.module === "reports" && p.action === "read") {
+        d[p.role].report_read = !!p.allowed;
+      }
+      if (p.module === "reports" && p.action === "export") {
+        d[p.role].report_export = !!p.allowed;
       }
     }
     return d;
@@ -65,31 +73,40 @@ export default function AdminPermissions() {
   const saveAll = async () => {
     try {
       setSaving(true);
-      const jobs: Promise<Response>[] = [];
+      const jobs: Array<{ role: string; module: string; action: string; allowed: boolean }> = [];
       for (const role of roles) {
         if (!draft[role]) continue;
         for (const act of ["read","create","update","delete"] as const) {
-          jobs.push(
-            apiFetch(`/rbac/permissions`, {
-              method: "POST",
-              headers: { "Content-Type": "application/json" },
-              credentials: "include",
-              body: JSON.stringify({ role, module: "employees", action: act, allowed: !!draft[role][act] }),
-            })
-          );
+          jobs.push({ role, module: "employees", action: act, allowed: !!draft[role][act] });
         }
-        jobs.push(
+        jobs.push({ role, module: "users", action: "manage_users", allowed: !!draft[role].manage_users });
+        jobs.push({ role, module: "reports", action: "read", allowed: !!draft[role].report_read });
+        jobs.push({ role, module: "reports", action: "export", allowed: !!draft[role].report_export });
+      }
+      const results = await Promise.allSettled(
+        jobs.map((j) =>
           apiFetch(`/rbac/permissions`, {
             method: "POST",
             headers: { "Content-Type": "application/json" },
             credentials: "include",
-            body: JSON.stringify({ role, module: "users", action: "manage_users", allowed: !!draft[role].manage_users }),
+            body: JSON.stringify(j),
+          }).then(async (res) => {
+            if (!res.ok) {
+              const data = await res.json().catch(() => null);
+              const msg = data?.error || `HTTP_${res.status}`;
+              throw new Error(`${j.role}/${j.module}/${j.action}: ${msg}`);
+            }
+            return true;
           })
-        );
+        )
+      );
+      const failed = results.filter((r) => r.status === "rejected") as PromiseRejectedResult[];
+      if (failed.length) {
+        const first = failed[0].reason instanceof Error ? failed[0].reason.message : String(failed[0].reason);
+        throw new Error(first);
       }
-      await Promise.all(jobs);
       await reload();
-      toast({ title: "Saved", description: "Employee Management permissions updated" });
+      toast({ title: "Saved", description: "Permissions updated" });
     } catch (err: unknown) {
       toast({ title: "Error", description: err instanceof Error ? err.message : "Failed to save permissions", variant: "destructive" });
     } finally {
@@ -112,23 +129,25 @@ export default function AdminPermissions() {
                 {saving ? "Saving..." : "Save Changes"}
               </Button>
             </div>
-            <div className="grid grid-cols-[200px_repeat(5,160px)] gap-4">
-              <div className="text-sm font-semibold">Role</div>
-              {actions.map((c) => (
-                <div key={c.key} className="text-sm font-semibold">{c.label}</div>
-              ))}
-              {roles.map((role) => (
-                <React.Fragment key={role}>
-                  <div className="py-2">
-                    <span className="px-2 py-1 rounded-full bg-muted text-xs">{role}</span>
-                  </div>
-                  {actions.map((c) => (
-                    <div key={`${role}-${c.key}`} className="py-2 flex items-center">
-                      <Switch checked={!!draft[role]?.[c.key]} onCheckedChange={() => onToggleLocal(role, c.key)} />
+            <div className="w-full overflow-x-auto">
+              <div className="grid grid-cols-[minmax(140px,1fr)_repeat(7,minmax(120px,1fr))] gap-4 min-w-[900px]">
+                <div className="text-sm font-semibold">Role</div>
+                {actions.map((c) => (
+                  <div key={c.key} className="text-sm font-semibold">{c.label}</div>
+                ))}
+                {roles.map((role) => (
+                  <React.Fragment key={role}>
+                    <div className="py-2">
+                      <span className="px-2 py-1 rounded-full bg-muted text-xs">{role}</span>
                     </div>
-                  ))}
-                </React.Fragment>
-              ))}
+                    {actions.map((c) => (
+                      <div key={`${role}-${c.key}`} className="py-2 flex items-center">
+                        <Switch checked={!!draft[role]?.[c.key]} onCheckedChange={() => onToggleLocal(role, c.key)} />
+                      </div>
+                    ))}
+                  </React.Fragment>
+                ))}
+              </div>
             </div>
           </div>
         </TabsContent>

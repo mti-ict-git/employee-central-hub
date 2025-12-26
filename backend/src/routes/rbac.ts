@@ -21,6 +21,16 @@ function getPool() {
 
 rbacRouter.use(authMiddleware);
 
+function extractDbErrorDetails(err: unknown): { code?: string; number?: number; state?: string; name?: string } | undefined {
+  if (typeof err !== "object" || err === null) return undefined;
+  const o = err as { [k: string]: unknown };
+  const code = typeof o.code === "string" ? o.code : undefined;
+  const number = typeof o.number === "number" ? o.number : undefined;
+  const state = typeof o.state === "string" ? o.state : undefined;
+  const name = typeof (err as Error).name === "string" ? (err as Error).name : undefined;
+  if (!code && !number && !state && !name) return undefined;
+  return { code, number, state, name };
+}
 async function scanColumns(pool: sql.ConnectionPool, table: string) {
   const res = await new sql.Request(pool).query(`
     SELECT COLUMN_NAME
@@ -366,28 +376,87 @@ rbacRouter.post("/permissions", requireRole(["admin","superadmin"]), async (req,
     await pool.connect();
     await ensureRolePermissionsSchema(pool);
     const cols = await scanColumns(pool, "role_permissions");
-    const hasRoleId = cols.includes("role_id");
+    let hasRoleId = cols.includes("role_id");
     const allowedCol = cols.includes("is_allowed") ? "[is_allowed]" : "[allowed]";
     const moduleCol = cols.includes("module") ? "[module]" : "[permission_module]";
     const actionCol = cols.includes("action") ? "[action]" : "[permission_action]";
     let roleIdentifierValue: number | string = role;
     if (hasRoleId) {
       const rcols = await scanColumns(pool, "roles");
-      const idCol = rcols.includes("role_id") ? "[role_id]" : rcols.includes("id") ? "[id]" : "[role_id]";
-      const nameCol = rcols.includes("role") ? "[role]" : rcols.includes("name") ? "[name]" : rcols.includes("role_name") ? "[role_name]" : "[role]";
-      const getId = await new sql.Request(pool)
-        .input("name", sql.VarChar(50), role)
-        .query(`SELECT ${idCol} AS id FROM dbo.roles WHERE ${nameCol}=@name`);
-      const found = (getId.recordset || [])[0] as { id?: number };
-      if (!found || typeof found.id !== "number") {
-        const insert = await new sql.Request(pool)
-          .input("name", sql.VarChar(50), role)
-          .query(`INSERT INTO dbo.roles (${nameCol}) VALUES (@name); SELECT CAST(SCOPE_IDENTITY() AS INT) AS id;`);
-        const ins = (insert.recordset || [])[0] as { id?: number };
-        if (!ins || typeof ins.id !== "number") return res.status(400).json({ error: "ROLE_NOT_FOUND" });
-        roleIdentifierValue = ins.id;
+      const idCol = rcols.includes("role_id") ? "[role_id]" : (rcols.includes("id") ? "[id]" : "[role_id]");
+      const nameCols: string[] = [];
+      if (rcols.includes("role")) nameCols.push("[role]");
+      if (rcols.includes("name")) nameCols.push("[name]");
+      if (rcols.includes("role_name")) nameCols.push("[role_name]");
+      if (rcols.includes("role_display_name")) nameCols.push("[role_display_name]");
+      if (!nameCols.length) {
+        hasRoleId = false;
+        roleIdentifierValue = role;
       } else {
-        roleIdentifierValue = found.id;
+        const aliases = (r: string): string[] => (r === "department_rep" ? [r, "dep_rep"] : [r]);
+        let foundId: number | null = null;
+        for (const col of nameCols) {
+          for (const candidate of aliases(role)) {
+            const req = new sql.Request(pool);
+            req.input("name", sql.VarChar(100), candidate);
+            const resId = await req.query(`
+              SELECT TOP 1 ${idCol} AS id
+              FROM dbo.roles
+              WHERE LOWER(${col}) = LOWER(@name)
+            `);
+            const row = (resId.recordset || [])[0] as { id?: number };
+            if (typeof row?.id === "number") { foundId = row.id; break; }
+          }
+          if (foundId !== null) break;
+        }
+        if (foundId !== null) {
+          roleIdentifierValue = foundId;
+        } else {
+          // Build dynamic insert honoring NOT NULL columns
+          const reqIns = new sql.Request(pool);
+          const insCols: string[] = [];
+          const insVals: string[] = [];
+          const roleDisplay = role;
+          if (rcols.includes("role_name")) { insCols.push("[role_name]"); insVals.push("@role_name"); reqIns.input("role_name", sql.NVarChar(50), roleDisplay); }
+          if (rcols.includes("role_display_name")) { insCols.push("[role_display_name]"); insVals.push("@role_display_name"); reqIns.input("role_display_name", sql.NVarChar(100), roleDisplay); }
+          if (rcols.includes("role")) { insCols.push("[role]"); insVals.push("@role"); reqIns.input("role", sql.NVarChar(50), roleDisplay); }
+          if (rcols.includes("name")) { insCols.push("[name]"); insVals.push("@name"); reqIns.input("name", sql.NVarChar(50), roleDisplay); }
+          if (rcols.includes("is_active")) { insCols.push("[is_active]"); insVals.push("@is_active"); reqIns.input("is_active", sql.Bit, 1); }
+          if (rcols.includes("created_at")) { insCols.push("[created_at]"); insVals.push("SYSDATETIME()"); }
+          if (rcols.includes("updated_at")) { insCols.push("[updated_at]"); insVals.push("SYSDATETIME()"); }
+          // Ensure at least one name column is set
+          if (!insCols.length && nameCols.length) {
+            const simple = await new sql.Request(pool)
+              .input("name", sql.VarChar(100), roleDisplay)
+              .query(`INSERT INTO dbo.roles (${nameCols[0]}) VALUES (@name); SELECT CAST(SCOPE_IDENTITY() AS INT) AS id;`);
+            const simpleRow = (simple.recordset || [])[0] as { id?: number };
+            if (!simpleRow || typeof simpleRow.id !== "number") {
+              hasRoleId = false;
+              roleIdentifierValue = role;
+            } else {
+              roleIdentifierValue = simpleRow.id;
+            }
+          } else {
+            const sqlText = `INSERT INTO dbo.roles (${insCols.join(", ")}) VALUES (${insVals.join(", ")}); SELECT CAST(SCOPE_IDENTITY() AS INT) AS id;`;
+            try {
+              const insRes = await reqIns.query(sqlText);
+              const insRow = (insRes.recordset || [])[0] as { id?: number };
+              roleIdentifierValue = typeof insRow?.id === "number" ? insRow.id : role;
+            } catch {
+              // If unique violation occurs, try re-select across all columns
+              let retryId: number | null = null;
+              for (const col of nameCols) {
+                const re = await new sql.Request(pool)
+                  .input("name", sql.VarChar(100), roleDisplay)
+                  .query(`SELECT TOP 1 ${idCol} AS id FROM dbo.roles WHERE LOWER(${col})=LOWER(@name)`);
+                const rr = (re.recordset || [])[0] as { id?: number };
+                if (typeof rr?.id === "number") { retryId = rr.id; break; }
+              }
+              if (retryId !== null) roleIdentifierValue = retryId;
+              else { hasRoleId = false; roleIdentifierValue = role; }
+            }
+          }
+        }
       }
     }
     const request = new sql.Request(pool);
@@ -560,7 +629,8 @@ rbacRouter.post("/permissions", requireRole(["admin","superadmin"]), async (req,
     return res.json({ ok: true });
   } catch (err: unknown) {
     const message = err instanceof Error ? err.message : "FAILED_TO_UPSERT_ROLE_PERMISSION";
-    return res.status(500).json({ error: message });
+    const details = extractDbErrorDetails(err);
+    return res.status(500).json({ error: message, details });
   } finally {
     await pool.close();
   }
