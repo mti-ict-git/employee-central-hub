@@ -642,42 +642,95 @@ function extractDbErrorDetails(err: unknown): { code?: string; number?: number; 
     const request = new sql.Request(pool);
     if (isDepRep && userDept) request.input("department", sql.NVarChar(100), userDept);
     const whereClause = isDepRep ? "WHERE emp.department IS NOT NULL AND LTRIM(RTRIM(emp.department)) <> '' AND LOWER(emp.department) = LOWER(@department)" : "";
-    const result = await request.query<EmployeeListRow>(`
-      SELECT core.employee_id,
-             core.name,
-             core.nationality,
-             emp.department,
-             emp.status,
-             emp.job_title
+    const rawColsParam = String(req.query.columns || "").trim();
+    const requestedKeys = rawColsParam
+      ? rawColsParam.split(",").map((s) => s.trim().toLowerCase()).filter((s) => !!s)
+      : [];
+    const readAccess = await buildReadAccess(pool, rolesRaw);
+    const requested: Array<{ section: string; column: string }> = [];
+    for (const key of requestedKeys) {
+      if (key === "type") continue;
+      const parts = key.split(".");
+      if (parts.length !== 2) continue;
+      const section = canonicalSectionKey(parts[0]);
+      const column = String(parts[1] || "").trim().toLowerCase();
+      if (!section || !column) continue;
+      if (!readAccess.canReadColumn(section, column)) continue;
+      requested.push({ section, column });
+    }
+    const sectionToTable: Record<string, { table: string; alias: string }> = {
+      core: { table: "employee_core", alias: "core" },
+      employment: { table: "employee_employment", alias: "emp" },
+      contact: { table: "employee_contact", alias: "contact" },
+      bank: { table: "employee_bank", alias: "bank" },
+      insurance: { table: "employee_insurance", alias: "ins" },
+      onboard: { table: "employee_onboard", alias: "onb" },
+      travel: { table: "employee_travel", alias: "trav" },
+      checklist: { table: "employee_checklist", alias: "chk" },
+      notes: { table: "employee_notes", alias: "notes" },
+    };
+    const selectParts: string[] = [];
+    const joins: Set<string> = new Set();
+    selectParts.push("core.employee_id");
+    // Always include name and nationality for UI defaults
+    selectParts.push("core.name", "core.nationality");
+    // Include default employment projection
+    joins.add("employment");
+    selectParts.push("emp.department", "emp.status", "emp.job_title");
+    for (const reqCol of requested) {
+      const info = sectionToTable[reqCol.section];
+      if (!info) continue;
+      if (reqCol.section !== "core") joins.add(reqCol.section);
+      const expr = `${info.alias}.[${reqCol.column}] AS [${reqCol.section}__${reqCol.column}]`;
+      selectParts.push(expr);
+    }
+    const joinClauses = Array.from(joins).map((sec) => {
+      if (sec === "employment") return "LEFT JOIN dbo.employee_employment AS emp ON emp.employee_id = core.employee_id";
+      const info = sectionToTable[sec];
+      return `LEFT JOIN dbo.${info.table} AS ${info.alias} ON ${info.alias}.employee_id = core.employee_id`;
+    });
+    const sqlText = `
+      SELECT ${selectParts.join(", ")}
       FROM dbo.employee_core AS core
-      LEFT JOIN dbo.employee_employment AS emp ON emp.employee_id = core.employee_id
+      ${joinClauses.join("\n")}
       ${whereClause}
       ORDER BY core.employee_id
       OFFSET ${offset} ROWS FETCH NEXT ${limit} ROWS ONLY;
-    `);
-    const rows: EmployeeListRow[] = result.recordset || [];
-    const data = rows.map((r: EmployeeListRow) => {
-      const s = String(r.status || "").trim().toLowerCase();
+    `;
+    const result = await request.query(sqlText);
+    const rows = result.recordset || [];
+    const data = rows.map((r: Record<string, unknown>) => {
+      const nationality = String(r["nationality"] || "").trim();
+      const sRaw = String(r["status"] || "").trim().toLowerCase();
       const statusPretty =
-        !s ? undefined :
-        s === "active" ? "Active" :
-        s === "inactive" ? "Inactive" :
-        s === "resign" ? "Resign" :
-        s === "terminated" ? "Terminated" :
-        r.status;
-      return {
-      core: {
-        employee_id: r.employee_id,
-        name: r.name,
-        nationality: r.nationality,
-      },
-      employment: {
-        department: r.department,
-        status: statusPretty,
-        job_title: r.job_title,
-      },
-      type: (String(r.nationality || "").toLowerCase() === "indonesia" ? "indonesia" : "expat") as "indonesia" | "expat",
-    }});
+        !sRaw ? undefined :
+        sRaw === "active" ? "Active" :
+        sRaw === "inactive" ? "Inactive" :
+        sRaw === "resign" ? "Resign" :
+        sRaw === "terminated" ? "Terminated" :
+        (r["status"] as string | undefined);
+      const out: Record<string, unknown> = {
+        core: {
+          employee_id: r["employee_id"],
+          name: r["name"],
+          nationality,
+        },
+        employment: {
+          department: r["department"],
+          status: statusPretty,
+          job_title: r["job_title"],
+        },
+        type: (nationality.toLowerCase() === "indonesia" ? "indonesia" : "expat"),
+      };
+      for (const reqCol of requested) {
+        const key = `${reqCol.section}__${reqCol.column}`;
+        const val = r[key];
+        if (val === undefined) continue;
+        if (!out[reqCol.section]) out[reqCol.section] = {};
+        (out[reqCol.section] as Record<string, unknown>)[reqCol.column] = val;
+      }
+      return out;
+    });
     return res.json({ items: data, paging: { limit, offset, count: data.length } });
   } catch (err: unknown) {
     const message = err instanceof Error ? err.message : "FAILED_TO_QUERY_EMPLOYEES";

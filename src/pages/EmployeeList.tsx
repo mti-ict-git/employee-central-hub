@@ -33,21 +33,34 @@ const EmployeeList = () => {
       try {
         setLoading(true);
         setError(null);
-        const res = await apiFetch(`/employees?limit=500`, { signal: ctrl.signal, credentials: "include" });
+        const reqCols = visibleColumns.filter((c) => c !== "type").join(",");
+        const res = await apiFetch(`/employees?limit=500${reqCols ? `&columns=${encodeURIComponent(reqCols)}` : ""}`, { signal: ctrl.signal, credentials: "include" });
         if (!res.ok) throw new Error(`HTTP_${res.status}`);
         const data = await res.json();
-        const items: Employee[] = (data.items || []).map((e: { core: { employee_id: string; name: string; nationality?: string | null; imip_id?: string | null; branch?: string | null; branch_id?: string | null }; employment: { department?: string | null; status?: string | null; job_title?: string | null }; type?: string }) => ({
-          core: { employee_id: e.core.employee_id, name: e.core.name, imip_id: e.core.imip_id, branch: e.core.branch, branch_id: e.core.branch_id, nationality: e.core.nationality },
-          contact: { phone_number: "", email: "", address: "", city: "", spouse_name: "", child_name_1: "", child_name_2: "", child_name_3: "", emergency_contact_name: "", emergency_contact_phone: "" },
-          employment: { employment_status: "", status: e.employment.status, division: "", department: e.employment.department, section: "", job_title: e.employment.job_title || "", grade: "", position_grade: "", group_job_title: "", direct_report: "", company_office: "", work_location: "", locality_status: "", terminated_date: "", terminated_type: "", terminated_reason: "" },
-          onboard: { point_of_hire: "", point_of_origin: "", schedule_type: "", first_join_date_merdeka: "", transfer_merdeka: "", first_join_date: "", join_date: "", end_contract: "", years_in_service: 0 },
-          bank: { bank_name: "", account_name: "", account_no: "", bank_code: "", icbc_bank_account_no: "", icbc_username: "" },
-          insurance: { insurance_endorsement: "", insurance_owlexa: "", insurance_fpg: "", fpg_no: "", owlexa_no: "", bpjs_tk: "", bpjs_kes: "", status_bpjs_kes: "", social_insurance_no_alt: "", bpjs_kes_no_alt: "" },
-          travel: { passport_no: "", name_as_passport: "", passport_expiry: "", kitas_no: "", kitas_expiry: "", kitas_address: "", imta: "", rptka_no: "", rptka_position: "", job_title_kitas: "", travel_in: "", travel_out: "" },
-          checklist: { passport_checklist: false, kitas_checklist: false, imta_checklist: false, rptka_checklist: false, npwp_checklist: false, bpjs_kes_checklist: false, bpjs_tk_checklist: false, bank_checklist: false },
-          notes: { batch: "", note: "" },
-          type: (e.type === "indonesia" ? "indonesia" : "expat"),
-        }));
+        const items: Employee[] = (data.items || []).map((e: any) => {
+          const coreDefaults = { employee_id: "", name: "", nationality: "", imip_id: "", branch: "", branch_id: "" };
+          const empDefaults = { employment_status: "", status: "", division: "", department: "", section: "", job_title: "", grade: "", position_grade: "", group_job_title: "", direct_report: "", company_office: "", work_location: "", locality_status: "", terminated_date: "", terminated_type: "", terminated_reason: "" };
+          const contactDefaults = { phone_number: "", email: "", address: "", city: "", spouse_name: "", child_name_1: "", child_name_2: "", child_name_3: "", emergency_contact_name: "", emergency_contact_phone: "" };
+          const onboardDefaults = { point_of_hire: "", point_of_origin: "", schedule_type: "", first_join_date_merdeka: "", transfer_merdeka: "", first_join_date: "", join_date: "", end_contract: "", years_in_service: 0 };
+          const bankDefaults = { bank_name: "", account_name: "", account_no: "", bank_code: "", icbc_bank_account_no: "", icbc_username: "" };
+          const insuranceDefaults = { insurance_endorsement: "", insurance_owlexa: "", insurance_fpg: "", fpg_no: "", owlexa_no: "", bpjs_tk: "", bpjs_kes: "", status_bpjs_kes: "", social_insurance_no_alt: "", bpjs_kes_no_alt: "" };
+          const travelDefaults = { passport_no: "", name_as_passport: "", passport_expiry: "", kitas_no: "", kitas_expiry: "", kitas_address: "", imta: "", rptka_no: "", rptka_position: "", job_title_kitas: "", travel_in: "", travel_out: "" };
+          const checklistDefaults = { passport_checklist: false, kitas_checklist: false, imta_checklist: false, rptka_checklist: false, npwp_checklist: false, bpjs_kes_checklist: false, bpjs_tk_checklist: false, bank_checklist: false };
+          const notesDefaults = { batch: "", note: "" };
+          const out: Employee = {
+            core: { ...coreDefaults, ...(e.core || {}) },
+            contact: { ...contactDefaults, ...(e.contact || {}) },
+            employment: { ...empDefaults, ...(e.employment || {}) },
+            onboard: { ...onboardDefaults, ...(e.onboard || {}) },
+            bank: { ...bankDefaults, ...(e.bank || {}) },
+            insurance: { ...insuranceDefaults, ...(e.insurance || {}) },
+            travel: { ...travelDefaults, ...(e.travel || {}) },
+            checklist: { ...checklistDefaults, ...(e.checklist || {}) },
+            notes: { ...notesDefaults, ...(e.notes || {}) },
+            type: (e.type === "indonesia" ? "indonesia" : "expat"),
+          };
+          return out;
+        });
         setRemoteEmployees(items);
         try {
           const prefRes = await apiFetch(`/users/me/preferences?key=employee_list_columns`, { signal: ctrl.signal, credentials: "include" });
@@ -80,7 +93,7 @@ const EmployeeList = () => {
     };
     run();
     return () => ctrl.abort();
-  }, []);
+  }, [visibleColumns]);
 
   useEffect(() => {
     const ctrl = new AbortController();
@@ -284,29 +297,31 @@ const EmployeeList = () => {
                 Columns
               </Button>
             </DropdownMenuTrigger>
-            <DropdownMenuContent className="bg-popover border border-border">
-              <div className="p-2">
+            <DropdownMenuContent className="bg-popover border border-border p-0 w-72">
+              <div className="p-2 sticky top-0 z-10 bg-popover">
                 <Input
                   placeholder="Search columns..."
                   value={colSearch}
                   onChange={(e) => setColSearch(e.target.value)}
                 />
               </div>
-              {allowedColumns
-                .filter((def) => {
-                  if (!colSearch) return true;
-                  const q = colSearch.toLowerCase();
-                  return def.label.toLowerCase().includes(q) || def.section.toLowerCase().includes(q) || def.column.toLowerCase().includes(q);
-                })
-                .map((def) => (
-                  <DropdownMenuCheckboxItem
-                    key={def.key}
-                    checked={visibleColumns.includes(def.key)}
-                    onCheckedChange={(on) => toggleColumn(def.key, Boolean(on))}
-                  >
-                    {def.label}
-                  </DropdownMenuCheckboxItem>
-                ))}
+              <div className="max-h-96 overflow-auto">
+                {allowedColumns
+                  .filter((def) => {
+                    if (!colSearch) return true;
+                    const q = colSearch.toLowerCase();
+                    return def.label.toLowerCase().includes(q) || def.section.toLowerCase().includes(q) || def.column.toLowerCase().includes(q);
+                  })
+                  .map((def) => (
+                    <DropdownMenuCheckboxItem
+                      key={def.key}
+                      checked={visibleColumns.includes(def.key)}
+                      onCheckedChange={(on) => toggleColumn(def.key, Boolean(on))}
+                    >
+                      {def.label}
+                    </DropdownMenuCheckboxItem>
+                  ))}
+              </div>
             </DropdownMenuContent>
           </DropdownMenu>
         </div>
