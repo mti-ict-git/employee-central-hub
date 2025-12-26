@@ -5,7 +5,7 @@ import { EmployeeFilters } from "@/components/employees/EmployeeFilters";
 import { Button } from "@/components/ui/button";
 import { Plus, Download, Upload, Columns } from "lucide-react";
 import { Link, useSearchParams } from "react-router-dom";
-import type { Employee } from "@/types/employee";
+import type { Employee, EmployeeCore, EmployeeContact, EmployeeEmployment, EmployeeBank, EmployeeInsurance, EmployeeOnboard, EmployeeTravel, EmployeeChecklist, EmployeeNotes, EmployeeType } from "@/types/employee";
 import { toast } from "@/hooks/use-toast";
 import { useRBAC } from "@/hooks/useRBAC";
 import { apiFetch } from "@/lib/api";
@@ -20,6 +20,7 @@ const EmployeeList = () => {
   const [statusFilter, setStatusFilter] = useState('all');
   const [remoteEmployees, setRemoteEmployees] = useState<Employee[]>([]);
   const [loading, setLoading] = useState(false);
+  const [updating, setUpdating] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [selected, setSelected] = useState<Set<string>>(new Set());
   const { caps, typeAccess, ready: rbacReady } = useRBAC();
@@ -31,32 +32,78 @@ const EmployeeList = () => {
     const ctrl = new AbortController();
     const run = async () => {
       try {
-        setLoading(true);
+        const initial = remoteEmployees.length === 0;
+        if (initial) setLoading(true);
+        else setUpdating(true);
         setError(null);
         const reqCols = visibleColumns.filter((c) => c !== "type").join(",");
         const res = await apiFetch(`/employees?limit=500${reqCols ? `&columns=${encodeURIComponent(reqCols)}` : ""}`, { signal: ctrl.signal, credentials: "include" });
         if (!res.ok) throw new Error(`HTTP_${res.status}`);
         const data = await res.json();
-        const items: Employee[] = (data.items || []).map((e: any) => {
-          const coreDefaults = { employee_id: "", name: "", nationality: "", imip_id: "", branch: "", branch_id: "" };
-          const empDefaults = { employment_status: "", status: "", division: "", department: "", section: "", job_title: "", grade: "", position_grade: "", group_job_title: "", direct_report: "", company_office: "", work_location: "", locality_status: "", terminated_date: "", terminated_type: "", terminated_reason: "" };
-          const contactDefaults = { phone_number: "", email: "", address: "", city: "", spouse_name: "", child_name_1: "", child_name_2: "", child_name_3: "", emergency_contact_name: "", emergency_contact_phone: "" };
-          const onboardDefaults = { point_of_hire: "", point_of_origin: "", schedule_type: "", first_join_date_merdeka: "", transfer_merdeka: "", first_join_date: "", join_date: "", end_contract: "", years_in_service: 0 };
-          const bankDefaults = { bank_name: "", account_name: "", account_no: "", bank_code: "", icbc_bank_account_no: "", icbc_username: "" };
-          const insuranceDefaults = { insurance_endorsement: "", insurance_owlexa: "", insurance_fpg: "", fpg_no: "", owlexa_no: "", bpjs_tk: "", bpjs_kes: "", status_bpjs_kes: "", social_insurance_no_alt: "", bpjs_kes_no_alt: "" };
-          const travelDefaults = { passport_no: "", name_as_passport: "", passport_expiry: "", kitas_no: "", kitas_expiry: "", kitas_address: "", imta: "", rptka_no: "", rptka_position: "", job_title_kitas: "", travel_in: "", travel_out: "" };
-          const checklistDefaults = { passport_checklist: false, kitas_checklist: false, imta_checklist: false, rptka_checklist: false, npwp_checklist: false, bpjs_kes_checklist: false, bpjs_tk_checklist: false, bank_checklist: false };
-          const notesDefaults = { batch: "", note: "" };
+        type EmployeeListAPIItem = {
+          core?: Partial<EmployeeCore>;
+          contact?: Partial<EmployeeContact>;
+          employment?: Partial<EmployeeEmployment>;
+          onboard?: Partial<EmployeeOnboard>;
+          bank?: Partial<EmployeeBank>;
+          insurance?: Partial<EmployeeInsurance>;
+          travel?: Partial<EmployeeTravel>;
+          checklist?: Partial<EmployeeChecklist>;
+          notes?: Partial<EmployeeNotes>;
+          type?: EmployeeType;
+        };
+        const items: Employee[] = (data.items || []).map((e: EmployeeListAPIItem) => {
+          const employeeId = String(e.core?.employee_id ?? "");
+          const name = String(e.core?.name ?? "");
+          const gender = (e.core?.gender ?? "Male") as "Male" | "Female";
+          const core: EmployeeCore = {
+            employee_id: employeeId,
+            name,
+            gender,
+            ...((e.core || {}) as Partial<EmployeeCore>),
+          };
+          const contact: EmployeeContact = {
+            employee_id: employeeId,
+            ...((e.contact || {}) as Partial<EmployeeContact>),
+          };
+          const employment: EmployeeEmployment = {
+            employee_id: employeeId,
+            ...((e.employment || {}) as Partial<EmployeeEmployment>),
+          };
+          const onboard: EmployeeOnboard = {
+            employee_id: employeeId,
+            ...((e.onboard || {}) as Partial<EmployeeOnboard>),
+          };
+          const bank: EmployeeBank = {
+            employee_id: employeeId,
+            ...((e.bank || {}) as Partial<EmployeeBank>),
+          };
+          const insurance: EmployeeInsurance = {
+            employee_id: employeeId,
+            ...((e.insurance || {}) as Partial<EmployeeInsurance>),
+          };
+          const travel: EmployeeTravel = {
+            employee_id: employeeId,
+            ...((e.travel || {}) as Partial<EmployeeTravel>),
+          };
+          const checklist: EmployeeChecklist = {
+            employee_id: employeeId,
+            ...((e.checklist || {}) as Partial<EmployeeChecklist>),
+          };
+          const notes: EmployeeNotes = {
+            employee_id: employeeId,
+            ...((e.notes || {}) as Partial<EmployeeNotes>),
+          };
           const out: Employee = {
-            core: { ...coreDefaults, ...(e.core || {}) },
-            contact: { ...contactDefaults, ...(e.contact || {}) },
-            employment: { ...empDefaults, ...(e.employment || {}) },
-            onboard: { ...onboardDefaults, ...(e.onboard || {}) },
-            bank: { ...bankDefaults, ...(e.bank || {}) },
-            insurance: { ...insuranceDefaults, ...(e.insurance || {}) },
-            travel: { ...travelDefaults, ...(e.travel || {}) },
-            checklist: { ...checklistDefaults, ...(e.checklist || {}) },
-            notes: { ...notesDefaults, ...(e.notes || {}) },
+            core,
+            contact,
+            employment,
+            onboard,
+            bank,
+            insurance,
+            travel,
+            checklist,
+            notes,
             type: (e.type === "indonesia" ? "indonesia" : "expat"),
           };
           return out;
@@ -88,12 +135,13 @@ const EmployeeList = () => {
       } catch (err: unknown) {
         setError(err instanceof Error ? err.message : "FAILED_TO_FETCH_EMPLOYEES");
       } finally {
-        setLoading(false);
+        if (remoteEmployees.length === 0) setLoading(false);
+        else setUpdating(false);
       }
     };
     run();
     return () => ctrl.abort();
-  }, [visibleColumns]);
+  }, [visibleColumns, remoteEmployees.length]);
 
   useEffect(() => {
     const ctrl = new AbortController();
@@ -353,7 +401,7 @@ const EmployeeList = () => {
 
       {/* Table */}
       <div className="animate-fade-in" style={{ animationDelay: '0.1s' }}>
-          {loading ? (
+          {loading && remoteEmployees.length === 0 ? (
           <div className="rounded-xl border border-border bg-card p-12 text-center shadow-card">
             <p className="text-muted-foreground">Loading employees...</p>
           </div>
