@@ -124,6 +124,29 @@ async function ensureTypeColumnAccessSchema(pool: sql.ConnectionPool) {
   }
 }
 
+async function ensureColumnAccessTemplateSchema(pool: sql.ConnectionPool) {
+  const hasTableRes = await new sql.Request(pool).query(`
+    SELECT 1 AS ok FROM sys.tables WHERE name = 'column_access_templates'
+  `);
+  const hasTable = !!((hasTableRes.recordset || [])[0]);
+  if (!hasTable) {
+    await new sql.Request(pool).query(`
+      CREATE TABLE dbo.column_access_templates (
+        [template_name] NVARCHAR(100) NOT NULL PRIMARY KEY,
+        [payload] NVARCHAR(MAX) NULL,
+        [updated_at] DATETIME2 NOT NULL CONSTRAINT DF_column_access_templates_updated_at DEFAULT SYSDATETIME()
+      )
+    `);
+  } else {
+    const cols = await scanColumns(pool, "column_access_templates");
+    const ops: string[] = [];
+    if (!cols.includes("template_name")) ops.push("ALTER TABLE dbo.column_access_templates ADD [template_name] NVARCHAR(100) NOT NULL DEFAULT '';");
+    if (!cols.includes("payload")) ops.push("ALTER TABLE dbo.column_access_templates ADD [payload] NVARCHAR(MAX) NULL;");
+    if (!cols.includes("updated_at")) ops.push("ALTER TABLE dbo.column_access_templates ADD [updated_at] DATETIME2 NOT NULL CONSTRAINT DF_column_access_templates_updated_at DEFAULT SYSDATETIME();");
+    for (const q of ops) await new sql.Request(pool).query(q);
+  }
+}
+
 rbacRouter.get("/roles", async (_req, res) => {
   const pool = getPool();
   try {
@@ -999,6 +1022,84 @@ rbacRouter.post("/columns", requireRole(["admin","superadmin"]), async (req, res
   } catch (err: unknown) {
     const message = err instanceof Error ? err.message : "FAILED_TO_UPSERT_COLUMN_ACCESS";
     return res.status(500).json({ error: message });
+  } finally {
+    await pool.close();
+  }
+});
+
+rbacRouter.get("/templates", requireRole(["admin","superadmin"]), async (_req, res) => {
+  const pool = getPool();
+  try {
+    await pool.connect();
+    await ensureColumnAccessTemplateSchema(pool);
+    const result = await new sql.Request(pool).query(`
+      SELECT [template_name], [updated_at]
+      FROM dbo.column_access_templates
+      ORDER BY [template_name]
+    `);
+    const items = (result.recordset || []).map((r) => {
+      const row = r as { template_name?: string; updated_at?: Date };
+      return { template_name: String(row.template_name || ""), updated_at: row.updated_at || null };
+    });
+    return res.json(items);
+  } catch (err: unknown) {
+    const message = err instanceof Error ? err.message : "FAILED_TO_LIST_TEMPLATES";
+    const details = extractDbErrorDetails(err);
+    return res.status(500).json({ error: message, details });
+  } finally {
+    await pool.close();
+  }
+});
+
+rbacRouter.get("/templates/:name", requireRole(["admin","superadmin"]), async (req, res) => {
+  const name = String(req.params.name || "").trim();
+  if (!name) return res.status(400).json({ error: "TEMPLATE_NAME_REQUIRED" });
+  const pool = getPool();
+  try {
+    await pool.connect();
+    await ensureColumnAccessTemplateSchema(pool);
+    const request = new sql.Request(pool);
+    request.input("template_name", sql.NVarChar(100), name);
+    const result = await request.query(`
+      SELECT TOP 1 [payload]
+      FROM dbo.column_access_templates
+      WHERE [template_name]=@template_name
+    `);
+    const row = (result.recordset || [])[0] as { payload?: string } | undefined;
+    const payload = row?.payload ? JSON.parse(String(row.payload)) : [];
+    return res.json({ template_name: name, items: Array.isArray(payload) ? payload : [] });
+  } catch (err: unknown) {
+    const message = err instanceof Error ? err.message : "FAILED_TO_READ_TEMPLATE";
+    const details = extractDbErrorDetails(err);
+    return res.status(500).json({ error: message, details });
+  } finally {
+    await pool.close();
+  }
+});
+
+rbacRouter.post("/templates", requireRole(["admin","superadmin"]), async (req, res) => {
+  const body = req.body || {};
+  const name = String(body.template_name || "").trim();
+  const items = Array.isArray(body.items) ? body.items : [];
+  if (!name) return res.status(400).json({ error: "TEMPLATE_NAME_REQUIRED" });
+  const pool = getPool();
+  try {
+    await pool.connect();
+    await ensureColumnAccessTemplateSchema(pool);
+    const request = new sql.Request(pool);
+    request.input("template_name", sql.NVarChar(100), name);
+    request.input("payload", sql.NVarChar(sql.MAX), JSON.stringify(items));
+    await request.query(`
+      IF EXISTS (SELECT 1 FROM dbo.column_access_templates WHERE [template_name]=@template_name)
+        UPDATE dbo.column_access_templates SET [payload]=@payload, [updated_at]=SYSDATETIME() WHERE [template_name]=@template_name;
+      ELSE
+        INSERT INTO dbo.column_access_templates ([template_name], [payload]) VALUES (@template_name, @payload);
+    `);
+    return res.json({ ok: true, template_name: name });
+  } catch (err: unknown) {
+    const message = err instanceof Error ? err.message : "FAILED_TO_SAVE_TEMPLATE";
+    const details = extractDbErrorDetails(err);
+    return res.status(500).json({ error: message, details });
   } finally {
     await pool.close();
   }

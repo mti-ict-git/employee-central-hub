@@ -57,11 +57,23 @@ export function ColumnAccessContent() {
   const [group, setGroup] = useState<string>("all");
   const [query, setQuery] = useState("");
   const [status, setStatus] = useState<string>("all");
+  const [templates, setTemplates] = useState<Array<{ template_name: string }>>([]);
+  const [selectedTemplate, setSelectedTemplate] = useState<string>("");
+  const [savingTemplate, setSavingTemplate] = useState(false);
+  const [applyingTemplate, setApplyingTemplate] = useState(false);
 
   const load = async () => {
     const [rs, ac] = await Promise.all([fetchRoles(), fetchColumnAccess()]);
     setRoles(rs);
     setAccess(ac);
+    try {
+      const tplRes = await apiFetch(`/rbac/templates`, { credentials: "include" });
+      if (tplRes.ok) {
+        const tplRows = await tplRes.json().catch(() => []);
+        const tpls = Array.isArray(tplRows) ? tplRows as Array<{ template_name?: string }> : [];
+        setTemplates(tpls.map((t) => ({ template_name: String(t.template_name || "") })).filter((t) => !!t.template_name));
+      }
+    } catch { /* ignore */ }
     const mapRes = await apiFetch(`/mapping/dbinfo`, { credentials: "include" });
     const raw = await mapRes.json().catch(() => []);
     const rows = Array.isArray(raw) ? (raw as MappingRow[]) : [];
@@ -210,6 +222,67 @@ export function ColumnAccessContent() {
     }
   };
 
+  const saveTemplate = async (name: string) => {
+    try {
+      setSavingTemplate(true);
+      const items = access
+        .filter((a) => a.role === selectedRole)
+        .map((a) => ({ section: a.section, column: a.column, read: !!a.read, write: !!a.write }));
+      const res = await apiFetch(`/rbac/templates`, {
+        method: "POST",
+        credentials: "include",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ template_name: name, items }),
+      });
+      if (!res.ok) {
+        const data = await res.json().catch(() => null);
+        const msg = data?.error || `HTTP_${res.status}`;
+        throw new Error(msg);
+      }
+      const tplRes = await apiFetch(`/rbac/templates`, { credentials: "include" });
+      const tplRows = tplRes.ok ? await tplRes.json().catch(() => []) : [];
+      const tpls = Array.isArray(tplRows) ? tplRows as Array<{ template_name?: string }> : [];
+      setTemplates(tpls.map((t) => ({ template_name: String(t.template_name || "") })).filter((t) => !!t.template_name));
+      toast({ title: "Saved Template", description: `Template "${name}" saved` });
+    } catch (err: unknown) {
+      toast({ title: "Error", description: err instanceof Error ? err.message : "Failed to save template", variant: "destructive" });
+    } finally {
+      setSavingTemplate(false);
+    }
+  };
+
+  const applyTemplate = async (name: string) => {
+    try {
+      setApplyingTemplate(true);
+      const res = await apiFetch(`/rbac/templates/${encodeURIComponent(name)}`, { credentials: "include" });
+      if (!res.ok) {
+        const data = await res.json().catch(() => null);
+        const msg = data?.error || `HTTP_${res.status}`;
+        throw new Error(msg);
+      }
+      const tpl = await res.json().catch(() => ({ items: [] }));
+      const items: Array<{ section: string; column: string; read: boolean; write: boolean }> = Array.isArray(tpl?.items) ? tpl.items : [];
+      const jobs: Promise<Response>[] = [];
+      for (const it of items) {
+        jobs.push(apiFetch(`/rbac/columns`, {
+          method: "POST",
+          credentials: "include",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ role: selectedRole, section: it.section, column: it.column, read: !!it.read, write: !!it.write }),
+        }));
+      }
+      await Promise.all(jobs);
+      const ac = await fetchColumnAccess();
+      setAccess(ac);
+      setDirty(false);
+      toast({ title: "Applied Template", description: `Template "${name}" applied to ${selectedRole}` });
+    } catch (err: unknown) {
+      toast({ title: "Error", description: err instanceof Error ? err.message : "Failed to apply template", variant: "destructive" });
+    } finally {
+      setApplyingTemplate(false);
+    }
+  };
+
   const groups = useMemo(() => {
     const s = new Set<string>();
     for (const c of columns) s.add(canonicalGroup(c.section));
@@ -253,6 +326,30 @@ export function ColumnAccessContent() {
         </div>
         <div className="md:col-span-2 flex items-end justify-end gap-2">
           <Input placeholder="Filter columns..." value={query} onChange={(e) => setQuery(e.target.value)} />
+          <Select value={selectedTemplate} onValueChange={setSelectedTemplate}>
+            <SelectTrigger className="w-48"><SelectValue placeholder="Templates" /></SelectTrigger>
+            <SelectContent>
+              {templates.map((t) => (<SelectItem key={t.template_name} value={t.template_name}>{t.template_name}</SelectItem>))}
+            </SelectContent>
+          </Select>
+          <Button
+            variant="outline"
+            onClick={() => {
+              const name = window.prompt("Template name");
+              if (!name) return;
+              saveTemplate(name.trim());
+            }}
+            disabled={savingTemplate}
+          >
+            {savingTemplate ? "Saving..." : "Save Template"}
+          </Button>
+          <Button
+            variant="outline"
+            onClick={() => selectedTemplate && applyTemplate(selectedTemplate)}
+            disabled={!selectedTemplate || applyingTemplate}
+          >
+            {applyingTemplate ? "Applying..." : "Apply Template"}
+          </Button>
           <Button onClick={save} disabled={!dirty || saving}>{saving ? "Saving..." : "Save Changes"}</Button>
         </div>
       </div>
