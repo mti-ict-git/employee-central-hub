@@ -4,6 +4,7 @@ import Papa from "papaparse";
 import { MainLayout } from "@/components/layout/MainLayout";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
+import { apiFetch } from "@/lib/api";
 import {
   Table,
   TableBody,
@@ -56,10 +57,27 @@ interface ParsedEmployee {
   isValid: boolean;
 }
 
+type ImportResult = {
+  employee_id: string;
+  status: "success" | "failed";
+  error?: string;
+};
+
 const requiredFields = {
   indonesia: ["employee_id", "name", "gender", "nationality", "phone_number", "division", "department", "job_title", "join_date"],
   expat: ["employee_id", "name", "gender", "nationality", "phone_number", "division", "department", "job_title", "join_date"],
 };
+
+const allowedDepartments = new Set([
+  "Human Resources",
+  "Acid Plant",
+  "Chloride Plant",
+  "Maintenance",
+  "Finance",
+  "Interface",
+  "Technical Service",
+  "OHS",
+]);
 
 const ImportEmployees = () => {
   const navigate = useNavigate();
@@ -93,7 +111,16 @@ const ImportEmployees = () => {
         .replace(/\s+/g, "_")
         .replace(/-+/g, "_")
         .replace(/__+/g, "_");
-      const mapped = normalized === "internship" ? "intern" : normalized === "permanent" ? "active" : normalized;
+      const mapped =
+        normalized === "internship"
+          ? "intern"
+          : normalized === "permanent"
+          ? "active"
+          : normalized === "inactive" || normalized === "nonactive" || normalized === "not_active"
+          ? "non_active"
+          : normalized === "non_active"
+          ? "non_active"
+          : normalized;
       const allowed = ["suspended", "retired", "terminated", "non_active", "intern", "contract", "probation", "active"];
       if (!allowed.includes(mapped)) {
         errors.push("Invalid employment status");
@@ -101,12 +128,48 @@ const ImportEmployees = () => {
     }
 
     // Validate date format (basic check)
-    const dateFields = ["date_of_birth", "join_date", "first_join_date", "end_contract", "passport_expiry", "kitas_expiry"];
+    const dateFields = ["date_of_birth", "join_date", "first_join_date", "end_contract", "terminated_date", "passport_expiry", "kitas_expiry"];
     dateFields.forEach((field) => {
       if (row[field] && !/^\d{4}-\d{2}-\d{2}$/.test(row[field])) {
         errors.push(`${field} should be in YYYY-MM-DD format`);
       }
     });
+
+    // Validate grade range when present
+    if (row.grade && row.grade.trim() !== "") {
+      const g = Number(row.grade);
+      if (!Number.isFinite(g) || g < 7 || g > 22) {
+        errors.push("grade must be between 7 and 22");
+      }
+    }
+
+    // Validate department against allowed list
+    if (row.department && row.department.trim() !== "") {
+      if (!allowedDepartments.has(row.department.trim())) {
+        errors.push(`department must be one of: ${Array.from(allowedDepartments).join(", ")}`);
+      }
+    }
+
+    // Validate status simplified lifecycle
+    if (row.status && row.status.trim() !== "") {
+      const normalized = String(row.status).trim().toLowerCase().replace(/\s+/g, "_").replace(/-+/g, "_").replace(/__+/g, "_");
+      const mapped =
+        normalized === "resigned" ? "resign" :
+        normalized === "non_active" || normalized === "nonactive" ? "inactive" :
+        normalized;
+      const allowed = ["active", "inactive", "resign", "terminated"];
+      if (!allowed.includes(mapped)) {
+        errors.push("Invalid status");
+      }
+      if (mapped === "terminated") {
+        if (!row.terminated_type || row.terminated_type.trim() === "") {
+          errors.push("terminated_type is required when status is terminated");
+        }
+        if (!row.terminated_date || row.terminated_date.trim() === "") {
+          errors.push("terminated_date is required when status is terminated");
+        }
+      }
+    }
 
     return errors;
   };
@@ -211,24 +274,31 @@ const ImportEmployees = () => {
         name: v.data.name,
         gender: v.data.gender,
         nationality: v.data.nationality,
+        status: v.data.status,
         department: v.data.department,
         job_title: v.data.job_title,
         employment_status: v.data.employment_status,
         join_date: v.data.join_date,
+        terminated_type: v.data.terminated_type,
+        terminated_date: v.data.terminated_date,
+        terminated_reason: v.data.terminated_reason,
       }));
-      const res = await fetch(`http://localhost:${8083}/api/employees/import`, {
+      const res = await apiFetch(`/employees/import`, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        credentials: "include",
         body: JSON.stringify(rows),
       });
       if (!res.ok) throw new Error(`HTTP_${res.status}`);
-      const json = await res.json();
+      const json: { success: number; failed: number; total: number; results?: ImportResult[] } = await res.json();
 
       toast({
         title: "Import successful",
         description: `${json.success} imported, ${json.failed} failed out of ${json.total}.`,
       });
+      const results: ImportResult[] = Array.isArray(json.results) ? (json.results as ImportResult[]) : [];
+      if (results.some((r) => r.status === "failed")) {
+        console.warn("Import results", results);
+      }
 
       navigate("/employees");
     } catch (error) {

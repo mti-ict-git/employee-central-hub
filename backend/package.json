@@ -13,7 +13,10 @@
     "map:schema:final": "tsx scripts/build-final-mapping.ts",
     "map:dbinfo": "tsx scripts/map-schema-from-dbinfo.ts",
     "inspect:dbinfo": "tsx scripts/inspect-db-information.ts",
-    "ensure:note": "tsx scripts/ensure-note-column.ts"
+    "ensure:note": "tsx scripts/ensure-note-column.ts",
+    "test:import": "tsx scripts/import-smoke-test.ts",
+    "test:import:csv": "tsx scripts/import-from-public-csv.ts",
+    "verify:import:csv": "tsx scripts/verify-import-indonesia-csv.ts"
   },
   "dependencies": {
     "cors": "^2.8.5",

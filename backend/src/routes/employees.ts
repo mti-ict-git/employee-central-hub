@@ -77,6 +77,22 @@ function normalizeEmploymentStatus(raw: unknown): EmploymentStatusAllowed | null
   return null;
 }
 
+const STATUS_ALLOWED = ["active", "inactive", "resign", "terminated"] as const;
+type StatusAllowed = (typeof STATUS_ALLOWED)[number];
+function normalizeStatus(raw: unknown): StatusAllowed | null | undefined {
+  if (raw === undefined) return undefined;
+  if (raw === null) return null;
+  const s = String(raw).trim().toLowerCase();
+  if (!s) return null;
+  const canonical = s.replace(/\s+/g, "_").replace(/-+/g, "_").replace(/__+/g, "_");
+  const mapped =
+    canonical === "resigned" ? "resign" :
+    canonical === "non_active" || canonical === "nonactive" || canonical === "inactive" ? "inactive" :
+    canonical;
+  if ((STATUS_ALLOWED as readonly string[]).includes(mapped)) return mapped as StatusAllowed;
+  return null;
+}
+
 type DeniedTypeAccess = Record<string, Set<string>>;
 
 async function loadTypeDeniedAccess(pool: sql.ConnectionPool, employeeType: "indonesia" | "expat"): Promise<DeniedTypeAccess> {
@@ -416,6 +432,7 @@ type EmployeeListRow = {
   nationality: string | null;
   department: string | null;
   status: string | null;
+  job_title: string | null;
 };
 
 type EmployeeDetailRow = {
@@ -614,7 +631,8 @@ function extractDbErrorDetails(err: unknown): { code?: string; number?: number; 
              core.name,
              core.nationality,
              emp.department,
-             emp.status
+             emp.status,
+             emp.job_title
       FROM dbo.employee_core AS core
       LEFT JOIN dbo.employee_employment AS emp ON emp.employee_id = core.employee_id
       ${whereClause}
@@ -622,7 +640,16 @@ function extractDbErrorDetails(err: unknown): { code?: string; number?: number; 
       OFFSET ${offset} ROWS FETCH NEXT ${limit} ROWS ONLY;
     `);
     const rows: EmployeeListRow[] = result.recordset || [];
-    const data = rows.map((r: EmployeeListRow) => ({
+    const data = rows.map((r: EmployeeListRow) => {
+      const s = String(r.status || "").trim().toLowerCase();
+      const statusPretty =
+        !s ? undefined :
+        s === "active" ? "Active" :
+        s === "inactive" ? "Inactive" :
+        s === "resign" ? "Resign" :
+        s === "terminated" ? "Terminated" :
+        r.status;
+      return {
       core: {
         employee_id: r.employee_id,
         name: r.name,
@@ -630,10 +657,11 @@ function extractDbErrorDetails(err: unknown): { code?: string; number?: number; 
       },
       employment: {
         department: r.department,
-        status: r.status,
+        status: statusPretty,
+        job_title: r.job_title,
       },
       type: (String(r.nationality || "").toLowerCase() === "indonesia" ? "indonesia" : "expat") as "indonesia" | "expat",
-    }));
+    }});
     return res.json({ items: data, paging: { limit, offset, count: data.length } });
   } catch (err: unknown) {
     const message = err instanceof Error ? err.message : "FAILED_TO_QUERY_EMPLOYEES";
@@ -1184,10 +1212,14 @@ employeesRouter.post("/import", async (req, res) => {
     name?: string | null;
     gender?: string | null;
     nationality?: string | null;
+    status?: string | null;
     employment_status?: string | null;
     department?: string | null;
     job_title?: string | null;
     join_date?: string | Date | null;
+    terminated_date?: string | Date | null;
+    terminated_type?: string | null;
+    terminated_reason?: string | null;
   }
   const rows: ImportEmployeeRow[] = Array.isArray(req.body) ? req.body : [];
   if (!rows.length) return res.status(400).json({ error: "NO_ROWS" });
@@ -1195,6 +1227,7 @@ employeesRouter.post("/import", async (req, res) => {
   const conn = await pool.connect();
   let success = 0;
   let failed = 0;
+  const results: Array<{ employee_id: string; status: "success" | "failed"; error?: string }> = [];
   for (const r of rows) {
     const trx = new sql.Transaction(conn);
     try {
@@ -1206,11 +1239,12 @@ employeesRouter.post("/import", async (req, res) => {
       request.input("name", sql.NVarChar(200), r.name || null);
       request.input("gender", sql.Char(1), genderToCode(r.gender));
       request.input("nationality", sql.NVarChar(100), r.nationality || null);
+      request.input("imip_id", sql.NVarChar(50), id);
       await request.query(`
         IF EXISTS (SELECT 1 FROM dbo.employee_core WHERE employee_id = @employee_id)
           UPDATE dbo.employee_core SET name=@name, gender=@gender, nationality=@nationality WHERE employee_id=@employee_id
         ELSE
-          INSERT INTO dbo.employee_core (employee_id, name, gender, nationality) VALUES (@employee_id, @name, @gender, @nationality);
+          INSERT INTO dbo.employee_core (employee_id, name, gender, nationality, imip_id) VALUES (@employee_id, @name, @gender, @nationality, @imip_id);
       `);
       request.parameters = {};
       request.input("employee_id", sql.VarChar(100), id);
@@ -1223,14 +1257,28 @@ employeesRouter.post("/import", async (req, res) => {
         sql.NVarChar(50),
         (normalizedEmploymentStatus === undefined || normalizedEmploymentStatus === null) ? "active" : normalizedEmploymentStatus,
       );
+      const rawStatus = r.status;
+      const normalizedStatus = normalizeStatus(rawStatus);
+      const hasStatus = String(rawStatus || "").trim() !== "";
+      if (hasStatus && normalizedStatus === null) throw new Error("INVALID_STATUS");
+      request.input("status", sql.NVarChar(50), normalizedStatus || null);
+      const terminatedDate = parseDate(r.terminated_date);
+      const terminatedType = r.terminated_type ? String(r.terminated_type) : null;
+      const terminatedReason = r.terminated_reason ? String(r.terminated_reason) : null;
+      if (normalizedStatus === "terminated") {
+        if (!terminatedDate || !terminatedType) throw new Error("TERMINATION_FIELDS_REQUIRED");
+      }
+      request.input("terminated_date", sql.Date, terminatedDate || null);
+      request.input("terminated_type", sql.NVarChar(50), terminatedType);
+      request.input("terminated_reason", sql.NVarChar(200), terminatedReason);
       request.input("department", sql.NVarChar(100), r.department || null);
       request.input("job_title", sql.NVarChar(100), r.job_title || null);
       request.input("join_date", sql.Date, r.join_date || null);
       await request.query(`
         IF EXISTS (SELECT 1 FROM dbo.employee_employment WHERE employee_id = @employee_id)
-          UPDATE dbo.employee_employment SET employment_status=@employment_status, department=@department, job_title=@job_title WHERE employee_id=@employee_id
+          UPDATE dbo.employee_employment SET employment_status=@employment_status, status=@status, department=@department, job_title=@job_title, terminated_date=@terminated_date, terminated_type=@terminated_type, terminated_reason=@terminated_reason WHERE employee_id=@employee_id
         ELSE
-          INSERT INTO dbo.employee_employment (employee_id, employment_status, department, job_title) VALUES (@employee_id, @employment_status, @department, @job_title);
+          INSERT INTO dbo.employee_employment (employee_id, employment_status, status, department, job_title, terminated_date, terminated_type, terminated_reason) VALUES (@employee_id, @employment_status, @status, @department, @job_title, @terminated_date, @terminated_type, @terminated_reason);
       `);
       request.parameters = {};
       request.input("employee_id", sql.VarChar(100), id);
@@ -1243,13 +1291,22 @@ employeesRouter.post("/import", async (req, res) => {
       `);
       await trx.commit();
       success += 1;
-    } catch {
+      results.push({ employee_id: String(r.employee_id || ""), status: "success" });
+    } catch (e: unknown) {
       await trx.rollback();
       failed += 1;
+      const msg = e instanceof Error ? e.message : "FAILED";
+      const details = extractDbErrorDetails(e);
+      console.error("employees.import.error", { employee_id: String(r.employee_id || ""), message: msg, details });
+      results.push({
+        employee_id: String(r.employee_id || ""),
+        status: "failed",
+        error: details?.code ? `${msg}:${details.code}` : msg,
+      });
     }
   }
   await pool.close();
-  return res.json({ ok: true, success, failed, total: rows.length });
+  return res.json({ ok: true, success, failed, total: rows.length, results });
 });
 
 employeesRouter.get("/:id", async (req, res) => {
