@@ -1,8 +1,10 @@
 import { Router } from "express";
 import path from "path";
 import fs from "fs";
-import * as XLSX from "xlsx/xlsx.mjs";
-
+async function loadXLSX() {
+  const mod = await (0, eval)('import("xlsx/xlsx.mjs")');
+  return mod;
+}
 export const mappingRouter = Router();
 
 mappingRouter.get("/dbinfo", (_req, res) => {
@@ -19,13 +21,14 @@ mappingRouter.get("/dbinfo", (_req, res) => {
   }
 });
 
-mappingRouter.get("/type-columns", (_req, res) => {
+mappingRouter.get("/type-columns", async (_req, res) => {
   try {
     const excelPath = path.resolve(process.cwd(), "..", "public", "Comben Master Data Column Assignment2.xlsx");
     if (!fs.existsSync(excelPath)) {
       return res.status(404).json({ error: "TYPE_EXCEL_NOT_FOUND" });
     }
     const data = fs.readFileSync(excelPath);
+    const XLSX = await loadXLSX();
     const wb = XLSX.read(data, { type: "buffer" });
     const sheet = wb.Sheets["DB Schema"] || wb.Sheets["Column Assignment"] || wb.Sheets[wb.SheetNames[0]];
     if (!sheet) {
