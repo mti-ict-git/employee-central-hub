@@ -11,10 +11,13 @@ services:
     environment:
       BACKEND_PORT: "${BACKEND_PORT:-8083}"
       FRONTEND_URL: "http://localhost:9100"
-      FRONTEND_URLS: "http://localhost:9100,http://127.0.0.1:9100"
+      FRONTEND_URLS: "http://localhost:9100,http://127.0.0.1:9100,https://employee.merdekabattery.com"
       CORS_ALLOW_ALL: "true"
     ports:
       - "${BACKEND_PORT:-8083}:8083"
+    volumes:
+      - ./backend/scripts/dbinfo-mapping.json:/app/backend/scripts/dbinfo-mapping.json:ro
+      - ./public:/app/public:ro
     networks:
       - app-net
     healthcheck:
