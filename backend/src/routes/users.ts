@@ -22,6 +22,100 @@ function getPool() {
   });
 }
 
+async function ensureUserPreferencesSchema(pool: sql.ConnectionPool) {
+  const hasTableRes = await new sql.Request(pool).query(`
+    SELECT 1 AS ok FROM sys.tables WHERE name = 'user_preferences'
+  `);
+  const hasTable = !!((hasTableRes.recordset || [])[0]);
+  if (!hasTable) {
+    await new sql.Request(pool).query(`
+      CREATE TABLE dbo.user_preferences (
+        [pref_id] INT IDENTITY(1,1) PRIMARY KEY,
+        [user_id] INT NOT NULL,
+        [pref_key] NVARCHAR(100) NOT NULL,
+        [pref_value] NVARCHAR(MAX) NULL,
+        [updated_at] DATETIME2 NOT NULL DEFAULT SYSDATETIME()
+      );
+      CREATE UNIQUE INDEX UX_user_preferences_user_key ON dbo.user_preferences(user_id, pref_key);
+    `);
+  }
+}
+
+async function getUserIdByUsername(pool: sql.ConnectionPool, username: string): Promise<number | null> {
+  const req = new sql.Request(pool);
+  req.input("username", sql.VarChar(50), username);
+  const res = await req.query(`
+    SELECT TOP 1 Id AS id FROM dbo.login WHERE username=@username
+  `);
+  const row = (res.recordset || [])[0] as { id?: number } | undefined;
+  return typeof row?.id === "number" ? row.id : null;
+}
+
+usersRouter.get("/me/preferences", async (req, res) => {
+  const pool = getPool();
+  const key = String(req.query.key || "").trim();
+  try {
+    await pool.connect();
+    await ensureUserPreferencesSchema(pool);
+    const username = String(req.user?.username || "");
+    const userId = await getUserIdByUsername(pool, username);
+    if (!userId) return res.status(404).json({ error: "USER_NOT_FOUND" });
+    const request = new sql.Request(pool);
+    request.input("user_id", sql.Int, userId);
+    if (key) request.input("pref_key", sql.NVarChar(100), key);
+    const where = key ? " AND pref_key=@pref_key" : "";
+    const result = await request.query(`
+      SELECT pref_key, pref_value, updated_at
+      FROM dbo.user_preferences
+      WHERE user_id=@user_id${where}
+    `);
+    const rows = (result.recordset || []) as Array<{ pref_key?: unknown; pref_value?: unknown; updated_at?: unknown }>;
+    const out: Record<string, unknown> = {};
+    for (const r of rows) {
+      const k = String(r.pref_key || "");
+      const v = String(r.pref_value || "");
+      try { out[k] = v ? JSON.parse(v) : null; } catch { out[k] = v; }
+    }
+    return res.json(out);
+  } catch (err: unknown) {
+    const message = err instanceof Error ? err.message : "FAILED_TO_GET_PREFERENCES";
+    return res.status(500).json({ error: message });
+  } finally {
+    await pool.close();
+  }
+});
+
+usersRouter.put("/me/preferences", async (req, res) => {
+  const pool = getPool();
+  const key = String((req.body || {}).key || "").trim();
+  const value = (req.body || {}).value;
+  if (!key) return res.status(400).json({ error: "PREFERENCE_KEY_REQUIRED" });
+  try {
+    await pool.connect();
+    await ensureUserPreferencesSchema(pool);
+    const username = String(req.user?.username || "");
+    const userId = await getUserIdByUsername(pool, username);
+    if (!userId) return res.status(404).json({ error: "USER_NOT_FOUND" });
+    const serialized = typeof value === "string" ? value : JSON.stringify(value ?? null);
+    const request = new sql.Request(pool);
+    request.input("user_id", sql.Int, userId);
+    request.input("pref_key", sql.NVarChar(100), key);
+    request.input("pref_value", sql.NVarChar(sql.MAX), serialized);
+    await request.query(`
+      IF EXISTS (SELECT 1 FROM dbo.user_preferences WHERE user_id=@user_id AND pref_key=@pref_key)
+        UPDATE dbo.user_preferences SET pref_value=@pref_value, updated_at=SYSDATETIME() WHERE user_id=@user_id AND pref_key=@pref_key;
+      ELSE
+        INSERT INTO dbo.user_preferences (user_id, pref_key, pref_value, updated_at) VALUES (@user_id, @pref_key, @pref_value, SYSDATETIME());
+    `);
+    return res.json({ ok: true });
+  } catch (err: unknown) {
+    const message = err instanceof Error ? err.message : "FAILED_TO_SAVE_PREFERENCES";
+    return res.status(500).json({ error: message });
+  } finally {
+    await pool.close();
+  }
+});
+
 function toSource(auth_type?: string | null): "LOCAL" | "DOMAIN" {
   const a = String(auth_type || "").toUpperCase();
   return a === "DOMAIN" ? "DOMAIN" : "LOCAL";

@@ -22,10 +22,14 @@ interface EmployeeTableProps {
   selected?: Set<string>;
   onToggleSelect?: (employeeId: string, checked: boolean) => void;
   onToggleAll?: (checked: boolean) => void;
+  visibleColumns?: string[];
 }
 
-export function EmployeeTable({ employees, onDelete, selectable = false, selected, onToggleSelect, onToggleAll }: EmployeeTableProps) {
+export function EmployeeTable({ employees, onDelete, selectable = false, selected, onToggleSelect, onToggleAll, visibleColumns }: EmployeeTableProps) {
   const { caps, typeAccess } = useRBAC();
+  const columns = Array.isArray(visibleColumns) && visibleColumns.length
+    ? visibleColumns
+    : ["core.employee_id","core.name","type","employment.department","employment.job_title","employment.status"];
 
   const editableColumnsBySection: Record<string, string[]> = {
     core: [
@@ -157,6 +161,50 @@ export function EmployeeTable({ employees, onDelete, selectable = false, selecte
   const canEditIndonesia = computeCanEditForType("indonesia");
   const canEditExpat = computeCanEditForType("expat");
 
+  const headerLabel = (key: string) => {
+    if (key === "type") return "Type";
+    const parts = key.split(".");
+    if (parts.length === 2) {
+      const [section, column] = parts;
+      const toTitle = (s: string) => s.replace(/[_\-]+/g, " ").split(" ").filter(Boolean).map((w) => w[0] ? w[0].toUpperCase() + w.slice(1) : "").join(" ");
+      return `${toTitle(section)} • ${toTitle(column)}`;
+    }
+    return key;
+  };
+
+  const renderCell = (employee: Employee, key: string) => {
+    if (key === "type") {
+      return (
+        <Badge variant={employee.type === 'indonesia' ? 'default' : 'warning'}>
+          {employee.type === 'indonesia' ? 'Indonesia' : 'Expatriate'}
+        </Badge>
+      );
+    }
+    const parts = key.split(".");
+    if (parts.length === 2) {
+      const [section, column] = parts as [keyof Employee, string];
+      const val = (employee[section] as any)?.[column];
+      if (section === "employment" && column === "status") {
+        return (
+          <Badge 
+            className={cn(
+              val === 'Active' 
+                ? "bg-success/10 text-success hover:bg-success/20" 
+                : "bg-destructive/10 text-destructive hover:bg-destructive/20"
+            )}
+          >
+            {val || 'Unknown'}
+          </Badge>
+        );
+      }
+      if (typeof val === "string" && val.length > 0) return val;
+      if (typeof val === "number") return String(val);
+      if (typeof val === "boolean") return val ? "Yes" : "No";
+      return "-";
+    }
+    return "-";
+  };
+
   return (
     <div className="rounded-xl border border-border bg-card shadow-card overflow-hidden">
       <Table>
@@ -170,12 +218,9 @@ export function EmployeeTable({ employees, onDelete, selectable = false, selecte
                 />
               </TableHead>
             )}
-            <TableHead className="font-semibold">Employee ID</TableHead>
-            <TableHead className="font-semibold">Name</TableHead>
-            <TableHead className="font-semibold">Type</TableHead>
-            <TableHead className="font-semibold">Department</TableHead>
-            <TableHead className="font-semibold">Job Title</TableHead>
-            <TableHead className="font-semibold">Status</TableHead>
+            {columns.map((key) => (
+              <TableHead key={key} className="font-semibold">{headerLabel(key)}</TableHead>
+            ))}
             <TableHead className="font-semibold text-right">Actions</TableHead>
           </TableRow>
         </TableHeader>
@@ -193,38 +238,22 @@ export function EmployeeTable({ employees, onDelete, selectable = false, selecte
                   />
                 </TableCell>
               )}
-              <TableCell className="font-medium text-primary">
-                {employee.core.employee_id}
-              </TableCell>
-              <TableCell>
-                <div className="flex items-center gap-3">
-                  <div className="flex h-9 w-9 items-center justify-center rounded-full bg-primary/10 font-medium text-primary">
-                    {employee.core.name.split(' ').map(n => n[0]).join('').slice(0, 2)}
-                  </div>
-                  <div>
-                    <p className="font-medium">{employee.core.name}</p>
-                    <p className="text-xs text-muted-foreground">{employee.core.nationality}</p>
-                  </div>
-                </div>
-              </TableCell>
-              <TableCell>
-                <Badge variant={employee.type === 'indonesia' ? 'default' : 'warning'}>
-                  {employee.type === 'indonesia' ? 'Indonesia' : 'Expatriate'}
-                </Badge>
-              </TableCell>
-              <TableCell>{employee.employment.department || '-'}</TableCell>
-              <TableCell>{employee.employment.job_title || '-'}</TableCell>
-              <TableCell>
-                <Badge 
-                  className={cn(
-                    employee.employment.status === 'Active' 
-                      ? "bg-success/10 text-success hover:bg-success/20" 
-                      : "bg-destructive/10 text-destructive hover:bg-destructive/20"
-                  )}
-                >
-                  {employee.employment.status || 'Unknown'}
-                </Badge>
-              </TableCell>
+              {columns.map((key) => (
+                <TableCell key={key} className={key === "core.employee_id" ? "font-medium text-primary" : undefined}>
+                  {key === "core.employee_id" ? employee.core.employee_id
+                    : key === "core.name" ? (
+                      <div className="flex items-center gap-3">
+                        <div className="flex h-9 w-9 items-center justify-center rounded-full bg-primary/10 font-medium text-primary">
+                          {employee.core.name.split(' ').map(n => n[0]).join('').slice(0, 2)}
+                        </div>
+                        <div>
+                          <p className="font-medium">{employee.core.name}</p>
+                          <p className="text-xs text-muted-foreground">{employee.core.nationality}</p>
+                        </div>
+                      </div>
+                    ) : renderCell(employee, key)}
+                </TableCell>
+              ))}
               <TableCell className="text-right">
                 <div className="flex justify-end gap-2">
                   <Button variant="ghost" size="icon" asChild>
