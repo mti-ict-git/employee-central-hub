@@ -143,125 +143,163 @@ const Auth = () => {
   };
 
   return (
-    <div className="min-h-screen flex items-center justify-center bg-gradient-to-br from-background via-background to-muted/30 p-4">
-      <div className="w-full max-w-md">
-        <div className="text-center mb-8">
-          <h1 className="text-3xl font-bold text-foreground mb-2">Employee Master Data</h1>
-          <p className="text-muted-foreground">Sign in to manage your workforce</p>
-        </div>
+    <div className="min-h-screen grid md:grid-cols-[440px_1fr] bg-muted/30">
+      <div className="flex items-center justify-center p-6 md:p-10 bg-card border-r border-border/50">
+        <div className="w-full max-w-sm">
+          <div className="mb-6 flex items-center gap-3">
+            <img src="/mti-logo.png" alt="Merdeka Group" className="h-10" />
+            <div>
+              <h1 className="text-xl font-bold tracking-tight">Employee Hub</h1>
+              <p className="text-xs text-muted-foreground">Login into your account</p>
+            </div>
+          </div>
 
-        <Card className="border-border/50 shadow-xl">
-          <CardHeader className="space-y-3 pb-4">
-            <img src="/mti-logo.png" alt="Merdeka Group" className="mx-auto h-24 md:h-28" />
-            <CardDescription className="text-center">
-              Enter your credentials to access your account
-            </CardDescription>
-          </CardHeader>
-          <CardContent>
-            <form onSubmit={handleLogin} className="space-y-4">
-              <div className="space-y-2">
-                <Label htmlFor="username">Username</Label>
-                <Input
-                  id="username"
-                  type="text"
-                  placeholder="sAMAccountName"
-                  value={username}
-                  onChange={(e) => setUsername(e.target.value)}
-                  className="h-11"
-                  autoComplete="username"
-                />
-              </div>
+          <Card className="border-border/50 shadow-xl">
+            <CardContent className="pt-6">
+              <form onSubmit={handleLogin} className="space-y-5">
+                <div className="space-y-2">
+                  <Label htmlFor="username">Email address / Username</Label>
+                  <div className="relative">
+                    <Input
+                      id="username"
+                      type="text"
+                      placeholder="alex@email.com"
+                      value={username}
+                      onChange={(e) => setUsername(e.target.value)}
+                      className="h-11 pl-11"
+                      autoComplete="username"
+                    />
+                    <div className="absolute left-2.5 top-1/2 -translate-y-1/2 h-7 w-7 rounded-md bg-primary/10 text-primary flex items-center justify-center">
+                      {/* envelope icon substitute */}
+                      <span className="h-3 w-3 rounded-sm bg-primary" />
+                    </div>
+                  </div>
+                </div>
 
-              <div className="space-y-2">
-                <Label htmlFor="password">Password</Label>
-                <div className="relative">
-                  <Input
-                    id="password"
-                    type={showPassword ? "text" : "password"}
-                    placeholder="Enter your password"
-                    value={password}
-                    onChange={(e) => setPassword(e.target.value)}
-                    className="h-11 pr-10"
-                    autoComplete="current-password"
-                  />
+                <div className="space-y-2">
+                  <Label htmlFor="password">Password</Label>
+                  <div className="relative">
+                    <Input
+                      id="password"
+                      type={showPassword ? "text" : "password"}
+                      placeholder="Enter your password"
+                      value={password}
+                      onChange={(e) => setPassword(e.target.value)}
+                      className="h-11 pl-11 pr-10"
+                      autoComplete="current-password"
+                    />
+                    <div className="absolute left-2.5 top-1/2 -translate-y-1/2 h-7 w-7 rounded-md bg-primary/10 text-primary flex items-center justify-center">
+                      <span className="h-3 w-3 rounded-sm bg-primary" />
+                    </div>
+                    <button
+                      type="button"
+                      onClick={() => setShowPassword(!showPassword)}
+                      className="absolute right-3 top-1/2 -translate-y-1/2 text-muted-foreground hover:text-foreground transition-colors"
+                    >
+                      {showPassword ? <EyeOff className="h-4 w-4" /> : <Eye className="h-4 w-4" />}
+                    </button>
+                  </div>
+                </div>
+
+                <div className="flex items-center justify-end">
                   <button
                     type="button"
-                    onClick={() => setShowPassword(!showPassword)}
-                    className="absolute right-3 top-1/2 -translate-y-1/2 text-muted-foreground hover:text-foreground transition-colors"
+                    className="text-sm text-primary hover:underline"
+                    onClick={() => toast({ title: "Contact your administrator to reset your password." })}
                   >
-                    {showPassword ? <EyeOff className="h-4 w-4" /> : <Eye className="h-4 w-4" />}
+                    Forgot password?
                   </button>
                 </div>
-              </div>
 
-              <div className="flex items-center justify-end">
-                <button
-                  type="button"
-                  className="text-sm text-primary hover:underline"
-                  onClick={() => toast({ title: "Contact your administrator to reset your password." })}
+                <Button 
+                  type="submit" 
+                  className="w-full h-11 text-base font-medium bg-gradient-to-r from-primary to-primary/80 hover:from-primary hover:to-primary"
+                  disabled={isLoading}
                 >
-                  Forgot password?
-                </button>
-              </div>
+                  {isLoading ? (
+                    <span className="flex items-center gap-2">
+                      <span className="h-4 w-4 border-2 border-primary-foreground/30 border-t-primary-foreground rounded-full animate-spin" />
+                      Login now
+                    </span>
+                  ) : (
+                    <span className="flex items-center gap-2">
+                      <LogIn className="h-4 w-4" />
+                      Login now
+                    </span>
+                  )}
+                </Button>
 
-              <Button 
-                type="submit" 
-                className="w-full h-11 text-base font-medium"
-                disabled={isLoading}
-              >
-                {isLoading ? (
-                  <span className="flex items-center gap-2">
-                    <span className="h-4 w-4 border-2 border-primary-foreground/30 border-t-primary-foreground rounded-full animate-spin" />
-                    Signing in...
-                  </span>
-                ) : (
-                  <span className="flex items-center gap-2">
-                    <LogIn className="h-4 w-4" />
-                    Sign In
-                  </span>
-                )}
-              </Button>
-            </form>
-
-            <div className="mt-6 pt-6 border-t border-border/50 space-y-3">
-              <p className="text-center text-sm text-muted-foreground">
-                Authentication via Active Directory
-              </p>
-              
-              {/* Development Test Accounts */}
-              <div className="bg-muted/50 rounded-lg p-3 space-y-2">
-                <p className="text-xs font-medium text-muted-foreground">Test Accounts (Dev Only):</p>
-                <div className="space-y-1.5">
-                  {MOCK_USERS.map((user) => (
-                    <div 
-                      key={user.username}
-                      className="flex items-center justify-between text-xs cursor-pointer hover:bg-muted rounded px-2 py-1 transition-colors"
-                      onClick={() => {
-                        setUsername(user.username);
-                        setPassword(user.password);
-                      }}
-                    >
-                      <span className="font-mono text-foreground">{user.username}</span>
-                      <Badge 
-                        variant="secondary" 
-                        className={`${ROLE_LABELS[user.role].color} text-white text-[10px] px-1.5 py-0`}
-                      >
-                        {ROLE_LABELS[user.role].label}
-                      </Badge>
-                    </div>
-                  ))}
+                <div className="flex items-center gap-3">
+                  <div className="h-px flex-1 bg-border" />
+                  <span className="text-xs text-muted-foreground">OR</span>
+                  <div className="h-px flex-1 bg-border" />
                 </div>
-                <p className="text-[10px] text-muted-foreground text-center mt-2">
-                  Password: P@ssw0rd.123
-                </p>
-              </div>
-            </div>
-          </CardContent>
-        </Card>
 
-        <p className="text-center text-xs text-muted-foreground mt-6">
-          © {new Date().getFullYear()} Employee Master Data System. All rights reserved.
-        </p>
+                <Button 
+                  type="button" 
+                  variant="outline" 
+                  className="w-full h-11 text-base font-medium border-primary text-primary"
+                  onClick={() => toast({ title: "Request account", description: "Please contact your administrator." })}
+                >
+                  Signup now
+                </Button>
+              </form>
+
+              <div className="mt-6 pt-6 border-t border-border/50 space-y-3">
+                <p className="text-center text-sm text-muted-foreground">
+                  Authentication via Active Directory
+                </p>
+                
+                <div className="bg-muted/50 rounded-lg p-3 space-y-2">
+                  <p className="text-xs font-medium text-muted-foreground">Test Accounts (Dev Only):</p>
+                  <div className="space-y-1.5">
+                    {MOCK_USERS.map((user) => (
+                      <div 
+                        key={user.username}
+                        className="flex items-center justify-between text-xs cursor-pointer hover:bg-muted rounded px-2 py-1 transition-colors"
+                        onClick={() => {
+                          setUsername(user.username);
+                          setPassword(user.password);
+                        }}
+                      >
+                        <span className="font-mono text-foreground">{user.username}</span>
+                        <Badge 
+                          variant="secondary" 
+                          className={`${ROLE_LABELS[user.role].color} text-white text-[10px] px-1.5 py-0`}
+                        >
+                          {ROLE_LABELS[user.role].label}
+                        </Badge>
+                      </div>
+                    ))}
+                  </div>
+                  <p className="text-[10px] text-muted-foreground text-center mt-2">
+                    Password: P@ssw0rd.123
+                  </p>
+                </div>
+              </div>
+            </CardContent>
+          </Card>
+
+          <p className="text-center text-xs text-muted-foreground mt-6">
+            © {new Date().getFullYear()} Employee Master Data System. All rights reserved.
+          </p>
+        </div>
+      </div>
+
+      <div className="hidden md:flex items-center justify-center p-6">
+        <div className="relative w-full h-full max-w-3xl">
+          <div className="absolute inset-0 rounded-2xl bg-gradient-to-br from-primary/10 via-primary/5 to-primary/10" />
+          <div className="relative z-10 h-full flex items-center justify-center">
+            <img
+              src="/illustrations/login-hero.png"
+              alt="Secure access illustration"
+              className="max-h-[520px] object-contain"
+              onError={(e) => {
+                (e.currentTarget as HTMLImageElement).style.display = "none";
+              }}
+            />
+          </div>
+        </div>
       </div>
     </div>
   );

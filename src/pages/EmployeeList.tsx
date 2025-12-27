@@ -260,6 +260,36 @@ const EmployeeList = () => {
     });
   };
 
+  const handleExport = () => {
+    const cols = visibleColumns;
+    const headers = cols.map((key) => {
+      const found = allowedColumns.find((d) => d.key === key);
+      return found ? found.label : key;
+    });
+    const rows = filteredEmployees.map((e: Employee) => {
+      return cols.map((key) => {
+        if (key === "type") return e.type || "";
+        const [section, column] = key.split(".");
+        const secObj = (e as unknown as Record<string, unknown>)[section] as Record<string, unknown> | undefined;
+        const v = secObj ? (secObj as Record<string, unknown>)[column] : undefined;
+        const s = v === undefined || v === null ? "" : String(v);
+        const q = s.replace(/"/g, '""');
+        return `"${q}"`;
+      }).join(",");
+    });
+    const csv = [headers.map((h) => `"${String(h).replace(/"/g, '""')}"`).join(","), ...rows].join("\r\n");
+    const blob = new Blob([csv], { type: "text/csv;charset=utf-8;" });
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement("a");
+    const ts = new Date().toISOString().replace(/[:.]/g, "-");
+    a.href = url;
+    a.download = `employees-${ts}.csv`;
+    document.body.appendChild(a);
+    a.click();
+    document.body.removeChild(a);
+    URL.revokeObjectURL(url);
+  };
+
   const handleBulkDelete = async () => {
     const ids = Array.from(selected);
     if (!ids.length) return;
@@ -334,7 +364,7 @@ const EmployeeList = () => {
               </Button>
             </>
           )}
-          <Button variant="outline">
+          <Button variant="outline" onClick={handleExport}>
             <Download className="mr-2 h-4 w-4" />
             Export
           </Button>

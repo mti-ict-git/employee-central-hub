@@ -130,13 +130,27 @@ function hashPassword(password: string): string {
 usersRouter.get("/", async (req, res) => {
   const limit = Math.min(parseInt(String(req.query.limit || "50"), 10) || 50, 200);
   const offset = parseInt(String(req.query.offset || "0"), 10) || 0;
+  const qRaw = String(req.query.q || "").trim();
   const pool = getPool();
   try {
     await pool.connect();
     const request = new sql.Request(pool);
+    let where = "";
+    if (qRaw) {
+      const q = `%${qRaw.toLowerCase()}%`;
+      request.input("q", sql.NVarChar(200), q);
+      where = `
+        WHERE LOWER(username) LIKE @q
+           OR LOWER(name) LIKE @q
+           OR LOWER(Role) LIKE @q
+           OR LOWER(department) LIKE @q
+           OR LOWER(domain_username) LIKE @q
+      `;
+    }
     const result = await request.query(`
       SELECT Id, username, name, department, Role, account_locked, auth_type, domain_username, last_login, login_count
       FROM dbo.login
+      ${where}
       ORDER BY username
       OFFSET ${offset} ROWS FETCH NEXT ${limit} ROWS ONLY;
     `);
@@ -155,6 +169,43 @@ usersRouter.get("/", async (req, res) => {
     return res.json({ items, paging: { limit, offset, count: items.length } });
   } catch (err: unknown) {
     const message = err instanceof Error ? err.message : "FAILED_TO_QUERY_USERS";
+    return res.status(500).json({ error: message });
+  } finally {
+    await pool.close();
+  }
+});
+
+usersRouter.get("/lookup", async (req, res) => {
+  const limit = Math.min(parseInt(String(req.query.limit || "10"), 10) || 10, 50);
+  const qRaw = String(req.query.q || "").trim().toLowerCase();
+  const pool = getPool();
+  try {
+    await pool.connect();
+    const request = new sql.Request(pool);
+    if (qRaw) request.input("q", sql.NVarChar(200), `%${qRaw}%`);
+    const where = qRaw
+      ? `
+        WHERE LOWER(username) LIKE @q
+           OR LOWER(name) LIKE @q
+           OR LOWER(Role) LIKE @q
+           OR LOWER(department) LIKE @q
+           OR LOWER(domain_username) LIKE @q
+      `
+      : "";
+    const resDb = await request.query(`
+      SELECT TOP (${limit}) username, name, department
+      FROM dbo.login
+      ${where}
+      ORDER BY username
+    `);
+    const items = (resDb.recordset || []).map((r) => ({
+      username: String(r.username || ""),
+      displayName: String(r.name || ""),
+      department: String(r.department || ""),
+    }));
+    return res.json({ items, paging: { limit, offset: 0, count: items.length } });
+  } catch (err: unknown) {
+    const message = err instanceof Error ? err.message : "FAILED_TO_LOOKUP_USERS";
     return res.status(500).json({ error: message });
   } finally {
     await pool.close();

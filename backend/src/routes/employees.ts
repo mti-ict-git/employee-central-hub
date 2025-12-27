@@ -604,6 +604,41 @@ async function scanColumns(pool: sql.ConnectionPool, table: string): Promise<Set
   return out;
 }
 
+async function loadUserTemplateAllowed(pool: sql.ConnectionPool, username: string): Promise<Set<string> | null> {
+  const req = new sql.Request(pool);
+  req.input("username", sql.NVarChar(100), username);
+  const resAssign = await req.query(`
+    SELECT TOP 1 [template_name], [active]
+    FROM dbo.column_access_assignments
+    WHERE [username]=@username AND [active]=1
+  `);
+  const row = (resAssign.recordset || [])[0] as { template_name?: unknown } | undefined;
+  const templateName = String(row?.template_name || "").trim();
+  if (!templateName) return null;
+  const reqTpl = new sql.Request(pool);
+  reqTpl.input("template_name", sql.NVarChar(100), templateName);
+  const resTpl = await reqTpl.query(`
+    SELECT TOP 1 [payload]
+    FROM dbo.column_access_templates
+    WHERE [template_name]=@template_name
+  `);
+  const trow = (resTpl.recordset || [])[0] as { payload?: unknown } | undefined;
+  const payloadStr = typeof trow?.payload === "string" ? trow?.payload as string : null;
+  if (!payloadStr) return null;
+  let items: Array<{ section?: unknown; column?: unknown; read?: unknown; write?: unknown }> = [];
+  try {
+    const parsed = JSON.parse(payloadStr);
+    if (Array.isArray(parsed)) items = parsed as any[];
+  } catch { return null; }
+  const set = new Set<string>();
+  for (const it of items) {
+    const sec = canonicalSectionKey(String(it.section || ""));
+    const col = String(it.column || "").trim().toLowerCase();
+    const read = it.read === true;
+    if (sec && col && read) set.add(`${sec}.${col}`);
+  }
+  return set;
+}
 function extractDbErrorDetails(err: unknown): { code?: string; number?: number; state?: string; name?: string } | undefined {
   if (typeof err !== "object" || err === null) return undefined;
   const o = err as { [k: string]: unknown };
@@ -646,7 +681,27 @@ function extractDbErrorDetails(err: unknown): { code?: string; number?: number; 
     const requestedKeys = rawColsParam
       ? rawColsParam.split(",").map((s) => s.trim().toLowerCase()).filter((s) => !!s)
       : [];
-    const readAccess = await buildReadAccess(pool, rolesRaw);
+    let readAccess: { canReadColumn: (section: string, column: string) => boolean; hasColumnRule: (section: string, column: string) => boolean };
+    try {
+      readAccess = await buildReadAccess(pool, rolesRaw);
+    } catch {
+      readAccess = {
+        hasColumnRule: () => false,
+        canReadColumn: (section: string, column: string) => {
+          const sec = canonicalSectionKey(section);
+          const col = String(column || "").trim().toLowerCase();
+          if (sec === "core" && (col === "employee_id" || col === "name")) return true;
+          if (sec === "employment" && (col === "department" || col === "status" || col === "job_title")) return true;
+          return false;
+        },
+      };
+    }
+    let userTemplateAllowed: Set<string> | null = null;
+    try {
+      userTemplateAllowed = req.user?.username ? await loadUserTemplateAllowed(pool, String(req.user.username)) : null;
+    } catch {
+      userTemplateAllowed = null;
+    }
     const requested: Array<{ section: string; column: string }> = [];
     for (const key of requestedKeys) {
       if (key === "type") continue;
@@ -656,6 +711,7 @@ function extractDbErrorDetails(err: unknown): { code?: string; number?: number; 
       const column = String(parts[1] || "").trim().toLowerCase();
       if (!section || !column) continue;
       if (!readAccess.canReadColumn(section, column)) continue;
+      if (userTemplateAllowed && !userTemplateAllowed.has(`${section}.${column}`)) continue;
       requested.push({ section, column });
     }
     const sectionToTable: Record<string, { table: string; alias: string }> = {
@@ -672,11 +728,21 @@ function extractDbErrorDetails(err: unknown): { code?: string; number?: number; 
     const selectParts: string[] = [];
     const joins: Set<string> = new Set();
     selectParts.push("core.employee_id");
-    // Always include name and nationality for UI defaults
-    selectParts.push("core.name", "core.nationality");
-    // Include default employment projection
-    joins.add("employment");
-    selectParts.push("emp.department", "emp.status", "emp.job_title");
+    // Always include name for UI defaults
+    selectParts.push("core.name");
+    // Include nationality for type detection
+    selectParts.push("core.nationality");
+    // Include default employment projection only if allowed by template (when present)
+    const wantDefaultEmployment = !userTemplateAllowed
+      || userTemplateAllowed.has("employment.department")
+      || userTemplateAllowed.has("employment.status")
+      || userTemplateAllowed.has("employment.job_title");
+    if (wantDefaultEmployment) {
+      joins.add("employment");
+      if (!userTemplateAllowed || userTemplateAllowed.has("employment.department")) selectParts.push("emp.department");
+      if (!userTemplateAllowed || userTemplateAllowed.has("employment.status")) selectParts.push("emp.status");
+      if (!userTemplateAllowed || userTemplateAllowed.has("employment.job_title")) selectParts.push("emp.job_title");
+    }
     for (const reqCol of requested) {
       const info = sectionToTable[reqCol.section];
       if (!info) continue;
@@ -697,7 +763,30 @@ function extractDbErrorDetails(err: unknown): { code?: string; number?: number; 
       ORDER BY core.employee_id
       OFFSET ${offset} ROWS FETCH NEXT ${limit} ROWS ONLY;
     `;
-    const result = await request.query(sqlText);
+    let result: sql.IResult<any>;
+    try {
+      result = await request.query(sqlText);
+    } catch {
+      const fbJoins: string[] = [];
+      const includeEmployment = wantDefaultEmployment || isDepRep;
+      if (includeEmployment) fbJoins.push("LEFT JOIN dbo.employee_employment AS emp ON emp.employee_id = core.employee_id");
+      const fbSelect: string[] = ["core.employee_id", "core.name"];
+      fbSelect.push("core.nationality");
+      if (includeEmployment) {
+        if (!userTemplateAllowed || userTemplateAllowed.has("employment.department")) fbSelect.push("emp.department");
+        if (!userTemplateAllowed || userTemplateAllowed.has("employment.status")) fbSelect.push("emp.status");
+        if (!userTemplateAllowed || userTemplateAllowed.has("employment.job_title")) fbSelect.push("emp.job_title");
+      }
+      const fbSql = `
+        SELECT ${fbSelect.join(", ")}
+        FROM dbo.employee_core AS core
+        ${fbJoins.join("\n")}
+        ${whereClause}
+        ORDER BY core.employee_id
+        OFFSET ${offset} ROWS FETCH NEXT ${limit} ROWS ONLY;
+      `;
+      result = await request.query(fbSql);
+    }
     const rows = result.recordset || [];
     const data = rows.map((r: Record<string, unknown>) => {
       const nationality = String(r["nationality"] || "").trim();
@@ -734,7 +823,97 @@ function extractDbErrorDetails(err: unknown): { code?: string; number?: number; 
     return res.json({ items: data, paging: { limit, offset, count: data.length } });
   } catch (err: unknown) {
     const message = err instanceof Error ? err.message : "FAILED_TO_QUERY_EMPLOYEES";
-    return res.status(500).json({ error: message });
+    const details = extractDbErrorDetails(err);
+    return res.status(500).json({ error: message, details });
+  } finally {
+    await pool.close();
+  }
+});
+
+employeesRouter.get("/:id", async (req, res) => {
+  const id = String(req.params.id || "").trim();
+  if (!id) return res.status(400).json({ error: "EMPLOYEE_ID_REQUIRED" });
+  const pool = getPool();
+  try {
+    await pool.connect();
+    const rolesRaw = req.user?.roles || [];
+    const rolesAll = rolesRaw.map((r) => normalizeRoleName(String(r)));
+    const isDepRep = rolesAll.includes("department_rep");
+    const isPrivileged = rolesAll.includes("superadmin") || rolesAll.includes("admin");
+    const rolesForAccess = isDepRep && !isPrivileged ? ["department_rep"] : rolesAll;
+    let readAccess: { canReadColumn: (section: string, column: string) => boolean; hasColumnRule: (section: string, column: string) => boolean };
+    try {
+      readAccess = await buildReadAccess(pool, rolesRaw);
+    } catch {
+      readAccess = {
+        hasColumnRule: () => false,
+        canReadColumn: (section: string, column: string) => {
+          const sec = canonicalSectionKey(section);
+          const col = String(column || "").trim().toLowerCase();
+          if (sec === "core" && (col === "employee_id" || col === "name" || col === "nationality")) return true;
+          if (sec === "employment" && (col === "department" || col === "status" || col === "job_title")) return true;
+          return false;
+        },
+      };
+    }
+    let userTemplateAllowed: Set<string> | null = null;
+    try {
+      userTemplateAllowed = req.user?.username ? await loadUserTemplateAllowed(pool, String(req.user.username)) : null;
+    } catch {
+      userTemplateAllowed = null;
+    }
+    const sectionTables: Record<string, string> = {
+      core: "employee_core",
+      contact: "employee_contact",
+      employment: "employee_employment",
+      onboard: "employee_onboard",
+      bank: "employee_bank",
+      insurance: "employee_insurance",
+      travel: "employee_travel",
+      checklist: "employee_checklist",
+      notes: "employee_notes",
+    };
+    const out: Record<string, Record<string, unknown>> = {};
+    for (const [section, table] of Object.entries(sectionTables)) {
+      const req1 = new sql.Request(pool);
+      req1.input("employee_id", sql.VarChar(100), id);
+      const res1 = await req1.query(`
+        SELECT TOP 1 *
+        FROM dbo.${table}
+        WHERE employee_id = @employee_id
+      `);
+      const row = (res1.recordset || [])[0];
+      if (!row) continue;
+      const secKey = canonicalSectionKey(section);
+      const obj: Record<string, unknown> = {};
+      for (const [k, v] of Object.entries(row as Record<string, unknown>)) {
+        const col = String(k || "").trim().toLowerCase();
+        if (col === "employee_id") { obj[col] = v; continue; }
+        const canRead = readAccess.canReadColumn(secKey, col);
+        const allowedByTemplate = !userTemplateAllowed || userTemplateAllowed.has(`${secKey}.${col}`);
+        if (canRead && allowedByTemplate) obj[col] = v;
+      }
+      out[secKey] = obj;
+    }
+    const nat = String(out.core?.nationality || "").trim();
+    const t = nat.toLowerCase() === "indonesia" || nat.toLowerCase().startsWith("indo") ? "indonesia" : "expat";
+    const response = {
+      core: out.core || {},
+      contact: out.contact || {},
+      employment: out.employment || {},
+      onboard: out.onboard || {},
+      bank: out.bank || {},
+      insurance: out.insurance || {},
+      travel: out.travel || {},
+      checklist: out.checklist || {},
+      notes: out.notes || {},
+      type: t,
+    };
+    return res.json(response);
+  } catch (err: unknown) {
+    const message = err instanceof Error ? err.message : "FAILED_TO_GET_EMPLOYEE";
+    const details = extractDbErrorDetails(err);
+    return res.status(500).json({ error: message, details });
   } finally {
     await pool.close();
   }
@@ -1732,6 +1911,7 @@ employeesRouter.get("/:id", async (req, res) => {
     const readAccess = await buildReadAccess(pool, rolesRaw);
     const employeeType: "indonesia" | "expat" = String(r.nationality || "").trim().toLowerCase() === "indonesia" ? "indonesia" : "expat";
     const typeDenied = await loadTypeDeniedAccess(pool, employeeType);
+    const userTemplateAllowed = req.user?.username ? await loadUserTemplateAllowed(pool, String(req.user.username)) : null;
 
     const canRead = (section: string, column: string) => {
       const sec = canonicalSectionKey(section);
@@ -1755,6 +1935,7 @@ employeesRouter.get("/:id", async (req, res) => {
         applyLegacyEmploymentStatusMapping &&
         canReadOnboardEmploymentStatus;
       if (!readAccess.canReadColumn(section, column) && !canReadLegacyEmploymentStatus) return false;
+      if (userTemplateAllowed && !userTemplateAllowed.has(`${sec}.${col}`)) return false;
       if (typeDenied[sec] && typeDenied[sec].has(col)) return false;
       return true;
     };

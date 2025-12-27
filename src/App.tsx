@@ -14,6 +14,7 @@ import Settings from "./pages/Settings";
 import UserManagement from "./pages/UserManagement";
 import AdminPermissions from "./pages/AdminPermissions";
 import RbacDiagnostics from "./pages/RbacDiagnostics";
+import ReportsPage from "./pages/Reports";
 import Auth from "./pages/Auth";
 import NotFound from "./pages/NotFound";
 import RequireAuth from "./components/auth/RequireAuth";
@@ -159,6 +160,14 @@ const App = () => {
                   <RequireRole allowed={["admin", "superadmin"]}>
                     <RbacDiagnostics />
                   </RequireRole>
+                </RequireAuth>
+              }
+            />
+            <Route
+              path="/reports"
+              element={
+                <RequireAuth>
+                  <ReportsPage />
                 </RequireAuth>
               }
             />

@@ -98,3 +98,27 @@ export async function authenticate(username: string, password: string) {
     client.destroy();
   }
 }
+
+export async function searchUsers(query: string, limit: number = 10) {
+  const client = createClient();
+  try {
+    await bindAsync(client, CONFIG.LDAP_BIND_DN, CONFIG.LDAP_BIND_PASSWORD);
+    const q = String(query || "").replace(/[*()\\]/g, "");
+    const filter = `(|(sAMAccountName=*${q}*)(displayName=*${q}*)(mail=*${q}*))`;
+    const users = await searchAsync(client, CONFIG.LDAP_USER_SEARCH_BASE, {
+      scope: "sub",
+      filter,
+      attributes: ["dn", "sAMAccountName", "mail", "cn", "displayName"],
+      sizeLimit: limit,
+      paged: true,
+    });
+    return users.map((u) => ({
+      username: u.sAMAccountName || "",
+      displayName: u.displayName || u.cn || "",
+      email: u.mail || "",
+    }));
+  } finally {
+    client.unbind((/*err*/) => {});
+    client.destroy();
+  }
+}

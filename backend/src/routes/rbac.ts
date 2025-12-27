@@ -147,6 +147,31 @@ async function ensureColumnAccessTemplateSchema(pool: sql.ConnectionPool) {
   }
 }
 
+async function ensureColumnAccessAssignmentSchema(pool: sql.ConnectionPool) {
+  const hasTableRes = await new sql.Request(pool).query(`
+    SELECT 1 AS ok FROM sys.tables WHERE name = 'column_access_assignments'
+  `);
+  const hasTable = !!((hasTableRes.recordset || [])[0]);
+  if (!hasTable) {
+    await new sql.Request(pool).query(`
+      CREATE TABLE dbo.column_access_assignments (
+        [username] NVARCHAR(100) NOT NULL PRIMARY KEY,
+        [template_name] NVARCHAR(100) NOT NULL,
+        [active] BIT NOT NULL CONSTRAINT DF_column_access_assignments_active DEFAULT 1,
+        [updated_at] DATETIME2 NOT NULL CONSTRAINT DF_column_access_assignments_updated_at DEFAULT SYSDATETIME()
+      )
+    `);
+  } else {
+    const cols = await scanColumns(pool, "column_access_assignments");
+    const ops: string[] = [];
+    if (!cols.includes("username")) ops.push("ALTER TABLE dbo.column_access_assignments ADD [username] NVARCHAR(100) NOT NULL DEFAULT '';");
+    if (!cols.includes("template_name")) ops.push("ALTER TABLE dbo.column_access_assignments ADD [template_name] NVARCHAR(100) NOT NULL DEFAULT '';");
+    if (!cols.includes("active")) ops.push("ALTER TABLE dbo.column_access_assignments ADD [active] BIT NOT NULL CONSTRAINT DF_column_access_assignments_active DEFAULT 1;");
+    if (!cols.includes("updated_at")) ops.push("ALTER TABLE dbo.column_access_assignments ADD [updated_at] DATETIME2 NOT NULL CONSTRAINT DF_column_access_assignments_updated_at DEFAULT SYSDATETIME();");
+    for (const q of ops) await new sql.Request(pool).query(q);
+  }
+}
+
 rbacRouter.get("/roles", async (_req, res) => {
   const pool = getPool();
   try {
@@ -1098,6 +1123,85 @@ rbacRouter.post("/templates", requireRole(["admin","superadmin"]), async (req, r
     return res.json({ ok: true, template_name: name });
   } catch (err: unknown) {
     const message = err instanceof Error ? err.message : "FAILED_TO_SAVE_TEMPLATE";
+    const details = extractDbErrorDetails(err);
+    return res.status(500).json({ error: message, details });
+  } finally {
+    await pool.close();
+  }
+});
+
+rbacRouter.get("/assignments", requireRole(["admin","superadmin"]), async (_req, res) => {
+  const pool = getPool();
+  try {
+    await pool.connect();
+    await ensureColumnAccessAssignmentSchema(pool);
+    const result = await new sql.Request(pool).query(`
+      SELECT [username], [template_name], [active], [updated_at]
+      FROM dbo.column_access_assignments
+    `);
+    const items = (result.recordset || []).map((r) => {
+      const row = r as { username?: string; template_name?: string; active?: number | boolean; updated_at?: Date };
+      return { username: String(row.username || ""), template_name: String(row.template_name || ""), active: !!row.active, updated_at: row.updated_at || null };
+    });
+    return res.json(items);
+  } catch (err: unknown) {
+    const message = err instanceof Error ? err.message : "FAILED_TO_LIST_ASSIGNMENTS";
+    const details = extractDbErrorDetails(err);
+    return res.status(500).json({ error: message, details });
+  } finally {
+    await pool.close();
+  }
+});
+
+rbacRouter.get("/assignments/:username", requireRole(["admin","superadmin"]), async (req, res) => {
+  const username = String(req.params.username || "").trim();
+  if (!username) return res.status(400).json({ error: "USERNAME_REQUIRED" });
+  const pool = getPool();
+  try {
+    await pool.connect();
+    await ensureColumnAccessAssignmentSchema(pool);
+    const request = new sql.Request(pool);
+    request.input("username", sql.NVarChar(100), username);
+    const result = await request.query(`
+      SELECT TOP 1 [template_name], [active], [updated_at]
+      FROM dbo.column_access_assignments
+      WHERE [username]=@username
+    `);
+    const row = (result.recordset || [])[0] as { template_name?: string; active?: number | boolean } | undefined;
+    if (!row) return res.json({ username, template_name: null, active: false });
+    return res.json({ username, template_name: String(row.template_name || ""), active: !!row.active });
+  } catch (err: unknown) {
+    const message = err instanceof Error ? err.message : "FAILED_TO_READ_ASSIGNMENT";
+    const details = extractDbErrorDetails(err);
+    return res.status(500).json({ error: message, details });
+  } finally {
+    await pool.close();
+  }
+});
+
+rbacRouter.post("/assignments", requireRole(["admin","superadmin"]), async (req, res) => {
+  const body = req.body || {};
+  const username = String(body.username || "").trim();
+  const templateName = String(body.template_name || "").trim();
+  const active = body.active === undefined ? true : Boolean(body.active);
+  if (!username || !templateName) return res.status(400).json({ error: "USERNAME_TEMPLATE_REQUIRED" });
+  const pool = getPool();
+  try {
+    await pool.connect();
+    await ensureColumnAccessAssignmentSchema(pool);
+    const request = new sql.Request(pool);
+    request.input("username", sql.NVarChar(100), username);
+    request.input("template_name", sql.NVarChar(100), templateName);
+    request.input("active", sql.Bit, active ? 1 : 0);
+    await request.query(`
+      IF EXISTS (SELECT 1 FROM dbo.column_access_assignments WHERE [username]=@username)
+        UPDATE dbo.column_access_assignments SET [template_name]=@template_name, [active]=@active, [updated_at]=SYSDATETIME() WHERE [username]=@username;
+      ELSE
+        INSERT INTO dbo.column_access_assignments ([username], [template_name], [active]) VALUES (@username, @template_name, @active);
+    `);
+    return res.json({ ok: true, username, template_name: templateName, active });
+  } catch (err: unknown) {
+    const message = err instanceof Error ? err.message : "FAILED_TO_SAVE_ASSIGNMENT";
     const details = extractDbErrorDetails(err);
     return res.status(500).json({ error: message, details });
   } finally {
