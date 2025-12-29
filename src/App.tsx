@@ -158,7 +158,7 @@ const App = () => {
               path="/settings/rbac-diagnostics"
               element={
                 <RequireAuth>
-                  <RequireRole allowed={["admin", "superadmin"]}>
+                  <RequireRole allowed={["superadmin"]}>
                     <RbacDiagnostics />
                   </RequireRole>
                 </RequireAuth>

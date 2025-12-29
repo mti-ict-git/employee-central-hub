@@ -50,14 +50,14 @@ export function canManageUsers(actorRole: string, targetRole?: string): boolean 
   const target = targetRole ? normalizeRole(targetRole) : undefined;
   const p = perms[actor];
   if (!p || !p.manageUsers) return false;
-  if (target === "superadmin") return actor === "superadmin" || actor === "admin";
+  if (target === "superadmin") return actor === "superadmin";
   return true;
 }
 
 export function canCreateRole(actorRole: string, newRole: string): boolean {
   const actor = normalizeRole(actorRole);
   const next = normalizeRole(newRole);
-  if (next === "superadmin") return actor === "superadmin" || actor === "admin";
+  if (next === "superadmin") return actor === "superadmin";
   return perms[actor]?.manageUsers || false;
 }
 

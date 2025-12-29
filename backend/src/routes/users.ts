@@ -8,6 +8,23 @@ import { canManageUsers, canCreateRole } from "../policy";
 export const usersRouter = Router();
 
 usersRouter.use(authMiddleware);
+
+function normalizeRole(role: string): string {
+  const s = String(role || "").trim().toLowerCase();
+  if (s.includes("super")) return "superadmin";
+  if (s === "admin") return "admin";
+  if (s.includes("human resources") || s.includes("human resource")) return "hr_general";
+  if (s.includes("hr")) return "hr_general";
+  if (s.includes("finance")) return "finance";
+  if (s.includes("dep")) return "department_rep";
+  if (s.includes("employee")) return "employee";
+  return s;
+}
+
+function canSeeSuperadminUsers(actorRoles: string[]): boolean {
+  return actorRoles.includes("superadmin");
+}
+
 function getPool() {
   return new sql.ConnectionPool({
     server: CONFIG.DB.SERVER,
@@ -139,6 +156,8 @@ function hashPassword(password: string): string {
 }
 
 usersRouter.get("/", async (req, res) => {
+  const actorRoles = req.user?.roles || [];
+  const hideSuperadmin = !canSeeSuperadminUsers(actorRoles);
   const limit = Math.min(parseInt(String(req.query.limit || "50"), 10) || 50, 200);
   const offset = parseInt(String(req.query.offset || "0"), 10) || 0;
   const qRaw = String(req.query.q || "").trim();
@@ -146,18 +165,22 @@ usersRouter.get("/", async (req, res) => {
   try {
     await pool.connect();
     const request = new sql.Request(pool);
-    let where = "";
+    const parts: string[] = [];
+    if (hideSuperadmin) parts.push("LOWER(Role) NOT LIKE '%super%'");
     if (qRaw) {
       const q = `%${qRaw.toLowerCase()}%`;
       request.input("q", sql.NVarChar(200), q);
-      where = `
-        WHERE LOWER(username) LIKE @q
-           OR LOWER(name) LIKE @q
-           OR LOWER(Role) LIKE @q
-           OR LOWER(department) LIKE @q
-           OR LOWER(domain_username) LIKE @q
-      `;
+      parts.push(`
+        (
+          LOWER(username) LIKE @q
+          OR LOWER(name) LIKE @q
+          OR LOWER(Role) LIKE @q
+          OR LOWER(department) LIKE @q
+          OR LOWER(domain_username) LIKE @q
+        )
+      `);
     }
+    const where = parts.length ? `WHERE ${parts.join(" AND ")}` : "";
     const result = await request.query(`
       SELECT Id, username, name, department, Role, account_locked, auth_type, domain_username, last_login, login_count
       FROM dbo.login
@@ -187,6 +210,8 @@ usersRouter.get("/", async (req, res) => {
 });
 
 usersRouter.get("/lookup", async (req, res) => {
+  const actorRoles = req.user?.roles || [];
+  const hideSuperadmin = !canSeeSuperadminUsers(actorRoles);
   const limit = Math.min(parseInt(String(req.query.limit || "10"), 10) || 10, 50);
   const qRaw = String(req.query.q || "").trim().toLowerCase();
   const pool = getPool();
@@ -194,15 +219,20 @@ usersRouter.get("/lookup", async (req, res) => {
     await pool.connect();
     const request = new sql.Request(pool);
     if (qRaw) request.input("q", sql.NVarChar(200), `%${qRaw}%`);
-    const where = qRaw
-      ? `
-        WHERE LOWER(username) LIKE @q
-           OR LOWER(name) LIKE @q
-           OR LOWER(Role) LIKE @q
-           OR LOWER(department) LIKE @q
-           OR LOWER(domain_username) LIKE @q
-      `
-      : "";
+    const parts: string[] = [];
+    if (hideSuperadmin) parts.push("LOWER(Role) NOT LIKE '%super%'");
+    if (qRaw) {
+      parts.push(`
+        (
+          LOWER(username) LIKE @q
+          OR LOWER(name) LIKE @q
+          OR LOWER(Role) LIKE @q
+          OR LOWER(department) LIKE @q
+          OR LOWER(domain_username) LIKE @q
+        )
+      `);
+    }
+    const where = parts.length ? `WHERE ${parts.join(" AND ")}` : "";
     const resDb = await request.query(`
       SELECT TOP (${limit}) username, name, department
       FROM dbo.login
@@ -287,6 +317,8 @@ usersRouter.post("/", async (req, res) => {
 });
 
 usersRouter.get("/:id", async (req, res) => {
+  const actorRoles = req.user?.roles || [];
+  const hideSuperadmin = !canSeeSuperadminUsers(actorRoles);
   const id = parseInt(String(req.params.id || "0"), 10);
   if (!id) return res.status(400).json({ error: "USER_ID_REQUIRED" });
   const pool = getPool();
@@ -302,6 +334,9 @@ usersRouter.get("/:id", async (req, res) => {
     `);
     const r = result.recordset && result.recordset[0];
     if (!r) return res.status(404).json({ error: "USER_NOT_FOUND" });
+    if (hideSuperadmin && normalizeRole(String(r.Role || "")) === "superadmin") {
+      return res.status(404).json({ error: "USER_NOT_FOUND" });
+    }
     const payload = {
       id: r.Id,
       username: r.username,
@@ -331,6 +366,7 @@ usersRouter.get("/:id", async (req, res) => {
 
 usersRouter.put("/:id/role", async (req, res) => {
   const actorRoles = req.user?.roles || [];
+  const hideSuperadmin = !canSeeSuperadminUsers(actorRoles);
   const id = parseInt(String(req.params.id || "0"), 10);
   const role = String((req.body && req.body.role) || "").trim();
   if (!id || !role) return res.status(400).json({ error: "USER_ID_AND_ROLE_REQUIRED" });
@@ -339,6 +375,9 @@ usersRouter.put("/:id/role", async (req, res) => {
     await pool.connect();
     const currentRole = await getUserRoleById(pool, id);
     if (!currentRole) return res.status(404).json({ error: "USER_NOT_FOUND" });
+    if (hideSuperadmin && normalizeRole(currentRole) === "superadmin") {
+      return res.status(404).json({ error: "USER_NOT_FOUND" });
+    }
     if (!actorRoles.some((r) => canManageUsers(r, currentRole))) {
       return res.status(403).json({ error: "FORBIDDEN_UPDATE_ROLE_TARGET" });
     }
@@ -360,6 +399,7 @@ usersRouter.put("/:id/role", async (req, res) => {
 
 usersRouter.put("/:id", async (req, res) => {
   const actorRoles = req.user?.roles || [];
+  const hideSuperadmin = !canSeeSuperadminUsers(actorRoles);
   const id = parseInt(String(req.params.id || "0"), 10);
   const body = req.body || {};
   const displayName = String(body.displayName || body.name || "").trim();
@@ -372,6 +412,9 @@ usersRouter.put("/:id", async (req, res) => {
     await pool.connect();
     const currentRole = await getUserRoleById(pool, id);
     if (!currentRole) return res.status(404).json({ error: "USER_NOT_FOUND" });
+    if (hideSuperadmin && normalizeRole(currentRole) === "superadmin") {
+      return res.status(404).json({ error: "USER_NOT_FOUND" });
+    }
     if (!actorRoles.some((r) => canManageUsers(r, currentRole))) {
       return res.status(403).json({ error: "FORBIDDEN_UPDATE_USER" });
     }
@@ -406,6 +449,7 @@ usersRouter.put("/:id", async (req, res) => {
 
 usersRouter.put("/:id/lock", async (req, res) => {
   const actorRoles = req.user?.roles || [];
+  const hideSuperadmin = !canSeeSuperadminUsers(actorRoles);
   const id = parseInt(String(req.params.id || "0"), 10);
   const lock = Boolean(req.body && req.body.lock);
   const until = req.body && req.body.locked_until ? new Date(req.body.locked_until) : null;
@@ -415,6 +459,9 @@ usersRouter.put("/:id/lock", async (req, res) => {
     await pool.connect();
     const currentRole = await getUserRoleById(pool, id);
     if (!currentRole) return res.status(404).json({ error: "USER_NOT_FOUND" });
+    if (hideSuperadmin && normalizeRole(currentRole) === "superadmin") {
+      return res.status(404).json({ error: "USER_NOT_FOUND" });
+    }
     if (!actorRoles.some((r) => canManageUsers(r, currentRole))) {
       return res.status(403).json({ error: "FORBIDDEN_UPDATE_LOCK" });
     }
@@ -434,6 +481,7 @@ usersRouter.put("/:id/lock", async (req, res) => {
 
 usersRouter.delete("/:id", async (req, res) => {
   const actorRoles = req.user?.roles || [];
+  const hideSuperadmin = !canSeeSuperadminUsers(actorRoles);
   const id = parseInt(String(req.params.id || "0"), 10);
   if (!id) return res.status(400).json({ error: "USER_ID_REQUIRED" });
   const pool = getPool();
@@ -441,6 +489,9 @@ usersRouter.delete("/:id", async (req, res) => {
     await pool.connect();
     const currentRole = await getUserRoleById(pool, id);
     if (!currentRole) return res.status(404).json({ error: "USER_NOT_FOUND" });
+    if (hideSuperadmin && normalizeRole(currentRole) === "superadmin") {
+      return res.status(404).json({ error: "USER_NOT_FOUND" });
+    }
     if (!actorRoles.some((r) => canManageUsers(r, currentRole))) {
       return res.status(403).json({ error: "FORBIDDEN_DELETE_USER" });
     }
@@ -458,6 +509,7 @@ usersRouter.delete("/:id", async (req, res) => {
 
 usersRouter.post("/:id/reset-password", async (req, res) => {
   const actorRoles = req.user?.roles || [];
+  const hideSuperadmin = !canSeeSuperadminUsers(actorRoles);
   const id = parseInt(String(req.params.id || "0"), 10);
   const newPassword = String((req.body && req.body.password) || "").trim();
   if (!id || !newPassword) return res.status(400).json({ error: "USER_ID_AND_PASSWORD_REQUIRED" });
@@ -466,6 +518,9 @@ usersRouter.post("/:id/reset-password", async (req, res) => {
     await pool.connect();
     const currentRole = await getUserRoleById(pool, id);
     if (!currentRole) return res.status(404).json({ error: "USER_NOT_FOUND" });
+    if (hideSuperadmin && normalizeRole(currentRole) === "superadmin") {
+      return res.status(404).json({ error: "USER_NOT_FOUND" });
+    }
     if (!actorRoles.some((r) => canManageUsers(r, currentRole))) {
       return res.status(403).json({ error: "FORBIDDEN_RESET_PASSWORD" });
     }

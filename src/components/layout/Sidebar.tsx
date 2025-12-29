@@ -40,7 +40,7 @@ const navigation: NavItem[] = [
       { name: 'General', href: '/settings', icon: SettingsIcon },
       { name: 'User Management', href: '/settings/users', icon: Users, roles: ['admin', 'superadmin'] },
       { name: 'Role Matrix Permission', href: '/settings/admin-permissions', icon: SettingsIcon, roles: ['admin', 'superadmin'] },
-      { name: 'RBAC Diagnostics', href: '/settings/rbac-diagnostics', icon: SettingsIcon, roles: ['admin', 'superadmin'] },
+      { name: 'RBAC Diagnostics', href: '/settings/rbac-diagnostics', icon: SettingsIcon, roles: ['superadmin'] },
       { name: 'Data Sync', href: '/settings/sync', icon: SettingsIcon, roles: ['admin', 'superadmin'] },
     ],
   },

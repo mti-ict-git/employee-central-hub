@@ -56,8 +56,19 @@ const UserManagement = () => {
     status: "active" | "inactive";
     source: "LOCAL" | "DOMAIN";
   }>(null);
+  const canSeeSuperadmin = (() => {
+    try {
+      const stored = typeof window !== "undefined" ? localStorage.getItem("auth_user") : null;
+      const parsed = stored ? JSON.parse(stored) : null;
+      const rolesRaw: string[] = Array.isArray(parsed?.roles) ? parsed.roles : (parsed?.role ? [parsed.role] : []);
+      const roles = rolesRaw.map((r) => String(r || "").trim().toLowerCase());
+      return roles.some((r) => r.includes("super"));
+    } catch {
+      return false;
+    }
+  })();
   const roleOptions = [
-    { value: "SUPERADMIN", label: "Super Admin" },
+    ...(canSeeSuperadmin ? [{ value: "SUPERADMIN", label: "Super Admin" }] : []),
     { value: "ADMIN", label: "Admin" },
     { value: "HR GENERAL", label: "HR General" },
     { value: "FINANCE", label: "Finance" },

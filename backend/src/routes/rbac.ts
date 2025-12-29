@@ -52,6 +52,11 @@ function normalizeRoleName(role: string) {
   return s;
 }
 
+function isSuperadminRequest(req: { user?: { roles?: string[] } }): boolean {
+  const roles = Array.isArray(req.user?.roles) ? req.user?.roles : [];
+  return roles.includes("superadmin");
+}
+
 async function ensureRolePermissionsSchema(pool: sql.ConnectionPool) {
   const cols = await scanColumns(pool, "role_permissions");
   const ops: string[] = [];
@@ -172,7 +177,8 @@ async function ensureColumnAccessAssignmentSchema(pool: sql.ConnectionPool) {
   }
 }
 
-rbacRouter.get("/roles", async (_req, res) => {
+rbacRouter.get("/roles", async (req, res) => {
+  const isSuperadmin = isSuperadminRequest(req);
   const pool = getPool();
   try {
     await pool.connect();
@@ -227,9 +233,12 @@ rbacRouter.get("/roles", async (_req, res) => {
       `);
       roles = (byLogin.recordset || []).map((r) => normalizeRoleName(String((r as { role: string }).role)));
     }
-    const baseline = ["superadmin", "admin", "hr_general", "finance", "department_rep", "employee"];
+    const baseline = isSuperadmin
+      ? ["superadmin", "admin", "hr_general", "finance", "department_rep", "employee"]
+      : ["admin", "hr_general", "finance", "department_rep", "employee"];
     const dedup = Array.from(new Set([...roles, ...baseline]));
-    return res.json(dedup);
+    const out = isSuperadmin ? dedup : dedup.filter((r) => normalizeRoleName(r) !== "superadmin");
+    return res.json(out);
   } catch (err: unknown) {
     const message = err instanceof Error ? err.message : "FAILED_TO_QUERY_ROLES";
     return res.status(500).json({ error: message });
@@ -298,7 +307,8 @@ rbacRouter.post("/type_columns", requireRole(["admin","superadmin"]), async (req
   }
 });
 
-rbacRouter.get("/permissions", async (_req, res) => {
+rbacRouter.get("/permissions", async (req, res) => {
+  const isSuperadmin = isSuperadminRequest(req);
   const pool = getPool();
   try {
     await pool.connect();
@@ -405,7 +415,8 @@ rbacRouter.get("/permissions", async (_req, res) => {
         allowed: Boolean(rr.allowed),
       };
     });
-    return res.json(items);
+    const out = isSuperadmin ? items : items.filter((i) => normalizeRoleName(String(i.role)) !== "superadmin");
+    return res.json(out);
   } catch (err: unknown) {
     return res.json([]);
   } finally {
@@ -414,6 +425,9 @@ rbacRouter.get("/permissions", async (_req, res) => {
 });
 
 rbacRouter.post("/permissions", requireRole(["admin","superadmin"]), async (req, res) => {
+  if (!isSuperadminRequest(req) && normalizeRoleName(String((req.body || {}).role || "").trim()) === "superadmin") {
+    return res.status(404).json({ error: "NOT_FOUND" });
+  }
   const body = req.body || {};
   const role = String(body.role || "").trim();
   const module = String(body.module || "").trim();
@@ -685,7 +699,8 @@ rbacRouter.post("/permissions", requireRole(["admin","superadmin"]), async (req,
   }
 });
 
-rbacRouter.get("/columns", async (_req, res) => {
+rbacRouter.get("/columns", async (req, res) => {
+  const isSuperadmin = isSuperadminRequest(req);
   const pool = getPool();
   try {
     await pool.connect();
@@ -740,7 +755,8 @@ rbacRouter.get("/columns", async (_req, res) => {
           write: Boolean(row.can_write),
         };
       });
-      return res.json(items);
+      const out = isSuperadmin ? items : items.filter((i) => normalizeRoleName(i.role) !== "superadmin");
+      return res.json(out);
     }
     const hasTextSchema = cols.includes("role") && cols.includes("section") && cols.includes("column");
     if (hasTextSchema) {
@@ -758,7 +774,8 @@ rbacRouter.get("/columns", async (_req, res) => {
           write: Boolean(row.can_write),
         };
       });
-      return res.json(items);
+      const out = isSuperadmin ? items : items.filter((i) => normalizeRoleName(i.role) !== "superadmin");
+      return res.json(out);
     }
     const hasViewRes = await new sql.Request(pool).query(`
       SELECT 1 AS ok FROM sys.views WHERE name = 'vw_role_column_access'
@@ -788,7 +805,8 @@ rbacRouter.get("/columns", async (_req, res) => {
           write: false,
         };
       });
-      return res.json(items);
+      const out = isSuperadmin ? items : items.filter((i) => normalizeRoleName(i.role) !== "superadmin");
+      return res.json(out);
     }
     return res.json([]);
   } catch {
@@ -799,6 +817,9 @@ rbacRouter.get("/columns", async (_req, res) => {
 });
 
 rbacRouter.post("/columns", requireRole(["admin","superadmin"]), async (req, res) => {
+  if (!isSuperadminRequest(req) && normalizeRoleName(String((req.body || {}).role || "").trim()) === "superadmin") {
+    return res.status(404).json({ error: "NOT_FOUND" });
+  }
   const body = req.body || {};
   const role = normalizeRoleName(String(body.role || "").trim());
   const section = String(body.section || "").trim();
@@ -1210,7 +1231,7 @@ rbacRouter.post("/assignments", requireRole(["admin","superadmin"]), async (req,
   }
 });
 
-rbacRouter.get("/schema/role_permissions", requireRole(["admin","superadmin"]), async (_req, res) => {
+rbacRouter.get("/schema/role_permissions", requireRole(["superadmin"]), async (_req, res) => {
   const pool = getPool();
   try {
     await pool.connect();
@@ -1237,7 +1258,7 @@ rbacRouter.get("/schema/role_permissions", requireRole(["admin","superadmin"]), 
   }
 });
 
-rbacRouter.get("/schema/roles", requireRole(["admin","superadmin"]), async (_req, res) => {
+rbacRouter.get("/schema/roles", requireRole(["superadmin"]), async (_req, res) => {
   const pool = getPool();
   try {
     await pool.connect();
@@ -1264,7 +1285,7 @@ rbacRouter.get("/schema/roles", requireRole(["admin","superadmin"]), async (_req
   }
 });
 
-rbacRouter.get("/schema/role_column_access", requireRole(["admin","superadmin"]), async (_req, res) => {
+rbacRouter.get("/schema/role_column_access", requireRole(["superadmin"]), async (_req, res) => {
   const pool = getPool();
   try {
     await pool.connect();
