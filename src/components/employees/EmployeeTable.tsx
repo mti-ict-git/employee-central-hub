@@ -31,6 +31,34 @@ export function EmployeeTable({ employees, onDelete, selectable = false, selecte
     ? visibleColumns
     : ["core.employee_id","core.name","type","employment.department","employment.job_title","employment.status"];
 
+  const renderNameCell = (employee: Employee) => {
+    const rawName: unknown = (employee.core as { name: unknown }).name;
+    const name = typeof rawName === "string" ? rawName : "";
+    const initials = name
+      .trim()
+      .split(/\s+/)
+      .filter(Boolean)
+      .map((part) => part[0] ?? "")
+      .join("")
+      .slice(0, 2)
+      .toUpperCase();
+
+    const rawNationality: unknown = (employee.core as { nationality?: unknown }).nationality;
+    const nationality = typeof rawNationality === "string" && rawNationality.length > 0 ? rawNationality : "-";
+
+    return (
+      <div className="flex items-center gap-3">
+        <div className="flex h-9 w-9 items-center justify-center rounded-full bg-primary/10 font-medium text-primary">
+          {initials || "??"}
+        </div>
+        <div>
+          <p className="font-medium">{name || "-"}</p>
+          <p className="text-xs text-muted-foreground">{nationality}</p>
+        </div>
+      </div>
+    );
+  };
+
   const editableColumnsBySection: Record<string, string[]> = {
     core: [
       "imip_id",
@@ -247,15 +275,7 @@ export function EmployeeTable({ employees, onDelete, selectable = false, selecte
                 <TableCell key={key} className={key === "core.employee_id" ? "font-medium text-primary" : undefined}>
                   {key === "core.employee_id" ? employee.core.employee_id
                     : key === "core.name" ? (
-                      <div className="flex items-center gap-3">
-                        <div className="flex h-9 w-9 items-center justify-center rounded-full bg-primary/10 font-medium text-primary">
-                          {employee.core.name.split(' ').map(n => n[0]).join('').slice(0, 2)}
-                        </div>
-                        <div>
-                          <p className="font-medium">{employee.core.name}</p>
-                          <p className="text-xs text-muted-foreground">{employee.core.nationality}</p>
-                        </div>
-                      </div>
+                      renderNameCell(employee)
                     ) : renderCell(employee, key)}
                 </TableCell>
               ))}
