@@ -412,7 +412,8 @@ const EditEmployee = () => {
   ].some((c) => canWrite("checklist", c)) ||
     ["insurance_endorsement", "insurance_owlexa", "insurance_fpg"].some((c) => canWrite("insurance", c)) ||
     ["blacklist_mti", "blacklist_imip"].some((c) => canWrite("employment", c)) ||
-    canWrite("core", "id_card_mti");
+    canWrite("core", "id_card_mti") ||
+    canWrite("core", "residen");
   const hasNotesWrites = ["batch", "note"].some((c) => canWrite("notes", c));
   const hasAnyWritable = hasPersonalWrites || hasContactWrites || hasEmploymentWrites || hasOnboardWrites || hasBankWrites || hasInsuranceWrites || hasTravelWrites || hasChecklistWrites || hasNotesWrites;
   const defaultTab = hasPersonalWrites
@@ -790,6 +791,7 @@ const EditEmployee = () => {
             }}
             core={{
               id_card_mti: employee.core.id_card_mti,
+              residen: employee.core.residen,
             }}
             employeeType={employee.type}
             employeeStatus={employeeStatus}

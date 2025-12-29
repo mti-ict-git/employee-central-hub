@@ -1425,6 +1425,24 @@
     "excel": {
       "table": "employee_core",
       "schema": "dbo",
+      "column": "residen",
+      "excelName": "Residen",
+      "usedColumnHeader": "DB Column",
+      "usedTableHeader": "Table Name"
+    },
+    "matched": {
+      "table": "dbo.employee_core",
+      "column": "residen",
+      "type": "bit"
+    },
+    "status": "column_matched",
+    "suggestion": null,
+    "suggestions": null
+  },
+  {
+    "excel": {
+      "table": "employee_core",
+      "schema": "dbo",
       "column": "field",
       "excelName": "Field",
       "usedColumnHeader": "DB Column",

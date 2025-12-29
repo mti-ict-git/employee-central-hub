@@ -250,7 +250,7 @@ reportsRouter.get("/:id", async (req, res) => {
         SELECT
           employee_id, imip_id, name, gender, place_of_birth, date_of_birth, marital_status,
           tax_status, religion, nationality, blood_type, kartu_keluarga_no, ktp_no, education,
-          branch_id, branch, npwp, office_email, id_card_mti
+          branch_id, branch, npwp, office_email, id_card_mti, residen
         FROM dbo.employee_core
         ORDER BY employee_id
         OFFSET ${offset} ROWS FETCH NEXT ${limit} ROWS ONLY
@@ -307,7 +307,7 @@ reportsRouter.get("/:id/export", (req, res) => {
         SELECT
           employee_id, imip_id, name, gender, place_of_birth, date_of_birth, marital_status,
           tax_status, religion, nationality, blood_type, kartu_keluarga_no, ktp_no, education,
-          branch_id, branch, npwp, office_email, id_card_mti
+          branch_id, branch, npwp, office_email, id_card_mti, residen
         FROM dbo.employee_core
         ORDER BY employee_id
         OFFSET ${offset} ROWS FETCH NEXT ${limit} ROWS ONLY

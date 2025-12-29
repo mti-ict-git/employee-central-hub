@@ -24,6 +24,7 @@ export interface EmployeeCore {
   office_email?: string;
   month_of_birthday?: string;
   id_card_mti?: boolean;
+  residen?: boolean;
   field?: string;
 }
 

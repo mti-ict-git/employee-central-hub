@@ -455,6 +455,7 @@ type EmployeeDetailRow = {
   branch_id: string | null;
   imip_id: string | null;
   id_card_mti: boolean | null;
+  residen?: boolean | null;
   field: string | null;
   phone_number: string | null;
   email: string | null;
@@ -860,95 +861,6 @@ function extractDbErrorDetails(err: unknown): { code?: string; number?: number; 
   }
 });
 
-employeesRouter.get("/:id", async (req, res) => {
-  const id = String(req.params.id || "").trim();
-  if (!id) return res.status(400).json({ error: "EMPLOYEE_ID_REQUIRED" });
-  const pool = getPool();
-  try {
-    await pool.connect();
-    const rolesRaw = req.user?.roles || [];
-    const rolesAll = rolesRaw.map((r) => normalizeRoleName(String(r)));
-    const isDepRep = rolesAll.includes("department_rep");
-    const isPrivileged = rolesAll.includes("superadmin") || rolesAll.includes("admin");
-    const rolesForAccess = isDepRep && !isPrivileged ? ["department_rep"] : rolesAll;
-    let readAccess: { canReadColumn: (section: string, column: string) => boolean; hasColumnRule: (section: string, column: string) => boolean };
-    try {
-      readAccess = await buildReadAccess(pool, rolesRaw);
-    } catch {
-      readAccess = {
-        hasColumnRule: () => false,
-        canReadColumn: (section: string, column: string) => {
-          const sec = canonicalSectionKey(section);
-          const col = String(column || "").trim().toLowerCase();
-          if (sec === "core" && (col === "employee_id" || col === "name" || col === "nationality")) return true;
-          if (sec === "employment" && (col === "department" || col === "status" || col === "job_title")) return true;
-          return false;
-        },
-      };
-    }
-    let userTemplateAllowed: Set<string> | null = null;
-    try {
-      userTemplateAllowed = req.user?.username ? await loadUserTemplateAllowed(pool, String(req.user.username)) : null;
-    } catch {
-      userTemplateAllowed = null;
-    }
-    const sectionTables: Record<string, string> = {
-      core: "employee_core",
-      contact: "employee_contact",
-      employment: "employee_employment",
-      onboard: "employee_onboard",
-      bank: "employee_bank",
-      insurance: "employee_insurance",
-      travel: "employee_travel",
-      checklist: "employee_checklist",
-      notes: "employee_notes",
-    };
-    const out: Record<string, Record<string, unknown>> = {};
-    for (const [section, table] of Object.entries(sectionTables)) {
-      const req1 = new sql.Request(pool);
-      req1.input("employee_id", sql.VarChar(100), id);
-      const res1 = await req1.query(`
-        SELECT TOP 1 *
-        FROM dbo.${table}
-        WHERE employee_id = @employee_id
-      `);
-      const row = (res1.recordset || [])[0];
-      if (!row) continue;
-      const secKey = canonicalSectionKey(section);
-      const obj: Record<string, unknown> = {};
-      for (const [k, v] of Object.entries(row as Record<string, unknown>)) {
-        const col = String(k || "").trim().toLowerCase();
-        if (col === "employee_id") { obj[col] = v; continue; }
-        const canRead = readAccess.canReadColumn(secKey, col);
-        const allowedByTemplate = !userTemplateAllowed || userTemplateAllowed.has(`${secKey}.${col}`);
-        if (canRead && allowedByTemplate) obj[col] = v;
-      }
-      out[secKey] = obj;
-    }
-    const nat = String(out.core?.nationality || "").trim();
-    const t = nat.toLowerCase() === "indonesia" || nat.toLowerCase().startsWith("indo") ? "indonesia" : "expat";
-    const response = {
-      core: out.core || {},
-      contact: out.contact || {},
-      employment: out.employment || {},
-      onboard: out.onboard || {},
-      bank: out.bank || {},
-      insurance: out.insurance || {},
-      travel: out.travel || {},
-      checklist: out.checklist || {},
-      notes: out.notes || {},
-      type: t,
-    };
-    return res.json(response);
-  } catch (err: unknown) {
-    const message = err instanceof Error ? err.message : "FAILED_TO_GET_EMPLOYEE";
-    const details = extractDbErrorDetails(err);
-    return res.status(500).json({ error: message, details });
-  } finally {
-    await pool.close();
-  }
-});
-
 function generateTempEmployeeId(): string {
   const base = Date.now().toString(36).toUpperCase();
   const rand = Math.floor(Math.random() * 1679616).toString(36).toUpperCase(); // up to 36^6
@@ -1077,6 +989,8 @@ employeesRouter.put("/:id", async (req, res) => {
 
     const idCardRaw = core.id_card_mti;
     const idCardVal = idCardRaw === true ? 1 : idCardRaw === false ? 0 : null;
+    const residenRaw = core.residen;
+    const residenVal = residenRaw === true ? 1 : residenRaw === false ? 0 : null;
 
     const coreFields = [
       { column: "name", param: "name", sqlType: sql.NVarChar(200), value: core.name ? String(core.name) : null, gate: "name" },
@@ -1097,6 +1011,7 @@ employeesRouter.put("/:id", async (req, res) => {
       { column: "branch_id", param: "branch_id", sqlType: sql.NVarChar(50), value: core.branch_id ? String(core.branch_id) : null, gate: "branch_id" },
       { column: "office_email", param: "office_email", sqlType: sql.NVarChar(255), value: core.office_email ? String(core.office_email) : null, gate: "office_email" },
       { column: "id_card_mti", param: "id_card_mti", sqlType: sql.Bit(), value: idCardVal, gate: "id_card_mti" },
+      { column: "residen", param: "residen", sqlType: sql.Bit(), value: residenVal, gate: "residen" },
       { column: "field", param: "field", sqlType: sql.NVarChar(100), value: core.field ? String(core.field) : null, gate: "field" },
     ]
       .filter((f) => coreTableCols.has(f.column) && canWrite("core", f.gate))
@@ -1320,6 +1235,10 @@ employeesRouter.post("/", async (req, res) => {
       core.id_card_mti === true ? 1 :
       core.id_card_mti === false ? 0 : null;
     request.input("id_card_mti", sql.Bit, idCardVal);
+    const residenVal =
+      core.residen === true ? 1 :
+      core.residen === false ? 0 : null;
+    request.input("residen", sql.Bit, residenVal);
     request.input("field", sql.NVarChar(100), (core.field ?? employment.field) || null);
     await request.query(`
       IF EXISTS (SELECT 1 FROM dbo.employee_core WHERE employee_id = @employee_id)
@@ -1327,11 +1246,11 @@ employeesRouter.post("/", async (req, res) => {
         SET name=@name, gender=@gender, place_of_birth=@place_of_birth, date_of_birth=@date_of_birth,
             marital_status=@marital_status, religion=@religion, nationality=@nationality, blood_type=@blood_type,
             kartu_keluarga_no=@kartu_keluarga_no, ktp_no=@ktp_no, npwp=@npwp, tax_status=@tax_status,
-            education=@education, imip_id=@imip_id, branch=@branch, branch_id=@branch_id, office_email=@office_email, id_card_mti=@id_card_mti, field=@field
+            education=@education, imip_id=@imip_id, branch=@branch, branch_id=@branch_id, office_email=@office_email, id_card_mti=@id_card_mti, residen=@residen, field=@field
         WHERE employee_id=@employee_id
       ELSE
-        INSERT INTO dbo.employee_core (employee_id, name, gender, place_of_birth, date_of_birth, marital_status, religion, nationality, blood_type, kartu_keluarga_no, ktp_no, npwp, tax_status, education, imip_id, branch, branch_id, office_email, id_card_mti, field)
-        VALUES (@employee_id, @name, @gender, @place_of_birth, @date_of_birth, @marital_status, @religion, @nationality, @blood_type, @kartu_keluarga_no, @ktp_no, @npwp, @tax_status, @education, @imip_id, @branch, @branch_id, @office_email, @id_card_mti, @field);
+        INSERT INTO dbo.employee_core (employee_id, name, gender, place_of_birth, date_of_birth, marital_status, religion, nationality, blood_type, kartu_keluarga_no, ktp_no, npwp, tax_status, education, imip_id, branch, branch_id, office_email, id_card_mti, residen, field)
+        VALUES (@employee_id, @name, @gender, @place_of_birth, @date_of_birth, @marital_status, @religion, @nationality, @blood_type, @kartu_keluarga_no, @ktp_no, @npwp, @tax_status, @education, @imip_id, @branch, @branch_id, @office_email, @id_card_mti, @residen, @field);
     `);
     request.parameters = {};
     request.input("employee_id", sql.VarChar(100), id);
@@ -1618,6 +1537,7 @@ employeesRouter.post("/import", async (req, res) => {
         { column: "branch_id", param: "branch_id", sqlType: sql.NVarChar(50), value: (r as any).branch_id || null },
         { column: "imip_id", param: "imip_id", sqlType: sql.NVarChar(50), value: ((r as any).imip_id ? String((r as any).imip_id) : id) },
         { column: "id_card_mti", param: "id_card_mti", sqlType: sql.Bit(), value: (() => { const v = String((r as any).id_card_mti || "").trim().toLowerCase(); if (!v) return null; if (v === "1" || v === "y" || v === "yes" || v === "true") return 1; if (v === "0" || v === "n" || v === "no" || v === "false") return 0; return null; })() },
+        { column: "residen", param: "residen", sqlType: sql.Bit(), value: (() => { const v = String((r as any).residen || "").trim().toLowerCase(); if (!v) return null; if (v === "1" || v === "y" || v === "yes" || v === "true") return 1; if (v === "0" || v === "n" || v === "no" || v === "false") return 0; return null; })() },
       ];
       const contactFields = [
         { column: "phone_number", param: "phone_number", sqlType: sql.NVarChar(50), value: (r as any).phone_number || null },
@@ -1755,7 +1675,8 @@ employeesRouter.post("/import", async (req, res) => {
 });
 
 employeesRouter.get("/:id", async (req, res) => {
-  const id = String(req.params.id);
+  const id = String(req.params.id || "").trim();
+  if (!id) return res.status(400).json({ error: "EMPLOYEE_ID_REQUIRED" });
   const pool = getPool();
   try {
     await pool.connect();
@@ -1787,7 +1708,7 @@ employeesRouter.get("/:id", async (req, res) => {
         SELECT
           core.employee_id, core.name, core.gender, core.place_of_birth, core.date_of_birth, core.marital_status,
           core.religion, core.nationality, core.blood_type, core.kartu_keluarga_no, core.ktp_no, core.npwp,
-          core.tax_status, core.education, core.office_email, core.branch, core.branch_id, core.imip_id, core.id_card_mti, core.field,
+          core.tax_status, core.education, core.office_email, core.branch, core.branch_id, core.imip_id, core.id_card_mti, core.residen, core.field,
           contact.phone_number, contact.email, contact.address, contact.city,
           contact.spouse_name, contact.child_name_1, contact.child_name_2, contact.child_name_3,
           contact.emergency_contact_name, contact.emergency_contact_phone,
@@ -1841,6 +1762,7 @@ employeesRouter.get("/:id", async (req, res) => {
         branch_id: r.branch_id,
         imip_id: r.imip_id,
         id_card_mti: r.id_card_mti,
+        residen: r.residen,
         field: r.field,
       },
       contact: {

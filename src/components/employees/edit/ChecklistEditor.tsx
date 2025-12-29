@@ -184,6 +184,7 @@ interface ChecklistEditorProps {
   };
   core: {
     id_card_mti?: boolean;
+    residen?: boolean;
   };
   employeeType: EmployeeType;
   employeeStatus: EmployeeStatus;
@@ -191,7 +192,7 @@ interface ChecklistEditorProps {
   onChecklistChange: (key: keyof EmployeeChecklist, value: boolean) => void;
   onInsuranceChange: (key: 'insurance_endorsement' | 'insurance_owlexa' | 'insurance_fpg', value: boolean) => void;
   onEmploymentChange: (key: 'blacklist_mti' | 'blacklist_imip', value: boolean) => void;
-  onCoreChange: (key: 'id_card_mti', value: boolean) => void;
+  onCoreChange: (key: 'id_card_mti' | 'residen', value: boolean) => void;
 }
 
 export const ChecklistEditor = ({
@@ -224,6 +225,7 @@ export const ChecklistEditor = ({
   const applicableInsuranceItems = insuranceItems.filter(isApplicable);
   const applicableBlacklistItems = blacklistItems.filter(isApplicable);
   const showIdCardMti = (employeeType === 'indonesia' && employeeStatus === 'inactive');
+  const showResiden = employeeType === 'expat';
 
   const completedCount = 
     applicableChecklistItems.filter(item => checklist[item.key]).length +
@@ -344,6 +346,29 @@ export const ChecklistEditor = ({
         </Card>
       )}
 
+      {showResiden && (
+        <Card>
+          <CardHeader className="pb-3">
+            <div className="flex items-center gap-2">
+              <CheckSquare className="h-5 w-5 text-primary" />
+              <CardTitle className="text-base">Residency</CardTitle>
+            </div>
+          </CardHeader>
+          <CardContent>
+            <ChecklistItemRow
+              label="Residen"
+              description="Employee is a resident"
+              checked={!!core.residen}
+              disabled={canWrite ? !canWrite("core", "residen") : false}
+              onChange={(checked) => {
+                if (canWrite && !canWrite("core", "residen")) return;
+                onCoreChange('residen', checked);
+              }}
+            />
+          </CardContent>
+        </Card>
+      )}
+
       {/* Blacklist Items */}
       {applicableBlacklistItems.length > 0 && (
         <Card className="border-destructive/50">
@@ -381,7 +406,8 @@ export const ChecklistEditor = ({
       {applicableChecklistItems.length === 0 && 
        applicableInsuranceItems.length === 0 && 
        applicableBlacklistItems.length === 0 &&
-       !showIdCardMti && (
+       !showIdCardMti &&
+       !showResiden && (
         <Card>
           <CardContent className="py-8 text-center">
             <p className="text-muted-foreground">

@@ -310,7 +310,7 @@ export default function SyncSettings() {
 
               {scheduleMode !== "none" && (
                 <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
-                  {scheduleMode !== "custom" && (
+                  {scheduleMode !== "custom" ? (
                     <>
                       <div className="space-y-2">
                         <div className="text-xs text-muted-foreground">Minute</div>
@@ -369,18 +369,18 @@ export default function SyncSettings() {
                         </div>
                       )}
                     </>
+                  ) : (
+                    <div className="space-y-2 md:col-span-2">
+                      <div className="text-xs text-muted-foreground">Cron</div>
+                      <Input
+                        placeholder="e.g. 0 2 * * *"
+                        value={schedule}
+                        onChange={(e) => setSchedule(e.target.value)}
+                        disabled={loading || running}
+                        className="font-mono text-xs"
+                      />
+                    </div>
                   )}
-
-                  <div className="space-y-2 md:col-span-2">
-                    <div className="text-xs text-muted-foreground">Cron</div>
-                    <Input
-                      placeholder="e.g. 0 2 * * *"
-                      value={schedule}
-                      onChange={(e) => setSchedule(e.target.value)}
-                      disabled={loading || running || scheduleMode !== "custom"}
-                      className="font-mono text-xs"
-                    />
-                  </div>
                 </div>
               )}
             </div>

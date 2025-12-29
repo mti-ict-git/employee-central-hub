@@ -364,6 +364,7 @@ const EmployeeDetail = () => {
               <InfoRow label="Marital Status" value={employee.core?.marital_status} visible={canReadCol("core","marital_status")} />
               <InfoRow label="Religion" value={employee.core?.religion} visible={canReadCol("core","religion")} />
               <InfoRow label="Nationality" value={employee.core?.nationality} visible={canReadCol("core","nationality")} />
+              <InfoRow label="Residen" value={employee.core?.residen ?? null} visible={canReadCol("core","residen")} />
               <InfoRow label="Blood Type" value={employee.core?.blood_type} visible={canReadCol("core","blood_type")} />
               <InfoRow label="Month of Birthday" value={computeMonthOfBirthday(employee.core?.date_of_birth)} visible={canReadCol("core","date_of_birth")} />
               <InfoRow
