@@ -13,12 +13,28 @@ import { DropdownMenu, DropdownMenuCheckboxItem, DropdownMenuContent, DropdownMe
 import { Input } from "@/components/ui/input";
 import { fetchColumnAccess } from "@/lib/rbac";
 
+type EmployeeListAPIItem = {
+  core?: Partial<EmployeeCore>;
+  contact?: Partial<EmployeeContact>;
+  employment?: Partial<EmployeeEmployment>;
+  onboard?: Partial<EmployeeOnboard>;
+  bank?: Partial<EmployeeBank>;
+  insurance?: Partial<EmployeeInsurance>;
+  travel?: Partial<EmployeeTravel>;
+  checklist?: Partial<EmployeeChecklist>;
+  notes?: Partial<EmployeeNotes>;
+  type?: EmployeeType;
+};
+
 const EmployeeList = () => {
   const [searchParams] = useSearchParams();
   const [search, setSearch] = useState("");
   const [typeFilter, setTypeFilter] = useState(searchParams.get('type') || 'all');
   const [statusFilter, setStatusFilter] = useState('all');
   const [remoteEmployees, setRemoteEmployees] = useState<Employee[]>([]);
+  const [offset, setOffset] = useState(0);
+  const [serverTotal, setServerTotal] = useState<number | null>(null);
+  const [hasMore, setHasMore] = useState(false);
   const [loading, setLoading] = useState(false);
   const [updating, setUpdating] = useState(false);
   const [error, setError] = useState<string | null>(null);
@@ -32,26 +48,25 @@ const EmployeeList = () => {
     const ctrl = new AbortController();
     const run = async () => {
       try {
-        const initial = remoteEmployees.length === 0;
-        if (initial) setLoading(true);
-        else setUpdating(true);
+        setLoading(true);
+        setUpdating(false);
         setError(null);
+        setSelected(new Set());
+        setRemoteEmployees([]);
+        setOffset(0);
+        setServerTotal(null);
+        setHasMore(false);
         const reqCols = visibleColumns.filter((c) => c !== "type").join(",");
-        const res = await apiFetch(`/employees?limit=500${reqCols ? `&columns=${encodeURIComponent(reqCols)}` : ""}`, { signal: ctrl.signal, credentials: "include" });
+        const params = new URLSearchParams();
+        params.set("limit", "500");
+        params.set("offset", "0");
+        if (reqCols) params.set("columns", reqCols);
+        const q = search.trim();
+        if (q) params.set("q", q);
+        if (typeFilter !== "all") params.set("type", typeFilter);
+        const res = await apiFetch(`/employees?${params.toString()}`, { signal: ctrl.signal, credentials: "include" });
         if (!res.ok) throw new Error(`HTTP_${res.status}`);
         const data = await res.json();
-        type EmployeeListAPIItem = {
-          core?: Partial<EmployeeCore>;
-          contact?: Partial<EmployeeContact>;
-          employment?: Partial<EmployeeEmployment>;
-          onboard?: Partial<EmployeeOnboard>;
-          bank?: Partial<EmployeeBank>;
-          insurance?: Partial<EmployeeInsurance>;
-          travel?: Partial<EmployeeTravel>;
-          checklist?: Partial<EmployeeChecklist>;
-          notes?: Partial<EmployeeNotes>;
-          type?: EmployeeType;
-        };
         const items: Employee[] = (data.items || []).map((e: EmployeeListAPIItem) => {
           const employeeId = String(e.core?.employee_id ?? "");
           const name = String(e.core?.name ?? "");
@@ -94,6 +109,13 @@ const EmployeeList = () => {
             employee_id: employeeId,
             ...((e.notes || {}) as Partial<EmployeeNotes>),
           };
+          const typeById = (() => {
+            const up = employeeId.toUpperCase();
+            if (up.startsWith("MTIBJ")) return "expat";
+            if (up.startsWith("MTI")) return "indonesia";
+            return undefined;
+          })();
+          const typeServer = e.type === "indonesia" ? "indonesia" : "expat";
           const out: Employee = {
             core,
             contact,
@@ -104,44 +126,29 @@ const EmployeeList = () => {
             travel,
             checklist,
             notes,
-            type: (e.type === "indonesia" ? "indonesia" : "expat"),
+            type: typeById || typeServer,
           };
           return out;
         });
         setRemoteEmployees(items);
-        try {
-          const prefRes = await apiFetch(`/users/me/preferences?key=employee_list_columns`, { signal: ctrl.signal, credentials: "include" });
-          if (prefRes.ok) {
-            const prefs = await prefRes.json().catch(() => ({}));
-            const cols = Array.isArray(prefs?.employee_list_columns) ? prefs.employee_list_columns as string[] : null;
-            const defaults = ["core.employee_id","core.name","type","employment.department","employment.job_title","employment.status"];
-            if (cols && cols.length) {
-              const migrated = cols.map((c) => {
-                if (c === "employee_id") return "core.employee_id";
-                if (c === "name") return "core.name";
-                if (c === "department") return "employment.department";
-                if (c === "job_title") return "employment.job_title";
-                if (c === "status") return "employment.status";
-                return c;
-              });
-              const sanitized = migrated.filter((c) => typeof c === "string" && c.length > 0);
-              if (sanitized.length) setVisibleColumns(sanitized);
-              else setVisibleColumns(defaults);
-            } else {
-              setVisibleColumns(defaults);
-            }
-          }
-        } catch (e) { void e; }
+        const total = Number(data?.paging?.total ?? NaN);
+        if (!isNaN(total)) {
+          setServerTotal(total);
+          setHasMore(items.length < total);
+        } else {
+          setServerTotal(null);
+          setHasMore(false);
+        }
+        setOffset(items.length);
       } catch (err: unknown) {
         setError(err instanceof Error ? err.message : "FAILED_TO_FETCH_EMPLOYEES");
       } finally {
-        if (remoteEmployees.length === 0) setLoading(false);
-        else setUpdating(false);
+        setLoading(false);
       }
     };
     run();
     return () => ctrl.abort();
-  }, [visibleColumns, remoteEmployees.length]);
+  }, [visibleColumns, search, typeFilter]);
 
   useEffect(() => {
     const ctrl = new AbortController();
@@ -186,6 +193,86 @@ const EmployeeList = () => {
     run();
     return () => ctrl.abort();
   }, [rbacReady, caps]);
+
+  const loadMore = async () => {
+    try {
+      if (!hasMore) return;
+      setUpdating(true);
+      const reqCols = visibleColumns.filter((c) => c !== "type").join(",");
+      const params = new URLSearchParams();
+      params.set("limit", "500");
+      params.set("offset", String(offset));
+      if (reqCols) params.set("columns", reqCols);
+      const q = search.trim();
+      if (q) params.set("q", q);
+      if (typeFilter !== "all") params.set("type", typeFilter);
+      const res = await apiFetch(`/employees?${params.toString()}`, { credentials: "include" });
+      const data = await res.json().catch(() => null);
+      if (!res.ok) throw new Error(data?.error || `HTTP_${res.status}`);
+      const items: Employee[] = (data?.items || []).map((e: EmployeeListAPIItem) => {
+        const employeeId = String(e.core?.employee_id ?? "");
+        const name = String(e.core?.name ?? "");
+        const gender = (e.core?.gender ?? "Male") as "Male" | "Female";
+        const core: EmployeeCore = { employee_id: employeeId, name, gender, ...((e.core || {}) as Partial<EmployeeCore>) };
+        const contact: EmployeeContact = { employee_id: employeeId, ...((e.contact || {}) as Partial<EmployeeContact>) };
+        const employment: EmployeeEmployment = { employee_id: employeeId, ...((e.employment || {}) as Partial<EmployeeEmployment>) };
+        const onboard: EmployeeOnboard = { employee_id: employeeId, ...((e.onboard || {}) as Partial<EmployeeOnboard>) };
+        const bank: EmployeeBank = { employee_id: employeeId, ...((e.bank || {}) as Partial<EmployeeBank>) };
+        const insurance: EmployeeInsurance = { employee_id: employeeId, ...((e.insurance || {}) as Partial<EmployeeInsurance>) };
+        const travel: EmployeeTravel = { employee_id: employeeId, ...((e.travel || {}) as Partial<EmployeeTravel>) };
+        const checklist: EmployeeChecklist = { employee_id: employeeId, ...((e.checklist || {}) as Partial<EmployeeChecklist>) };
+        const notes: EmployeeNotes = { employee_id: employeeId, ...((e.notes || {}) as Partial<EmployeeNotes>) };
+        const typeById = (() => {
+          const up = employeeId.toUpperCase();
+          if (up.startsWith("MTIBJ")) return "expat";
+          if (up.startsWith("MTI")) return "indonesia";
+          return undefined;
+        })();
+        const typeServer = e.type === "indonesia" ? "indonesia" : "expat";
+        return { core, contact, employment, onboard, bank, insurance, travel, checklist, notes, type: typeById || typeServer };
+      });
+      setRemoteEmployees((prev) => [...prev, ...items]);
+      const total = Number(data?.paging?.total ?? NaN);
+      const newOffset = offset + items.length;
+      setOffset(newOffset);
+      if (!isNaN(total)) setHasMore(newOffset < total);
+    } catch (e: unknown) {
+      toast({ title: "Error", description: e instanceof Error ? e.message : "Failed to load more", variant: "destructive" });
+    } finally {
+      setUpdating(false);
+    }
+  };
+
+  useEffect(() => {
+    const ctrl = new AbortController();
+    const run = async () => {
+      try {
+        const prefRes = await apiFetch(`/users/me/preferences?key=employee_list_columns`, { signal: ctrl.signal, credentials: "include" });
+        if (!prefRes.ok) return;
+        const prefs = await prefRes.json().catch(() => ({}));
+        const cols = Array.isArray(prefs?.employee_list_columns) ? (prefs.employee_list_columns as string[]) : null;
+        const defaults = ["core.employee_id","core.name","type","employment.department","employment.job_title","employment.status"];
+        const next = (() => {
+          if (cols && cols.length) {
+            const migrated = cols.map((c) => {
+              if (c === "employee_id") return "core.employee_id";
+              if (c === "name") return "core.name";
+              if (c === "department") return "employment.department";
+              if (c === "job_title") return "employment.job_title";
+              if (c === "status") return "employment.status";
+              return c;
+            });
+            const sanitized = migrated.filter((c) => typeof c === "string" && c.length > 0);
+            return sanitized.length ? sanitized : defaults;
+          }
+          return defaults;
+        })();
+        setVisibleColumns(next);
+      } catch (e: unknown) { void e; }
+    };
+    run();
+    return () => ctrl.abort();
+  }, []);
 
   const filteredEmployees = useMemo(() => {
     const list = remoteEmployees.filter((employee) => {
@@ -343,7 +430,11 @@ const EmployeeList = () => {
   return (
     <MainLayout 
       title="Employee List" 
-      subtitle={`${filteredEmployees.length} employees found`}
+      subtitle={
+        serverTotal !== null
+          ? `${filteredEmployees.length} of ${serverTotal} employees`
+          : `${filteredEmployees.length} employees found`
+      }
     >
       {/* Header Actions */}
       <div className="flex flex-wrap items-center justify-between gap-4 mb-6">
@@ -368,6 +459,32 @@ const EmployeeList = () => {
             <Download className="mr-2 h-4 w-4" />
             Export
           </Button>
+          {(caps?.canManageUsers || caps?.canCreateEmployees) && (
+            <Button
+              variant="outline"
+              onClick={async () => {
+                try {
+                  const ok = window.confirm("Run sync now? This will write updates to destination.");
+                  if (!ok) return;
+                  const r = await apiFetch(`/sync/run`, {
+                    method: "POST",
+                    credentials: "include",
+                    headers: { "Content-Type": "application/json" },
+                    body: JSON.stringify({ dry_run: false, limit: 1000, offset: 0 }),
+                  });
+                  const d = await r.json().catch(() => null);
+                  if (!r.ok) throw new Error(d?.error || `HTTP_${r.status}`);
+                  const s = d?.stats;
+                  const msg = s ? `Inserted ${s.inserted}, Updated ${s.updated}, Skipped ${s.skipped}` : "Sync completed";
+                  toast({ title: "Manual Sync", description: msg });
+                } catch (e: unknown) {
+                  toast({ title: "Error", description: e instanceof Error ? e.message : "Failed to run sync", variant: "destructive" });
+                }
+              }}
+            >
+              Sync
+            </Button>
+          )}
           <DropdownMenu>
             <DropdownMenuTrigger asChild>
               <Button variant="outline">
@@ -455,6 +572,11 @@ const EmployeeList = () => {
             <Button variant="link" onClick={handleClearFilters}>
               Clear filters
             </Button>
+          </div>
+        )}
+        {hasMore && (
+          <div className="mt-4 flex justify-center">
+            <Button variant="outline" onClick={loadMore} disabled={updating}>Load More</Button>
           </div>
         )}
       </div>

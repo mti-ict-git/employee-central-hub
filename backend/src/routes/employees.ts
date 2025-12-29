@@ -650,8 +650,8 @@ function extractDbErrorDetails(err: unknown): { code?: string; number?: number; 
   return { code, number, state, name };
 }
   employeesRouter.get("/", async (req, res) => {
-  const limit = Math.min(parseInt(String(req.query.limit || "50"), 10) || 50, 200);
-  const offset = parseInt(String(req.query.offset || "0"), 10) || 0;
+  const limit = Math.min(parseInt(String(req.query.limit || "50"), 10) || 50, 5000);
+  const offset = Math.max(0, parseInt(String(req.query.offset || "0"), 10) || 0);
   const pool = getPool();
   try {
     await pool.connect();
@@ -676,7 +676,22 @@ function extractDbErrorDetails(err: unknown): { code?: string; number?: number; 
     }
     const request = new sql.Request(pool);
     if (isDepRep && userDept) request.input("department", sql.NVarChar(100), userDept);
-    const whereClause = isDepRep ? "WHERE emp.department IS NOT NULL AND LTRIM(RTRIM(emp.department)) <> '' AND LOWER(emp.department) = LOWER(@department)" : "";
+    const qRaw = String(req.query.q || "").trim().toLowerCase();
+    if (qRaw) request.input("q", sql.NVarChar(200), `%${qRaw}%`);
+    const whereParts: string[] = [];
+    if (isDepRep) whereParts.push("emp.department IS NOT NULL AND LTRIM(RTRIM(emp.department)) <> '' AND LOWER(emp.department) = LOWER(@department)");
+    const needsEmploymentJoinForSearch = !!qRaw;
+    const typeParam = String(req.query.type || "").trim().toLowerCase();
+    const searchClause = qRaw
+      ? "(LOWER(core.name) LIKE @q OR LOWER(core.employee_id) LIKE @q OR LOWER(emp.department) LIKE @q OR LOWER(emp.job_title) LIKE @q)"
+      : "";
+    if (searchClause) whereParts.push(searchClause);
+    if (typeParam === "expat") {
+      whereParts.push("(LOWER(core.nationality) <> 'indonesia')");
+    } else if (typeParam === "indonesia") {
+      whereParts.push("(LOWER(core.nationality) = 'indonesia')");
+    }
+    const whereClause = whereParts.length ? `WHERE ${whereParts.join(" AND ")}` : "";
     const rawColsParam = String(req.query.columns || "").trim();
     const requestedKeys = rawColsParam
       ? rawColsParam.split(",").map((s) => s.trim().toLowerCase()).filter((s) => !!s)
@@ -737,7 +752,8 @@ function extractDbErrorDetails(err: unknown): { code?: string; number?: number; 
       || userTemplateAllowed.has("employment.department")
       || userTemplateAllowed.has("employment.status")
       || userTemplateAllowed.has("employment.job_title");
-    if (wantDefaultEmployment) {
+    const needsEmploymentJoin = wantDefaultEmployment || needsEmploymentJoinForSearch || isDepRep;
+    if (needsEmploymentJoin) {
       joins.add("employment");
       if (!userTemplateAllowed || userTemplateAllowed.has("employment.department")) selectParts.push("emp.department");
       if (!userTemplateAllowed || userTemplateAllowed.has("employment.status")) selectParts.push("emp.status");
@@ -764,11 +780,25 @@ function extractDbErrorDetails(err: unknown): { code?: string; number?: number; 
       OFFSET ${offset} ROWS FETCH NEXT ${limit} ROWS ONLY;
     `;
     let result: sql.IResult<any>;
+    let totalCount = 0;
+    try {
+      const countJoins = joinClauses.filter((j) => j.includes("employee_employment AS emp"));
+      const countSql = `
+        SELECT COUNT(DISTINCT core.employee_id) AS total
+        FROM dbo.employee_core AS core
+        ${countJoins.join("\n")}
+        ${whereClause}
+      `;
+      const countRes = await request.query(countSql);
+      totalCount = Number(((countRes.recordset || [])[0] as { total?: unknown })?.total || 0);
+    } catch {
+      totalCount = 0;
+    }
     try {
       result = await request.query(sqlText);
     } catch {
       const fbJoins: string[] = [];
-      const includeEmployment = wantDefaultEmployment || isDepRep;
+      const includeEmployment = wantDefaultEmployment || isDepRep || needsEmploymentJoinForSearch;
       if (includeEmployment) fbJoins.push("LEFT JOIN dbo.employee_employment AS emp ON emp.employee_id = core.employee_id");
       const fbSelect: string[] = ["core.employee_id", "core.name"];
       fbSelect.push("core.nationality");
@@ -820,7 +850,7 @@ function extractDbErrorDetails(err: unknown): { code?: string; number?: number; 
       }
       return out;
     });
-    return res.json({ items: data, paging: { limit, offset, count: data.length } });
+    return res.json({ items: data, paging: { limit, offset, count: data.length, total: totalCount } });
   } catch (err: unknown) {
     const message = err instanceof Error ? err.message : "FAILED_TO_QUERY_EMPLOYEES";
     const details = extractDbErrorDetails(err);

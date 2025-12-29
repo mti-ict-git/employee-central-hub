@@ -8,6 +8,7 @@
     "build": "tsc -p tsconfig.json",
     "start": "node dist/server.js",
     "typecheck": "tsc --noEmit -p tsconfig.json",
+    "inspect:workflow:mtiusers": "tsx scripts/inspect-workflow-users.ts",
     "scan:schema": "tsx scripts/scan-schema.ts",
     "map:schema": "tsx scripts/map-schema-from-excel.ts",
     "map:schema:final": "tsx scripts/build-final-mapping.ts",
