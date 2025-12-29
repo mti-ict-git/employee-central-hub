@@ -46,6 +46,7 @@ const EmployeeList = () => {
 
   useEffect(() => {
     const ctrl = new AbortController();
+    let cancelled = false;
     const run = async () => {
       try {
         setLoading(true);
@@ -65,8 +66,10 @@ const EmployeeList = () => {
         if (q) params.set("q", q);
         if (typeFilter !== "all") params.set("type", typeFilter);
         const res = await apiFetch(`/employees?${params.toString()}`, { signal: ctrl.signal, credentials: "include" });
+        if (cancelled) return;
         if (!res.ok) throw new Error(`HTTP_${res.status}`);
         const data = await res.json();
+        if (cancelled) return;
         const items: Employee[] = (data.items || []).map((e: EmployeeListAPIItem) => {
           const employeeId = String(e.core?.employee_id ?? "");
           const name = String(e.core?.name ?? "");
@@ -130,6 +133,7 @@ const EmployeeList = () => {
           };
           return out;
         });
+        if (cancelled) return;
         setRemoteEmployees(items);
         const total = Number(data?.paging?.total ?? NaN);
         if (!isNaN(total)) {
@@ -141,13 +145,22 @@ const EmployeeList = () => {
         }
         setOffset(items.length);
       } catch (err: unknown) {
+        const aborted =
+          cancelled ||
+          ctrl.signal.aborted ||
+          (err instanceof DOMException && err.name === "AbortError") ||
+          (err instanceof Error && err.name === "AbortError");
+        if (aborted) return;
         setError(err instanceof Error ? err.message : "FAILED_TO_FETCH_EMPLOYEES");
       } finally {
-        setLoading(false);
+        if (!cancelled) setLoading(false);
       }
     };
     run();
-    return () => ctrl.abort();
+    return () => {
+      cancelled = true;
+      ctrl.abort();
+    };
   }, [visibleColumns, search, typeFilter]);
 
   useEffect(() => {
