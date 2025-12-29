@@ -51,6 +51,17 @@ async function getUserIdByUsername(pool: sql.ConnectionPool, username: string): 
   return typeof row?.id === "number" ? row.id : null;
 }
 
+async function getUserRoleById(pool: sql.ConnectionPool, id: number): Promise<string | null> {
+  const req = new sql.Request(pool);
+  req.input("Id", sql.Int, id);
+  const res = await req.query(`
+    SELECT TOP 1 Role AS role FROM dbo.login WHERE Id=@Id
+  `);
+  const row = (res.recordset || [])[0] as { role?: unknown } | undefined;
+  const role = row?.role === undefined || row?.role === null ? "" : String(row.role);
+  return role ? role : null;
+}
+
 usersRouter.get("/me/preferences", async (req, res) => {
   const pool = getPool();
   const key = String(req.query.key || "").trim();
@@ -323,12 +334,17 @@ usersRouter.put("/:id/role", async (req, res) => {
   const id = parseInt(String(req.params.id || "0"), 10);
   const role = String((req.body && req.body.role) || "").trim();
   if (!id || !role) return res.status(400).json({ error: "USER_ID_AND_ROLE_REQUIRED" });
-  if (!actorRoles.some((r) => canCreateRole(r, role))) {
-    return res.status(403).json({ error: "FORBIDDEN_UPDATE_ROLE" });
-  }
   const pool = getPool();
   try {
     await pool.connect();
+    const currentRole = await getUserRoleById(pool, id);
+    if (!currentRole) return res.status(404).json({ error: "USER_NOT_FOUND" });
+    if (!actorRoles.some((r) => canManageUsers(r, currentRole))) {
+      return res.status(403).json({ error: "FORBIDDEN_UPDATE_ROLE_TARGET" });
+    }
+    if (!actorRoles.some((r) => canCreateRole(r, role))) {
+      return res.status(403).json({ error: "FORBIDDEN_UPDATE_ROLE" });
+    }
     const request = new sql.Request(pool);
     request.input("Id", sql.Int, id);
     request.input("Role", sql.VarChar(50), role);
@@ -350,13 +366,18 @@ usersRouter.put("/:id", async (req, res) => {
   const role = String(body.role || "").trim();
   const department = String(body.department || "").trim();
   const status = String(body.status || "").toLowerCase(); // "active" | "inactive"
-  if (!actorRoles.some((r) => canManageUsers(r))) {
-    return res.status(403).json({ error: "FORBIDDEN_UPDATE_USER" });
-  }
   if (!id) return res.status(400).json({ error: "USER_ID_REQUIRED" });
   const pool = getPool();
   try {
     await pool.connect();
+    const currentRole = await getUserRoleById(pool, id);
+    if (!currentRole) return res.status(404).json({ error: "USER_NOT_FOUND" });
+    if (!actorRoles.some((r) => canManageUsers(r, currentRole))) {
+      return res.status(403).json({ error: "FORBIDDEN_UPDATE_USER" });
+    }
+    if (role && !actorRoles.some((r) => canCreateRole(r, role))) {
+      return res.status(403).json({ error: "FORBIDDEN_UPDATE_ROLE" });
+    }
     const request = new sql.Request(pool);
     request.input("Id", sql.Int, id);
     if (displayName) request.input("name", sql.VarChar(100), displayName);
@@ -388,13 +409,15 @@ usersRouter.put("/:id/lock", async (req, res) => {
   const id = parseInt(String(req.params.id || "0"), 10);
   const lock = Boolean(req.body && req.body.lock);
   const until = req.body && req.body.locked_until ? new Date(req.body.locked_until) : null;
-  if (!actorRoles.some((r) => canManageUsers(r))) {
-    return res.status(403).json({ error: "FORBIDDEN_UPDATE_LOCK" });
-  }
   if (!id) return res.status(400).json({ error: "USER_ID_REQUIRED" });
   const pool = getPool();
   try {
     await pool.connect();
+    const currentRole = await getUserRoleById(pool, id);
+    if (!currentRole) return res.status(404).json({ error: "USER_NOT_FOUND" });
+    if (!actorRoles.some((r) => canManageUsers(r, currentRole))) {
+      return res.status(403).json({ error: "FORBIDDEN_UPDATE_LOCK" });
+    }
     const request = new sql.Request(pool);
     request.input("Id", sql.Int, id);
     request.input("account_locked", sql.Bit, lock ? 1 : 0);
@@ -412,13 +435,15 @@ usersRouter.put("/:id/lock", async (req, res) => {
 usersRouter.delete("/:id", async (req, res) => {
   const actorRoles = req.user?.roles || [];
   const id = parseInt(String(req.params.id || "0"), 10);
-  if (!actorRoles.some((r) => canManageUsers(r))) {
-    return res.status(403).json({ error: "FORBIDDEN_DELETE_USER" });
-  }
   if (!id) return res.status(400).json({ error: "USER_ID_REQUIRED" });
   const pool = getPool();
   try {
     await pool.connect();
+    const currentRole = await getUserRoleById(pool, id);
+    if (!currentRole) return res.status(404).json({ error: "USER_NOT_FOUND" });
+    if (!actorRoles.some((r) => canManageUsers(r, currentRole))) {
+      return res.status(403).json({ error: "FORBIDDEN_DELETE_USER" });
+    }
     const request = new sql.Request(pool);
     request.input("Id", sql.Int, id);
     await request.query(`DELETE FROM dbo.login WHERE Id=@Id;`);
@@ -435,13 +460,15 @@ usersRouter.post("/:id/reset-password", async (req, res) => {
   const actorRoles = req.user?.roles || [];
   const id = parseInt(String(req.params.id || "0"), 10);
   const newPassword = String((req.body && req.body.password) || "").trim();
-  if (!actorRoles.some((r) => canManageUsers(r))) {
-    return res.status(403).json({ error: "FORBIDDEN_RESET_PASSWORD" });
-  }
   if (!id || !newPassword) return res.status(400).json({ error: "USER_ID_AND_PASSWORD_REQUIRED" });
   const pool = getPool();
   try {
     await pool.connect();
+    const currentRole = await getUserRoleById(pool, id);
+    if (!currentRole) return res.status(404).json({ error: "USER_NOT_FOUND" });
+    if (!actorRoles.some((r) => canManageUsers(r, currentRole))) {
+      return res.status(403).json({ error: "FORBIDDEN_RESET_PASSWORD" });
+    }
     const request = new sql.Request(pool);
     request.input("Id", sql.Int, id);
     const result = await request.query(`SELECT auth_type FROM dbo.login WHERE Id=@Id;`);

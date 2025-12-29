@@ -9,6 +9,18 @@ const perms: Record<string, { employees: Crud; manageUsers: boolean; reports?: {
   employee: { employees: { read: true, create: false, update: false, delete: false }, manageUsers: false, reports: { access: false, export: false } },
 };
 
+function normalizeRole(role: string): string {
+  const s = String(role || "").trim().toLowerCase();
+  if (s.includes("super")) return "superadmin";
+  if (s === "admin") return "admin";
+  if (s.includes("human resources") || s.includes("human resource")) return "hr_general";
+  if (s.includes("hr")) return "hr_general";
+  if (s.includes("finance")) return "finance";
+  if (s.includes("dep")) return "department_rep";
+  if (s.includes("employee")) return "employee";
+  return s;
+}
+
 const sectionRead: Record<string, string[]> = {
   superadmin: ["core","contact","employment","bank","insurance","onboard","travel","checklist","notes"],
   admin: ["core","contact","employment","bank","insurance","onboard","travel","checklist","notes"],
@@ -28,37 +40,41 @@ const sectionWrite: Record<string, string[]> = {
 };
 
 export function can(role: string, action: keyof Crud, module: "employees"): boolean {
-  const p = perms[role];
+  const p = perms[normalizeRole(role)];
   if (!p) return false;
   return p[module][action];
 }
 
 export function canManageUsers(actorRole: string, targetRole?: string): boolean {
-  const p = perms[actorRole];
+  const actor = normalizeRole(actorRole);
+  const target = targetRole ? normalizeRole(targetRole) : undefined;
+  const p = perms[actor];
   if (!p || !p.manageUsers) return false;
-  if (actorRole !== "superadmin" && targetRole === "superadmin") return false;
+  if (target === "superadmin") return actor === "superadmin" || actor === "admin";
   return true;
 }
 
 export function canCreateRole(actorRole: string, newRole: string): boolean {
-  if (newRole === "superadmin") return actorRole === "superadmin";
-  return perms[actorRole]?.manageUsers || false;
+  const actor = normalizeRole(actorRole);
+  const next = normalizeRole(newRole);
+  if (next === "superadmin") return actor === "superadmin" || actor === "admin";
+  return perms[actor]?.manageUsers || false;
 }
 
 export function readSectionsFor(role: string): Set<string> {
-  return new Set(sectionRead[role] || []);
+  return new Set(sectionRead[normalizeRole(role)] || []);
 }
 
 export function writeSectionsFor(role: string): Set<string> {
-  return new Set(sectionWrite[role] || []);
+  return new Set(sectionWrite[normalizeRole(role)] || []);
 }
 
 export function canAccessReport(role: string): boolean {
-  const p = perms[role];
+  const p = perms[normalizeRole(role)];
   return Boolean(p?.reports?.access);
 }
 
 export function canExportReport(role: string): boolean {
-  const p = perms[role];
+  const p = perms[normalizeRole(role)];
   return Boolean(p?.reports?.export);
 }

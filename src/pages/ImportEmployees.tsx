@@ -20,6 +20,7 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select";
+import { Checkbox } from "@/components/ui/checkbox";
 import {
   Card,
   CardContent,
@@ -59,8 +60,9 @@ interface ParsedEmployee {
 
 type ImportResult = {
   employee_id: string;
-  status: "success" | "failed";
+  status: "success" | "failed" | "skipped";
   error?: string;
+  action?: "inserted" | "updated" | "skipped" | "no_change";
 };
 
 const requiredFields = {
@@ -79,6 +81,120 @@ const allowedDepartments = new Set([
   "OHS",
 ]);
 
+const normalizeDate = (v: string | undefined): string | null => {
+  if (!v) return null;
+  const s = String(v).trim();
+  if (!s) return null;
+  if (/^\d{4}-\d{2}-\d{2}$/.test(s)) return s;
+  const m = s.match(/^(\d{1,2})[/\-.](\d{1,2})[/\-.](\d{4})$/);
+  if (m) {
+    const d1 = parseInt(m[1], 10);
+    const d2 = parseInt(m[2], 10);
+    const y = m[3];
+    const dd = d1 > 12 ? d1 : d2;
+    const mm = d1 > 12 ? d2 : d1;
+    const pad = (n: number) => (n < 10 ? `0${n}` : `${n}`);
+    if (mm >= 1 && mm <= 12 && dd >= 1 && dd <= 31) return `${y}-${pad(mm)}-${pad(dd)}`;
+  }
+  return null;
+};
+
+const validateRow = (row: Record<string, string>, type: "indonesia" | "expat"): string[] => {
+  const errors: string[] = [];
+  const required = requiredFields[type];
+
+  required.forEach((field) => {
+    if (!row[field] || row[field].trim() === "") {
+      errors.push(`${field} is required`);
+    }
+  });
+
+  if (row.gender && !["Male", "Female"].includes(row.gender)) {
+    errors.push("Gender must be 'Male' or 'Female'");
+  }
+
+  if (row.employment_status) {
+    const normalized = String(row.employment_status)
+      .trim()
+      .toLowerCase()
+      .replace(/\s+/g, "_")
+      .replace(/-+/g, "_")
+      .replace(/__+/g, "_");
+    const mapped =
+      normalized === "internship"
+        ? "intern"
+        : normalized === "permanent"
+        ? "active"
+        : normalized === "inactive" || normalized === "nonactive" || normalized === "not_active"
+        ? "non_active"
+        : normalized === "non_active"
+        ? "non_active"
+        : normalized;
+    const allowed = ["suspended", "retired", "terminated", "non_active", "intern", "contract", "probation", "active"];
+    if (!allowed.includes(mapped)) {
+      errors.push("Invalid employment status");
+    }
+  }
+
+  const dateFields = [
+    "date_of_birth",
+    "join_date",
+    "first_join_date",
+    "end_contract",
+    "terminated_date",
+    "passport_expiry",
+    "kitas_expiry",
+    "first_join_date_merdeka",
+    "travel_in",
+    "travel_out",
+  ];
+  dateFields.forEach((field) => {
+    if (row[field] && !/^\d{4}-\d{2}-\d{2}$/.test(row[field])) {
+      const n = normalizeDate(row[field]);
+      if (n) {
+        row[field] = n;
+        return;
+      }
+      errors.push(`${field} should be in YYYY-MM-DD format`);
+    }
+  });
+
+  if (row.grade && row.grade.trim() !== "") {
+    const g = Number(row.grade);
+    if (!Number.isFinite(g) || g < 7 || g > 22) {
+      errors.push("grade must be between 7 and 22");
+    }
+  }
+
+  if (row.department && row.department.trim() !== "") {
+    if (!allowedDepartments.has(row.department.trim())) {
+      errors.push(`department must be one of: ${Array.from(allowedDepartments).join(", ")}`);
+    }
+  }
+
+  if (row.status && row.status.trim() !== "") {
+    const normalized = String(row.status).trim().toLowerCase().replace(/\s+/g, "_").replace(/-+/g, "_").replace(/__+/g, "_");
+    const mapped =
+      normalized === "resigned" ? "resign" :
+      normalized === "non_active" || normalized === "nonactive" ? "inactive" :
+      normalized;
+    const allowed = ["active", "inactive", "resign", "terminated"];
+    if (!allowed.includes(mapped)) {
+      errors.push("Invalid status");
+    }
+    if (mapped === "terminated") {
+      if (!row.terminated_type || row.terminated_type.trim() === "") {
+        errors.push("terminated_type is required when status is terminated");
+      }
+      if (!row.terminated_date || row.terminated_date.trim() === "") {
+        errors.push("terminated_date is required when status is terminated");
+      }
+    }
+  }
+
+  return errors;
+};
+
 const ImportEmployees = () => {
   const navigate = useNavigate();
   const [employeeType, setEmployeeType] = useState<"indonesia" | "expat">("indonesia");
@@ -87,114 +203,9 @@ const ImportEmployees = () => {
   const [isUploading, setIsUploading] = useState(false);
   const [isDragging, setIsDragging] = useState(false);
   const [isImporting, setIsImporting] = useState(false);
-
-  const normalizeDate = (v: string | undefined): string | null => {
-    if (!v) return null;
-    const s = String(v).trim();
-    if (!s) return null;
-    if (/^\d{4}-\d{2}-\d{2}$/.test(s)) return s;
-    const m = s.match(/^(\d{1,2})[/\-.](\d{1,2})[/\-.](\d{4})$/);
-    if (m) {
-      const d1 = parseInt(m[1], 10);
-      const d2 = parseInt(m[2], 10);
-      const y = m[3];
-      const dd = d1 > 12 ? d1 : d2;
-      const mm = d1 > 12 ? d2 : d1;
-      const pad = (n: number) => (n < 10 ? `0${n}` : `${n}`);
-      if (mm >= 1 && mm <= 12 && dd >= 1 && dd <= 31) return `${y}-${pad(mm)}-${pad(dd)}`;
-    }
-    return null;
-  };
-  const validateRow = (row: Record<string, string>, type: "indonesia" | "expat"): string[] => {
-    const errors: string[] = [];
-    const required = requiredFields[type];
-
-    required.forEach((field) => {
-      if (!row[field] || row[field].trim() === "") {
-        errors.push(`${field} is required`);
-      }
-    });
-
-    // Validate gender
-    if (row.gender && !["Male", "Female"].includes(row.gender)) {
-      errors.push("Gender must be 'Male' or 'Female'");
-    }
-
-    // Validate employment status
-    if (row.employment_status) {
-      const normalized = String(row.employment_status)
-        .trim()
-        .toLowerCase()
-        .replace(/\s+/g, "_")
-        .replace(/-+/g, "_")
-        .replace(/__+/g, "_");
-      const mapped =
-        normalized === "internship"
-          ? "intern"
-          : normalized === "permanent"
-          ? "active"
-          : normalized === "inactive" || normalized === "nonactive" || normalized === "not_active"
-          ? "non_active"
-          : normalized === "non_active"
-          ? "non_active"
-          : normalized;
-      const allowed = ["suspended", "retired", "terminated", "non_active", "intern", "contract", "probation", "active"];
-      if (!allowed.includes(mapped)) {
-        errors.push("Invalid employment status");
-      }
-    }
-
-    // Validate date format (basic check)
-    const dateFields = ["date_of_birth", "join_date", "first_join_date", "end_contract", "terminated_date", "passport_expiry", "kitas_expiry", "first_join_date_merdeka", "travel_in", "travel_out"];
-    dateFields.forEach((field) => {
-      if (row[field] && !/^\d{4}-\d{2}-\d{2}$/.test(row[field])) {
-        const n = normalizeDate(row[field]);
-        if (n) {
-          row[field] = n;
-          return;
-        }
-        errors.push(`${field} should be in YYYY-MM-DD format`);
-      }
-    });
-
-    // Validate grade range when present
-    if (row.grade && row.grade.trim() !== "") {
-      const g = Number(row.grade);
-      if (!Number.isFinite(g) || g < 7 || g > 22) {
-        errors.push("grade must be between 7 and 22");
-      }
-    }
-
-    // Validate department against allowed list
-    if (row.department && row.department.trim() !== "") {
-      if (!allowedDepartments.has(row.department.trim())) {
-        errors.push(`department must be one of: ${Array.from(allowedDepartments).join(", ")}`);
-      }
-    }
-
-    // Validate status simplified lifecycle
-    if (row.status && row.status.trim() !== "") {
-      const normalized = String(row.status).trim().toLowerCase().replace(/\s+/g, "_").replace(/-+/g, "_").replace(/__+/g, "_");
-      const mapped =
-        normalized === "resigned" ? "resign" :
-        normalized === "non_active" || normalized === "nonactive" ? "inactive" :
-        normalized;
-      const allowed = ["active", "inactive", "resign", "terminated"];
-      if (!allowed.includes(mapped)) {
-        errors.push("Invalid status");
-      }
-      if (mapped === "terminated") {
-        if (!row.terminated_type || row.terminated_type.trim() === "") {
-          errors.push("terminated_type is required when status is terminated");
-        }
-        if (!row.terminated_date || row.terminated_date.trim() === "") {
-          errors.push("terminated_date is required when status is terminated");
-        }
-      }
-    }
-
-    return errors;
-  };
+  const [onExist, setOnExist] = useState<"update" | "skip" | "error">("update");
+  const [updateMode, setUpdateMode] = useState<"overwrite" | "only_filled">("only_filled");
+  const [dryRun, setDryRun] = useState(false);
 
   const handleFileSelect = useCallback((selectedFile: File) => {
     if (!selectedFile) return;
@@ -292,24 +303,38 @@ const ImportEmployees = () => {
 
     try {
       const rows = validRecords.map(v => v.data);
-      const res = await apiFetch(`/employees/import`, {
+      const params = new URLSearchParams();
+      params.set("on_exist", onExist);
+      params.set("update_mode", updateMode);
+      if (dryRun) params.set("dry_run", "1");
+      const qs = params.toString();
+      const res = await apiFetch(`/employees/import${qs ? `?${qs}` : ""}`, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify(rows),
       });
       if (!res.ok) throw new Error(`HTTP_${res.status}`);
-      const json: { success: number; failed: number; total: number; results?: ImportResult[] } = await res.json();
+      const json: {
+        success: number;
+        failed: number;
+        skipped?: number;
+        inserted?: number;
+        updated?: number;
+        total: number;
+        results?: ImportResult[];
+        dry_run?: boolean;
+      } = await res.json();
 
       toast({
-        title: "Import successful",
-        description: `${json.success} imported, ${json.failed} failed out of ${json.total}.`,
+        title: json.dry_run ? "Dry run completed" : "Import completed",
+        description: `${json.inserted || 0} inserted, ${json.updated || 0} updated, ${json.skipped || 0} skipped, ${json.failed} failed out of ${json.total}.`,
       });
       const results: ImportResult[] = Array.isArray(json.results) ? (json.results as ImportResult[]) : [];
       if (results.some((r) => r.status === "failed")) {
         console.warn("Import results", results);
       }
 
-      navigate("/employees");
+      if (!json.dry_run) navigate("/employees");
     } catch (error) {
       toast({
         title: "Import failed",
@@ -537,6 +562,46 @@ const ImportEmployees = () => {
               </CardDescription>
             </CardHeader>
             <CardContent>
+              <div className="grid gap-4 md:grid-cols-3 mb-6">
+                <div className="space-y-2">
+                  <label className="text-sm font-medium block">If employee exists</label>
+                  <Select
+                    value={onExist}
+                    onValueChange={(v) => setOnExist(v === "skip" ? "skip" : v === "error" ? "error" : "update")}
+                  >
+                    <SelectTrigger>
+                      <SelectValue />
+                    </SelectTrigger>
+                    <SelectContent>
+                      <SelectItem value="update">Update</SelectItem>
+                      <SelectItem value="skip">Skip</SelectItem>
+                      <SelectItem value="error">Error</SelectItem>
+                    </SelectContent>
+                  </Select>
+                </div>
+                <div className="space-y-2">
+                  <label className="text-sm font-medium block">Update behavior</label>
+                  <Select
+                    value={updateMode}
+                    onValueChange={(v) => setUpdateMode(v === "overwrite" ? "overwrite" : "only_filled")}
+                  >
+                    <SelectTrigger>
+                      <SelectValue />
+                    </SelectTrigger>
+                    <SelectContent>
+                      <SelectItem value="only_filled">Update only filled columns</SelectItem>
+                      <SelectItem value="overwrite">Overwrite with blanks</SelectItem>
+                    </SelectContent>
+                  </Select>
+                </div>
+                <div className="space-y-2">
+                  <label className="text-sm font-medium block">Dry run</label>
+                  <div className="flex items-center gap-2 h-10 rounded-md border border-input px-3">
+                    <Checkbox checked={dryRun} onCheckedChange={(v) => setDryRun(v === true)} />
+                    <span className="text-sm text-muted-foreground">No database changes</span>
+                  </div>
+                </div>
+              </div>
               <div className="rounded-lg border border-border overflow-hidden">
                 <div className="overflow-x-auto max-h-96">
                   <Table>
@@ -620,7 +685,7 @@ const ImportEmployees = () => {
                   ) : (
                     <>
                       <Upload className="mr-2 h-4 w-4" />
-                      Import {validCount} Employee{validCount !== 1 && "s"}
+                      {dryRun ? "Dry Run" : "Import"} {validCount} Employee{validCount !== 1 && "s"}
                     </>
                   )}
                 </Button>

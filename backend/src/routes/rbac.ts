@@ -227,7 +227,8 @@ rbacRouter.get("/roles", async (_req, res) => {
       `);
       roles = (byLogin.recordset || []).map((r) => normalizeRoleName(String((r as { role: string }).role)));
     }
-    const dedup = Array.from(new Set(roles));
+    const baseline = ["superadmin", "admin", "hr_general", "finance", "department_rep", "employee"];
+    const dedup = Array.from(new Set([...roles, ...baseline]));
     return res.json(dedup);
   } catch (err: unknown) {
     const message = err instanceof Error ? err.message : "FAILED_TO_QUERY_ROLES";

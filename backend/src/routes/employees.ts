@@ -1490,17 +1490,62 @@ employeesRouter.post("/:id/assign_id", async (req, res) => {
 employeesRouter.post("/import", async (req, res) => {
   const rows: Array<Record<string, unknown>> = Array.isArray(req.body) ? (req.body as Array<Record<string, unknown>>) : [];
   if (!rows.length) return res.status(400).json({ error: "NO_ROWS" });
+  const onExistRaw = String((req.query as any).on_exist ?? (req.query as any).onExist ?? "update").trim().toLowerCase();
+  const onExist: "update" | "skip" | "error" =
+    onExistRaw === "skip" ? "skip" :
+    onExistRaw === "error" ? "error" :
+    "update";
+  const updateModeRaw = String((req.query as any).update_mode ?? (req.query as any).updateMode ?? "overwrite").trim().toLowerCase();
+  const updateMode: "overwrite" | "only_filled" =
+    updateModeRaw === "only_filled" || updateModeRaw === "onlyfilled" || updateModeRaw === "filled" ? "only_filled" : "overwrite";
+  const dryRunRaw = String((req.query as any).dry_run ?? (req.query as any).dryRun ?? "").trim().toLowerCase();
+  const dryRun = dryRunRaw === "1" || dryRunRaw === "true" || dryRunRaw === "y" || dryRunRaw === "yes";
   const pool = getPool();
   const conn = await pool.connect();
   let success = 0;
   let failed = 0;
-  const results: Array<{ employee_id: string; status: "success" | "failed"; error?: string }> = [];
+  let skipped = 0;
+  let inserted = 0;
+  let updated = 0;
+  const results: Array<{ employee_id: string; status: "success" | "failed" | "skipped"; error?: string; action?: "inserted" | "updated" | "skipped" | "no_change" }> = [];
   for (const r of rows) {
     const trx = new sql.Transaction(conn);
     try {
       await trx.begin();
       const id = String((r as any).employee_id || "").trim();
       if (!id) throw new Error("EMPLOYEE_ID_REQUIRED");
+      const existsReq = new sql.Request(trx);
+      existsReq.input("employee_id", sql.VarChar(100), id);
+      const existsRes = await existsReq.query(`
+        SELECT
+          IIF(EXISTS (SELECT 1 FROM dbo.employee_core WHERE employee_id=@employee_id), 1, 0) AS core,
+          IIF(EXISTS (SELECT 1 FROM dbo.employee_contact WHERE employee_id=@employee_id), 1, 0) AS contact,
+          IIF(EXISTS (SELECT 1 FROM dbo.employee_employment WHERE employee_id=@employee_id), 1, 0) AS employment,
+          IIF(EXISTS (SELECT 1 FROM dbo.employee_onboard WHERE employee_id=@employee_id), 1, 0) AS onboard,
+          IIF(EXISTS (SELECT 1 FROM dbo.employee_bank WHERE employee_id=@employee_id), 1, 0) AS bank,
+          IIF(EXISTS (SELECT 1 FROM dbo.employee_insurance WHERE employee_id=@employee_id), 1, 0) AS insurance,
+          IIF(EXISTS (SELECT 1 FROM dbo.employee_travel WHERE employee_id=@employee_id), 1, 0) AS travel,
+          IIF(EXISTS (SELECT 1 FROM dbo.employee_checklist WHERE employee_id=@employee_id), 1, 0) AS checklist,
+          IIF(EXISTS (SELECT 1 FROM dbo.employee_notes WHERE employee_id=@employee_id), 1, 0) AS notes
+      `);
+      const existsRow = (existsRes.recordset || [])[0] as any;
+      const existsCore = !!existsRow?.core;
+      const existsContact = !!existsRow?.contact;
+      const existsEmployment = !!existsRow?.employment;
+      const existsOnboard = !!existsRow?.onboard;
+      const existsBank = !!existsRow?.bank;
+      const existsInsurance = !!existsRow?.insurance;
+      const existsTravel = !!existsRow?.travel;
+      const existsChecklist = !!existsRow?.checklist;
+      const existsNotes = !!existsRow?.notes;
+
+      if (existsCore && onExist === "error") throw new Error("EMPLOYEE_ID_ALREADY_EXISTS");
+      if (existsCore && onExist === "skip") {
+        if (dryRun) await trx.rollback(); else await trx.commit();
+        skipped += 1;
+        results.push({ employee_id: id, status: "skipped", action: "skipped" });
+        continue;
+      }
       const rawEmploymentStatus = (r as any).employment_status;
       const normalizedEmploymentStatus = normalizeEmploymentStatus(rawEmploymentStatus);
       const hasEmploymentStatus = String(rawEmploymentStatus || "").trim() !== "";
@@ -1633,26 +1678,81 @@ employeesRouter.post("/import", async (req, res) => {
         { column: "batch", param: "batch", sqlType: sql.NVarChar(100), value: (r as any).batch || null },
         { column: "note", param: "note", sqlType: sql.NVarChar(4000), value: (r as any).note || null },
       ];
+      const isProvidedRaw = (v: unknown) => String(v ?? "").trim() !== "";
+      const buildProvidedSet = (fields: Array<{ column: string }>) => {
+        const set = new Set<string>();
+        for (const f of fields) if (isProvidedRaw((r as any)[f.column])) set.add(f.column);
+        return set;
+      };
+      const coreProvided = buildProvidedSet(coreFields);
+      const contactProvided = buildProvidedSet(contactFields);
+      const employmentProvided = buildProvidedSet(employmentFields);
+      const onboardProvided = buildProvidedSet(onboardFields);
+      const bankProvided = buildProvidedSet(bankFields);
+      const insuranceProvided = buildProvidedSet(insuranceFields);
+      const travelProvided = buildProvidedSet(travelFields);
+      const checklistProvided = buildProvidedSet(checklistFields);
+      const notesProvided = buildProvidedSet(notesFields);
+
+      const shouldOnlyFilledUpdate = updateMode === "only_filled" && existsCore;
+
       const reqCore = new sql.Request(trx);
-      for (const f of coreFields) reqCore.input(f.param, f.sqlType, f.value);
       reqCore.input("employee_id", sql.VarChar(100), id);
-      await reqCore.query(`
-        IF EXISTS (SELECT 1 FROM dbo.employee_core WHERE employee_id = @employee_id)
-          UPDATE dbo.employee_core SET ${coreFields.map(f => `[${f.column}]=@${f.param}`).join(", ")} WHERE employee_id=@employee_id
-        ELSE
-          INSERT INTO dbo.employee_core ([employee_id], ${coreFields.map(f => `[${f.column}]`).join(", ")}) VALUES (@employee_id, ${coreFields.map(f => `@${f.param}`).join(", ")});
-      `);
-      await upsertEmployeeSection(trx, "employee_contact", id, contactFields);
-      await upsertEmployeeSection(trx, "employee_employment", id, employmentFields);
-      await upsertEmployeeSection(trx, "employee_onboard", id, onboardFields);
-      await upsertEmployeeSection(trx, "employee_bank", id, bankFields);
-      await upsertEmployeeSection(trx, "employee_insurance", id, insuranceFields);
-      await upsertEmployeeSection(trx, "employee_travel", id, travelFields);
-      await upsertEmployeeSection(trx, "employee_checklist", id, checklistFields);
-      await upsertEmployeeSection(trx, "employee_notes", id, notesFields);
-      await trx.commit();
-      success += 1;
-      results.push({ employee_id: String((r as any).employee_id || ""), status: "success" });
+      if (!existsCore) {
+        for (const f of coreFields) reqCore.input(f.param, f.sqlType, f.value);
+        await reqCore.query(`
+          INSERT INTO dbo.employee_core ([employee_id], ${coreFields.map((f) => `[${f.column}]`).join(", ")})
+          VALUES (@employee_id, ${coreFields.map((f) => `@${f.param}`).join(", ")});
+        `);
+      } else {
+        const updateFields = shouldOnlyFilledUpdate ? coreFields.filter((f) => coreProvided.has(f.column)) : coreFields;
+        if (updateFields.length) {
+          for (const f of updateFields) reqCore.input(f.param, f.sqlType, f.value);
+          await reqCore.query(`
+            UPDATE dbo.employee_core
+            SET ${updateFields.map((f) => `[${f.column}]=@${f.param}`).join(", ")}
+            WHERE employee_id=@employee_id
+          `);
+        }
+      }
+
+      const pickSectionFields = (
+        existsSection: boolean,
+        provided: Set<string>,
+        all: Array<{ column: string; param: string; sqlType: sql.ISqlType; value: unknown }>,
+      ) => {
+        if (!shouldOnlyFilledUpdate) return all;
+        if (existsSection) return all.filter((f) => provided.has(f.column));
+        if (!provided.size) return [];
+        return all;
+      };
+
+      await upsertEmployeeSection(trx, "employee_contact", id, pickSectionFields(existsContact, contactProvided, contactFields));
+      await upsertEmployeeSection(trx, "employee_employment", id, pickSectionFields(existsEmployment, employmentProvided, employmentFields));
+      await upsertEmployeeSection(trx, "employee_onboard", id, pickSectionFields(existsOnboard, onboardProvided, onboardFields));
+      await upsertEmployeeSection(trx, "employee_bank", id, pickSectionFields(existsBank, bankProvided, bankFields));
+      await upsertEmployeeSection(trx, "employee_insurance", id, pickSectionFields(existsInsurance, insuranceProvided, insuranceFields));
+      await upsertEmployeeSection(trx, "employee_travel", id, pickSectionFields(existsTravel, travelProvided, travelFields));
+      await upsertEmployeeSection(trx, "employee_checklist", id, pickSectionFields(existsChecklist, checklistProvided, checklistFields));
+      await upsertEmployeeSection(trx, "employee_notes", id, pickSectionFields(existsNotes, notesProvided, notesFields));
+
+      const hasAnyProvided =
+        coreProvided.size ||
+        contactProvided.size ||
+        employmentProvided.size ||
+        onboardProvided.size ||
+        bankProvided.size ||
+        insuranceProvided.size ||
+        travelProvided.size ||
+        checklistProvided.size ||
+        notesProvided.size;
+      const action: "inserted" | "updated" | "no_change" = !existsCore ? "inserted" : shouldOnlyFilledUpdate && !hasAnyProvided ? "no_change" : "updated";
+
+      if (dryRun) await trx.rollback(); else await trx.commit();
+      if (action === "inserted") { inserted += 1; success += 1; }
+      else if (action === "updated") { updated += 1; success += 1; }
+      else { skipped += 1; }
+      results.push({ employee_id: String((r as any).employee_id || ""), status: action === "no_change" ? "skipped" : "success", action });
     } catch (e: unknown) {
       try {
         await trx.rollback();
@@ -1671,7 +1771,7 @@ employeesRouter.post("/import", async (req, res) => {
     }
   }
   await pool.close();
-  return res.json({ ok: true, success, failed, total: rows.length, results });
+  return res.json({ ok: true, success, failed, skipped, inserted, updated, total: rows.length, results, dry_run: dryRun, on_exist: onExist, update_mode: updateMode });
 });
 
 employeesRouter.get("/:id", async (req, res) => {

@@ -11,6 +11,18 @@ export type AppUser = {
   provider?: string;
 };
 
+function normalizeRole(role: string): string {
+  const s = String(role || "").trim().toLowerCase();
+  if (s.includes("super")) return "superadmin";
+  if (s === "admin") return "admin";
+  if (s.includes("human resources") || s.includes("human resource")) return "hr_general";
+  if (s.includes("hr")) return "hr_general";
+  if (s.includes("finance")) return "finance";
+  if (s.includes("dep")) return "department_rep";
+  if (s.includes("employee")) return "employee";
+  return s;
+}
+
 declare global {
   namespace Express {
     interface Request {
@@ -28,7 +40,7 @@ export function authMiddleware(req: Request, res: Response, next: NextFunction) 
     req.user = {
       sub: `dev-${role}-001`,
       username: "dev",
-      roles: [role],
+      roles: [normalizeRole(role)],
       provider: "DEV",
     };
     return next();
@@ -36,7 +48,7 @@ export function authMiddleware(req: Request, res: Response, next: NextFunction) 
   try {
     const decoded = jwt.verify(token, CONFIG.JWT_SECRET) as JwtPayload;
     const decodedRoles = (decoded as JwtPayload & { roles?: unknown }).roles;
-    const roles = Array.isArray(decodedRoles) ? decodedRoles.map((r) => String(r)) : [];
+    const roles = Array.isArray(decodedRoles) ? decodedRoles.map((r) => normalizeRole(String(r))) : [];
     req.user = {
       sub: String((decoded as JwtPayload & { sub?: unknown }).sub || ""),
       username: String((decoded as JwtPayload & { username?: unknown }).username || ""),
@@ -53,9 +65,10 @@ export function authMiddleware(req: Request, res: Response, next: NextFunction) 
 
 export function requireRole(allowed: string[]) {
   return (req: Request, res: Response, next: NextFunction) => {
-    const roles = req.user?.roles || [];
+    const roles = (req.user?.roles || []).map(normalizeRole);
+    const allowedNorm = allowed.map(normalizeRole);
     if (!roles.length) return res.status(403).json({ error: "FORBIDDEN" });
-    if (roles.some((r) => allowed.includes(r))) return next();
+    if (roles.some((r) => allowedNorm.includes(r))) return next();
     return res.status(403).json({ error: "FORBIDDEN" });
   };
 }
