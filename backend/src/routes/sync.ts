@@ -203,10 +203,11 @@ async function getColumnInfo(pool: sql.ConnectionPool, table: string): Promise<A
 }
 
 syncRouter.post("/run", async (req, res) => {
+  const startedAt = new Date();
   const body = req.body || {};
   const dryRun = !!body.dry_run;
   const pageSize = Math.min(parseInt(String(body.limit || "500"), 10) || 500, 5000);
-  let offset = parseInt(String(body.offset || "0"), 10) || 0;
+  let offset = Math.max(0, parseInt(String(body.offset || "0"), 10) || 0);
   const dest = getDestPool();
   const src = getSrcPool();
   const stats = { inserted: 0, updated: 0, skipped: 0, missing_in_source: 0, scanned: 0, examples: [] as Array<{ employee_id?: string | null; StaffNo?: string | null }>, errors: [] as Array<{ employee_id?: string | null; StaffNo?: string | null; message: string }> };
@@ -471,7 +472,7 @@ syncRouter.post("/run", async (req, res) => {
       loop += 1;
     }
     const runReq = new sql.Request(dest);
-    runReq.input("started_at", sql.DateTime2, new Date());
+    runReq.input("started_at", sql.DateTime2, startedAt);
     runReq.input("finished_at", sql.DateTime2, new Date());
     runReq.input("success", sql.Bit, 1);
     runReq.input("stats", sql.NVarChar(sql.MAX), JSON.stringify(stats));
@@ -483,7 +484,7 @@ syncRouter.post("/run", async (req, res) => {
     const message = err instanceof Error ? err.message : "FAILED_TO_RUN_SYNC";
     try {
       const r = new sql.Request(dest);
-      r.input("started_at", sql.DateTime2, new Date());
+      r.input("started_at", sql.DateTime2, startedAt);
       r.input("finished_at", sql.DateTime2, new Date());
       r.input("success", sql.Bit, 0);
       r.input("stats", sql.NVarChar(sql.MAX), JSON.stringify(stats));
