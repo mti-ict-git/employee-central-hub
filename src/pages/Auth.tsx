@@ -3,9 +3,8 @@ import { useNavigate } from "react-router-dom";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { useToast } from "@/hooks/use-toast";
-import { Eye, EyeOff, LogIn } from "lucide-react";
+import { Eye, EyeOff, LogIn, Shield, Users, Building2, Lock } from "lucide-react";
 import { Badge } from "@/components/ui/badge";
 import { apiFetch } from "@/lib/api";
 
@@ -37,7 +36,7 @@ const Auth = () => {
   const toFriendlyAuthMessage = (raw: string, enteredUsername: string) => {
     const m = raw.toLowerCase();
     if (m.includes("user_not_found") || m.includes("data 525")) {
-      return "We couldn’t find that account. Try your AD username (sAMAccountName).";
+      return "We couldn't find that account. Try your AD username (sAMAccountName).";
     }
     if (m.includes("invalid credentials") || m.includes("data 52e")) {
       return "Incorrect username or password. Check your AD username (sAMAccountName) and try again.";
@@ -58,7 +57,7 @@ const Auth = () => {
       return "Your account has expired. Please contact IT support.";
     }
     if (m.includes("insufficient_access") || m.includes("insufficient permissions")) {
-      return "You don’t have permission to access this application. Please contact an administrator.";
+      return "You don't have permission to access this application. Please contact an administrator.";
     }
     if (m.includes("acceptsecuritycontext") || m.includes("dsid")) {
       const emailHint = enteredUsername.includes("@")
@@ -143,161 +142,243 @@ const Auth = () => {
   };
 
   return (
-    <div className="min-h-screen grid md:grid-cols-[440px_1fr] bg-muted/30">
-      <div className="flex items-center justify-center p-6 md:p-10 bg-card border-r border-border/50">
-        <div className="w-full max-w-sm">
-          <div className="mb-6 flex items-center gap-3">
-            <img src="/mti-logo.png" alt="Merdeka Group" className="h-10" />
-            <div>
-              <h1 className="text-xl font-bold tracking-tight">Employee Hub</h1>
-              <p className="text-xs text-muted-foreground">Login into your account</p>
+    <div className="min-h-screen flex">
+      {/* Left Panel - Branding & Info */}
+      <div className="hidden lg:flex lg:w-[55%] relative overflow-hidden bg-gradient-to-br from-[hsl(220,25%,12%)] via-[hsl(220,25%,16%)] to-[hsl(217,32%,20%)]">
+        {/* Decorative Elements */}
+        <div className="absolute inset-0">
+          <div className="absolute top-0 left-0 w-full h-full">
+            <div className="absolute top-20 left-20 w-72 h-72 bg-primary/10 rounded-full blur-3xl" />
+            <div className="absolute bottom-40 right-20 w-96 h-96 bg-accent/10 rounded-full blur-3xl" />
+            <div className="absolute top-1/2 left-1/3 w-64 h-64 bg-primary/5 rounded-full blur-2xl" />
+          </div>
+          {/* Grid Pattern */}
+          <div 
+            className="absolute inset-0 opacity-[0.03]"
+            style={{
+              backgroundImage: `linear-gradient(rgba(255,255,255,.1) 1px, transparent 1px), linear-gradient(90deg, rgba(255,255,255,.1) 1px, transparent 1px)`,
+              backgroundSize: '60px 60px'
+            }}
+          />
+        </div>
+
+        {/* Content */}
+        <div className="relative z-10 flex flex-col justify-between p-12 w-full">
+          {/* Logo & Title */}
+          <div>
+            <div className="flex items-center gap-4 mb-16">
+              <div className="h-14 w-14 rounded-xl bg-white/10 backdrop-blur-sm flex items-center justify-center border border-white/10">
+                <img src="/mti-logo.png" alt="Merdeka Group" className="h-10 w-10 object-contain" />
+              </div>
+              <div>
+                <h1 className="text-2xl font-bold text-white tracking-tight">Merdeka Group</h1>
+                <p className="text-white/60 text-sm">Employee Master Data System</p>
+              </div>
+            </div>
+
+            {/* Hero Text */}
+            <div className="max-w-lg">
+              <h2 className="text-4xl lg:text-5xl font-bold text-white leading-tight mb-6">
+                Centralized HR
+                <span className="block text-transparent bg-clip-text bg-gradient-to-r from-primary to-accent">
+                  Data Management
+                </span>
+              </h2>
+              <p className="text-white/70 text-lg leading-relaxed">
+                Secure access to employee records, streamlined workflows, and comprehensive data insights for your organization.
+              </p>
             </div>
           </div>
 
-          <Card className="border-border/50 shadow-xl">
-            <CardContent className="pt-6">
-              <form onSubmit={handleLogin} className="space-y-5">
-                <div className="space-y-2">
-                  <Label htmlFor="username">Email address / Username</Label>
-                  <div className="relative">
-                    <Input
-                      id="username"
-                      type="text"
-                      placeholder="alex@email.com"
-                      value={username}
-                      onChange={(e) => setUsername(e.target.value)}
-                      className="h-11 pl-11"
-                      autoComplete="username"
-                    />
-                    <div className="absolute left-2.5 top-1/2 -translate-y-1/2 h-7 w-7 rounded-md bg-primary/10 text-primary flex items-center justify-center">
-                      {/* envelope icon substitute */}
-                      <span className="h-3 w-3 rounded-sm bg-primary" />
-                    </div>
-                  </div>
-                </div>
-
-                <div className="space-y-2">
-                  <Label htmlFor="password">Password</Label>
-                  <div className="relative">
-                    <Input
-                      id="password"
-                      type={showPassword ? "text" : "password"}
-                      placeholder="Enter your password"
-                      value={password}
-                      onChange={(e) => setPassword(e.target.value)}
-                      className="h-11 pl-11 pr-10"
-                      autoComplete="current-password"
-                    />
-                    <div className="absolute left-2.5 top-1/2 -translate-y-1/2 h-7 w-7 rounded-md bg-primary/10 text-primary flex items-center justify-center">
-                      <span className="h-3 w-3 rounded-sm bg-primary" />
-                    </div>
-                    <button
-                      type="button"
-                      onClick={() => setShowPassword(!showPassword)}
-                      className="absolute right-3 top-1/2 -translate-y-1/2 text-muted-foreground hover:text-foreground transition-colors"
-                    >
-                      {showPassword ? <EyeOff className="h-4 w-4" /> : <Eye className="h-4 w-4" />}
-                    </button>
-                  </div>
-                </div>
-
-                <div className="flex items-center justify-end">
-                  <button
-                    type="button"
-                    className="text-sm text-primary hover:underline"
-                    onClick={() => toast({ title: "Contact your administrator to reset your password." })}
-                  >
-                    Forgot password?
-                  </button>
-                </div>
-
-                <Button 
-                  type="submit" 
-                  className="w-full h-11 text-base font-medium bg-gradient-to-r from-primary to-primary/80 hover:from-primary hover:to-primary"
-                  disabled={isLoading}
-                >
-                  {isLoading ? (
-                    <span className="flex items-center gap-2">
-                      <span className="h-4 w-4 border-2 border-primary-foreground/30 border-t-primary-foreground rounded-full animate-spin" />
-                      Login now
-                    </span>
-                  ) : (
-                    <span className="flex items-center gap-2">
-                      <LogIn className="h-4 w-4" />
-                      Login now
-                    </span>
-                  )}
-                </Button>
-
-                <div className="flex items-center gap-3">
-                  <div className="h-px flex-1 bg-border" />
-                  <span className="text-xs text-muted-foreground">OR</span>
-                  <div className="h-px flex-1 bg-border" />
-                </div>
-
-                <Button 
-                  type="button" 
-                  variant="outline" 
-                  className="w-full h-11 text-base font-medium border-primary text-primary"
-                  onClick={() => toast({ title: "Request account", description: "Please contact your administrator." })}
-                >
-                  Signup now
-                </Button>
-              </form>
-
-              <div className="mt-6 pt-6 border-t border-border/50 space-y-3">
-                <p className="text-center text-sm text-muted-foreground">
-                  Authentication via Active Directory
-                </p>
-                
-                <div className="bg-muted/50 rounded-lg p-3 space-y-2">
-                  <p className="text-xs font-medium text-muted-foreground">Test Accounts (Dev Only):</p>
-                  <div className="space-y-1.5">
-                    {MOCK_USERS.map((user) => (
-                      <div 
-                        key={user.username}
-                        className="flex items-center justify-between text-xs cursor-pointer hover:bg-muted rounded px-2 py-1 transition-colors"
-                        onClick={() => {
-                          setUsername(user.username);
-                          setPassword(user.password);
-                        }}
-                      >
-                        <span className="font-mono text-foreground">{user.username}</span>
-                        <Badge 
-                          variant="secondary" 
-                          className={`${ROLE_LABELS[user.role].color} text-white text-[10px] px-1.5 py-0`}
-                        >
-                          {ROLE_LABELS[user.role].label}
-                        </Badge>
-                      </div>
-                    ))}
-                  </div>
-                  <p className="text-[10px] text-muted-foreground text-center mt-2">
-                    Password: P@ssw0rd.123
-                  </p>
-                </div>
+          {/* Feature Cards */}
+          <div className="space-y-4">
+            <div className="flex items-center gap-4 p-4 rounded-xl bg-white/5 backdrop-blur-sm border border-white/10 max-w-md">
+              <div className="h-12 w-12 rounded-lg bg-primary/20 flex items-center justify-center flex-shrink-0">
+                <Shield className="h-6 w-6 text-primary" />
               </div>
-            </CardContent>
-          </Card>
+              <div>
+                <h3 className="text-white font-semibold">Enterprise Security</h3>
+                <p className="text-white/60 text-sm">Active Directory integration with role-based access control</p>
+              </div>
+            </div>
 
-          <p className="text-center text-xs text-muted-foreground mt-6">
-            © {new Date().getFullYear()} Employee Master Data System. All rights reserved.
+            <div className="flex items-center gap-4 p-4 rounded-xl bg-white/5 backdrop-blur-sm border border-white/10 max-w-md">
+              <div className="h-12 w-12 rounded-lg bg-accent/20 flex items-center justify-center flex-shrink-0">
+                <Users className="h-6 w-6 text-accent" />
+              </div>
+              <div>
+                <h3 className="text-white font-semibold">Multi-Role Access</h3>
+                <p className="text-white/60 text-sm">HR, Finance, and Department views with granular permissions</p>
+              </div>
+            </div>
+
+            <div className="flex items-center gap-4 p-4 rounded-xl bg-white/5 backdrop-blur-sm border border-white/10 max-w-md">
+              <div className="h-12 w-12 rounded-lg bg-success/20 flex items-center justify-center flex-shrink-0">
+                <Building2 className="h-6 w-6 text-success" />
+              </div>
+              <div>
+                <h3 className="text-white font-semibold">Cross-Company Data</h3>
+                <p className="text-white/60 text-sm">Unified platform for all Merdeka Group entities</p>
+              </div>
+            </div>
+          </div>
+
+          {/* Footer */}
+          <p className="text-white/40 text-sm">
+            © {new Date().getFullYear()} Merdeka Group. All rights reserved.
           </p>
         </div>
       </div>
 
-      <div className="hidden md:flex items-center justify-center p-6">
-        <div className="relative w-full h-full max-w-3xl">
-          <div className="absolute inset-0 rounded-2xl bg-gradient-to-br from-primary/10 via-primary/5 to-primary/10" />
-          <div className="relative z-10 h-full flex items-center justify-center">
-            <img
-              src="/illustrations/login-hero.png"
-              alt="Secure access illustration"
-              className="max-h-[520px] object-contain"
-              onError={(e) => {
-                (e.currentTarget as HTMLImageElement).style.display = "none";
-              }}
-            />
+      {/* Right Panel - Login Form */}
+      <div className="flex-1 flex items-center justify-center p-6 sm:p-12 bg-background">
+        <div className="w-full max-w-md">
+          {/* Mobile Logo */}
+          <div className="lg:hidden flex items-center gap-3 mb-8">
+            <div className="h-12 w-12 rounded-xl bg-primary/10 flex items-center justify-center">
+              <img src="/mti-logo.png" alt="Merdeka Group" className="h-8 w-8 object-contain" />
+            </div>
+            <div>
+              <h1 className="text-xl font-bold text-foreground">Employee Hub</h1>
+              <p className="text-muted-foreground text-sm">Merdeka Group</p>
+            </div>
+          </div>
+
+          {/* Login Header */}
+          <div className="mb-8">
+            <h2 className="text-2xl sm:text-3xl font-bold text-foreground mb-2">Welcome back</h2>
+            <p className="text-muted-foreground">Sign in with your corporate credentials</p>
+          </div>
+
+          {/* Login Form */}
+          <form onSubmit={handleLogin} className="space-y-6">
+            <div className="space-y-2">
+              <Label htmlFor="username" className="text-sm font-medium">
+                Username or Email
+              </Label>
+              <div className="relative">
+                <Input
+                  id="username"
+                  type="text"
+                  placeholder="Enter your AD username"
+                  value={username}
+                  onChange={(e) => setUsername(e.target.value)}
+                  className="h-12 pl-12 text-base bg-muted/50 border-border/60 focus:bg-background transition-colors"
+                  autoComplete="username"
+                />
+                <div className="absolute left-4 top-1/2 -translate-y-1/2 text-muted-foreground">
+                  <Users className="h-5 w-5" />
+                </div>
+              </div>
+            </div>
+
+            <div className="space-y-2">
+              <div className="flex items-center justify-between">
+                <Label htmlFor="password" className="text-sm font-medium">
+                  Password
+                </Label>
+                <button
+                  type="button"
+                  className="text-sm text-primary hover:text-primary/80 transition-colors"
+                  onClick={() => toast({ title: "Password Reset", description: "Contact your IT administrator to reset your password." })}
+                >
+                  Forgot password?
+                </button>
+              </div>
+              <div className="relative">
+                <Input
+                  id="password"
+                  type={showPassword ? "text" : "password"}
+                  placeholder="Enter your password"
+                  value={password}
+                  onChange={(e) => setPassword(e.target.value)}
+                  className="h-12 pl-12 pr-12 text-base bg-muted/50 border-border/60 focus:bg-background transition-colors"
+                  autoComplete="current-password"
+                />
+                <div className="absolute left-4 top-1/2 -translate-y-1/2 text-muted-foreground">
+                  <Lock className="h-5 w-5" />
+                </div>
+                <button
+                  type="button"
+                  onClick={() => setShowPassword(!showPassword)}
+                  className="absolute right-4 top-1/2 -translate-y-1/2 text-muted-foreground hover:text-foreground transition-colors"
+                >
+                  {showPassword ? <EyeOff className="h-5 w-5" /> : <Eye className="h-5 w-5" />}
+                </button>
+              </div>
+            </div>
+
+            <Button 
+              type="submit" 
+              className="w-full h-12 text-base font-semibold shadow-lg shadow-primary/25 hover:shadow-xl hover:shadow-primary/30 transition-all duration-300"
+              disabled={isLoading}
+            >
+              {isLoading ? (
+                <span className="flex items-center gap-2">
+                  <span className="h-5 w-5 border-2 border-primary-foreground/30 border-t-primary-foreground rounded-full animate-spin" />
+                  Signing in...
+                </span>
+              ) : (
+                <span className="flex items-center gap-2">
+                  <LogIn className="h-5 w-5" />
+                  Sign in
+                </span>
+              )}
+            </Button>
+          </form>
+
+          {/* AD Info */}
+          <div className="mt-8 pt-6 border-t border-border">
+            <div className="flex items-center justify-center gap-2 text-muted-foreground">
+              <Shield className="h-4 w-4" />
+              <span className="text-sm">Secured with Active Directory</span>
+            </div>
+          </div>
+
+          {/* Dev Test Accounts */}
+          <div className="mt-6 p-4 rounded-xl bg-muted/50 border border-border/50">
+            <div className="flex items-center gap-2 mb-3">
+              <div className="h-2 w-2 rounded-full bg-amber-500 animate-pulse" />
+              <p className="text-xs font-medium text-muted-foreground uppercase tracking-wider">Development Mode</p>
+            </div>
+            <div className="space-y-2">
+              {MOCK_USERS.map((user) => (
+                <button 
+                  key={user.username}
+                  type="button"
+                  className="w-full flex items-center justify-between text-sm px-3 py-2 rounded-lg hover:bg-background border border-transparent hover:border-border/50 transition-all cursor-pointer"
+                  onClick={() => {
+                    setUsername(user.username);
+                    setPassword(user.password);
+                  }}
+                >
+                  <span className="font-mono text-foreground">{user.username}</span>
+                  <Badge 
+                    variant="secondary" 
+                    className={`${ROLE_LABELS[user.role].color} text-white text-[10px] px-2 py-0.5`}
+                  >
+                    {ROLE_LABELS[user.role].label}
+                  </Badge>
+                </button>
+              ))}
+            </div>
+            <p className="text-[11px] text-muted-foreground text-center mt-3 font-mono">
+              Password: P@ssw0rd.123
+            </p>
+          </div>
+
+          {/* Request Access */}
+          <div className="mt-6 text-center">
+            <p className="text-sm text-muted-foreground">
+              Don't have access?{" "}
+              <button
+                type="button"
+                className="text-primary font-medium hover:underline"
+                onClick={() => toast({ title: "Request Access", description: "Please contact your HR administrator to request system access." })}
+              >
+                Request access
+              </button>
+            </p>
           </div>
         </div>
       </div>
