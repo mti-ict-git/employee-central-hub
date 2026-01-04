@@ -15,7 +15,7 @@ const env = (key: string, fallback?: string): string => {
 
 export const CONFIG = {
   PORT: parseInt(process.env.BACKEND_PORT || process.env.SERVER_PORT || "8081", 10),
-  FRONTEND_URL: process.env.FRONTEND_URL || "http://localhost:8080",
+  FRONTEND_URL: process.env.FRONTEND_URL || "http://localhost:8081",
   FRONTEND_URLS: (process.env.FRONTEND_URLS || "")
     .split(",")
     .map((s) => s.trim())
@@ -23,6 +23,8 @@ export const CONFIG = {
     .concat([
       "http://localhost:8080",
       "http://127.0.0.1:8080",
+      "http://localhost:8081",
+      "http://127.0.0.1:8081",
       "http://localhost:5173",
       "http://127.0.0.1:5173",
     ]),

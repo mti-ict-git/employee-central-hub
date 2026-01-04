@@ -198,6 +198,11 @@ Wednesday, December 17, 2025 4:24:46 PM - Secured env handling: added .env to .g
 - Fixed employee detail section filtering to respect `role_column_access` regardless of `can_read` vs `can_view` schema.
 - This ensures roles with Contact column read access receive the `contact` section in `/api/employees/:id` responses.
 
+## 2026-01-04 23:32:37 WIB — Local dev moved to port 8081
+
+- Updated Vite dev server port to 8081 to avoid 8080 conflicts.
+- Updated backend default `FRONTEND_URL` and allowed CORS origins to include 8081.
+
 ## 2025-12-24 23:16:57 — Employee Edit Permissions Hardening
 
 - Fixed a double-commit bug in the employee update transaction (`backend/src/routes/employees.ts:618–641`).
@@ -254,4 +259,3 @@ Wednesday, December 17, 2025 4:24:46 PM - Secured env handling: added .env to .g
 
 - Hid the Employment Status row when the API omits `employment.employment_status` due to RBAC (`src/pages/EmployeeDetail.tsx:358–368`).
 - Rechecked `hr_general` API response: `employment_status` is not present in `GET /api/employees/:id` payload.
-
