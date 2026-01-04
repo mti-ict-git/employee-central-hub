@@ -650,6 +650,76 @@ function extractDbErrorDetails(err: unknown): { code?: string; number?: number; 
   if (!code && !number && !state && !name) return undefined;
   return { code, number, state, name };
 }
+
+type EmployeeStatsRow = {
+  total: number;
+  active: number;
+  indonesia: number;
+};
+
+employeesRouter.get("/stats", async (req, res) => {
+  const pool = getPool();
+  try {
+    await pool.connect();
+
+    const rolesRaw = req.user?.roles || [];
+    const rolesAll = rolesRaw.map((r) => normalizeRoleName(String(r)));
+    const isDepRep = rolesAll.includes("department_rep");
+    const isPrivileged = rolesAll.includes("superadmin") || rolesAll.includes("admin");
+
+    let userDept: string | null = null;
+    if (isDepRep && !isPrivileged) {
+      const deptReq = new sql.Request(pool);
+      deptReq.input("username", sql.VarChar(50), String(req.user?.username || ""));
+      const deptRes = await deptReq.query(`
+        SELECT TOP 1 department
+        FROM dbo.login
+        WHERE username = @username
+      `);
+      const deptRow = (deptRes.recordset || [])[0] as { department?: unknown } | undefined;
+      const d = String(deptRow?.department || "").trim();
+      if (!d) return res.status(403).json({ error: "DEPARTMENT_NOT_SET_FOR_USER" });
+      userDept = d;
+    }
+
+    const typeParam = String(req.query.type || "").trim().toLowerCase();
+    const whereParts: string[] = [];
+    if (isDepRep && userDept) whereParts.push("emp.department IS NOT NULL AND LTRIM(RTRIM(emp.department)) <> '' AND LOWER(emp.department) = LOWER(@department)");
+    if (typeParam === "indonesia") whereParts.push("LOWER(LTRIM(RTRIM(ISNULL(core.nationality, '')))) = 'indonesia'");
+    if (typeParam === "expat") whereParts.push("LOWER(LTRIM(RTRIM(ISNULL(core.nationality, '')))) <> 'indonesia'");
+    const whereClause = whereParts.length ? `WHERE ${whereParts.join(" AND ")}` : "";
+
+    const request = new sql.Request(pool);
+    if (isDepRep && userDept) request.input("department", sql.NVarChar(100), userDept);
+
+    const statsSql = `
+      SELECT
+        COUNT(DISTINCT core.employee_id) AS total,
+        SUM(CASE WHEN LOWER(LTRIM(RTRIM(ISNULL(emp.status, '')))) = 'active' THEN 1 ELSE 0 END) AS active,
+        SUM(CASE WHEN LOWER(LTRIM(RTRIM(ISNULL(core.nationality, '')))) = 'indonesia' THEN 1 ELSE 0 END) AS indonesia
+      FROM dbo.employee_core AS core
+      LEFT JOIN dbo.employee_employment AS emp ON emp.employee_id = core.employee_id
+      ${whereClause}
+    `;
+
+    const result = await request.query<EmployeeStatsRow>(statsSql);
+    const row = (result.recordset || [])[0];
+    const total = Number(row?.total || 0);
+    const active = Number(row?.active || 0);
+    const indonesia = Number(row?.indonesia || 0);
+    const inactive = Math.max(0, total - active);
+    const expat = Math.max(0, total - indonesia);
+
+    return res.json({ total, active, inactive, indonesia, expat });
+  } catch (err: unknown) {
+    const message = err instanceof Error ? err.message : "FAILED_TO_QUERY_EMPLOYEE_STATS";
+    const details = extractDbErrorDetails(err);
+    return res.status(500).json({ error: message, details });
+  } finally {
+    await pool.close();
+  }
+});
+
   employeesRouter.get("/", async (req, res) => {
   const limit = Math.min(parseInt(String(req.query.limit || "50"), 10) || 50, 5000);
   const offset = Math.max(0, parseInt(String(req.query.offset || "0"), 10) || 0);

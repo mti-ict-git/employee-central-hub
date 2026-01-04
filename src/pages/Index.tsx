@@ -16,10 +16,27 @@ const Index = () => {
     const ctrl = new AbortController();
     const run = async () => {
       try {
-        const res = await apiFetch(`/employees?limit=500`, { signal: ctrl.signal, credentials: "include" });
-        if (!res.ok) return;
-        const data = await res.json();
-        const items = Array.isArray(data.items) ? data.items : [];
+        const [statsRes, employeesRes] = await Promise.all([
+          apiFetch(`/employees/stats`, { signal: ctrl.signal, credentials: "include" }),
+          apiFetch(`/employees?limit=500`, { signal: ctrl.signal, credentials: "include" }),
+        ]);
+
+        if (statsRes.ok) {
+          const data = (await statsRes.json().catch(() => null)) as
+            | { total?: number; active?: number; inactive?: number; indonesia?: number; expat?: number }
+            | null;
+          setStats({
+            total: Number(data?.total || 0),
+            active: Number(data?.active || 0),
+            inactive: Number(data?.inactive || 0),
+            indonesia: Number(data?.indonesia || 0),
+            expat: Number(data?.expat || 0),
+          });
+        }
+
+        if (!employeesRes.ok) return;
+        const employeesData = await employeesRes.json();
+        const items = Array.isArray(employeesData.items) ? employeesData.items : [];
         const mapped: Employee[] = items.map((e: { core: { employee_id: string; name: string; nationality?: string | null }; employment: { department?: string | null; status?: string | null }; type?: string }) => ({
           core: { employee_id: e.core.employee_id, name: e.core.name, nationality: e.core.nationality || "", imip_id: "", branch: "", branch_id: "" },
           contact: { phone_number: "", email: "", address: "", city: "", spouse_name: "", child_name_1: "", child_name_2: "", child_name_3: "", emergency_contact_name: "", emergency_contact_phone: "" },
@@ -33,12 +50,6 @@ const Index = () => {
           type: (e.type === "indonesia" ? "indonesia" : "expat"),
         }));
         setEmployees(mapped);
-        const total = mapped.length;
-        const active = mapped.filter((m) => m.employment.status === "Active").length;
-        const inactive = total - active;
-        const indonesia = mapped.filter((m) => m.type === "indonesia").length;
-        const expat = total - indonesia;
-        setStats({ total, active, inactive, indonesia, expat });
       } catch {
         setEmployees([]);
         setStats({ total: 0, active: 0, inactive: 0, indonesia: 0, expat: 0 });
@@ -67,12 +78,22 @@ const Index = () => {
       }
       const next = employees.filter((e) => e.core.employee_id !== employeeId);
       setEmployees(next);
-      const total = next.length;
-      const active = next.filter((m) => m.employment.status === "Active").length;
-      const inactive = total - active;
-      const indonesia = next.filter((m) => m.type === "indonesia").length;
-      const expat = total - indonesia;
-      setStats({ total, active, inactive, indonesia, expat });
+      try {
+        const r = await apiFetch(`/employees/stats`, { credentials: "include" });
+        if (r.ok) {
+          const data = (await r.json().catch(() => null)) as
+            | { total?: number; active?: number; inactive?: number; indonesia?: number; expat?: number }
+            | null;
+          setStats({
+            total: Number(data?.total || 0),
+            active: Number(data?.active || 0),
+            inactive: Number(data?.inactive || 0),
+            indonesia: Number(data?.indonesia || 0),
+            expat: Number(data?.expat || 0),
+          });
+        }
+      } catch {
+      }
       toast({ title: "Deleted", description: `Employee ${employeeId} deleted` });
     } catch (err: unknown) {
       toast({ title: "Error", description: err instanceof Error ? err.message : "Failed to delete", variant: "destructive" });
@@ -176,7 +197,7 @@ const Index = () => {
             <h3 className="font-medium mb-3">Department Distribution</h3>
             <div className="space-y-2">
               {topDepartments.map(([dept, count]) => {
-                const percentage = stats.total ? (count / stats.total) * 100 : 0;
+                const percentage = employees.length ? (count / employees.length) * 100 : 0;
                 return (
                   <div key={dept}>
                     <div className="flex justify-between text-sm mb-1">
