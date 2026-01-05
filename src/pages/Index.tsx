@@ -12,6 +12,7 @@ import { apiFetch } from "@/lib/api";
 const Index = () => {
   const [employees, setEmployees] = useState<Employee[]>([]);
   const [stats, setStats] = useState({ total: 0, active: 0, inactive: 0, indonesia: 0, expat: 0 });
+  const [departments, setDepartments] = useState<Array<{ department: string; count: number }>>([]);
   useEffect(() => {
     const ctrl = new AbortController();
     const run = async () => {
@@ -23,7 +24,7 @@ const Index = () => {
 
         if (statsRes.ok) {
           const data = (await statsRes.json().catch(() => null)) as
-            | { total?: number; active?: number; inactive?: number; indonesia?: number; expat?: number }
+            | { total?: number; active?: number; inactive?: number; indonesia?: number; expat?: number; departments?: Array<{ department?: string; count?: number }> }
             | null;
           setStats({
             total: Number(data?.total || 0),
@@ -32,6 +33,14 @@ const Index = () => {
             indonesia: Number(data?.indonesia || 0),
             expat: Number(data?.expat || 0),
           });
+          setDepartments(
+            Array.isArray(data?.departments)
+              ? data.departments.map((d) => ({
+                  department: String(d?.department || "-").trim() || "-",
+                  count: Number(d?.count || 0),
+                }))
+              : [],
+          );
         }
 
         if (!employeesRes.ok) return;
@@ -53,18 +62,13 @@ const Index = () => {
       } catch {
         setEmployees([]);
         setStats({ total: 0, active: 0, inactive: 0, indonesia: 0, expat: 0 });
+        setDepartments([]);
       }
     };
     run();
     return () => ctrl.abort();
   }, []);
   const recentEmployees = employees.slice(0, 5);
-  const deptCounts: Record<string, number> = employees.reduce((acc, e) => {
-    const d = (e.employment.department || "-").trim() || "-";
-    acc[d] = (acc[d] || 0) + 1;
-    return acc;
-  }, {} as Record<string, number>);
-  const topDepartments = Object.entries(deptCounts).sort((a, b) => b[1] - a[1]).slice(0, 6);
   const handleDelete = async (employeeId: string) => {
     try {
       const res = await apiFetch(`/employees/${encodeURIComponent(employeeId)}`, {
@@ -82,7 +86,7 @@ const Index = () => {
         const r = await apiFetch(`/employees/stats`, { credentials: "include" });
         if (r.ok) {
           const data = (await r.json().catch(() => null)) as
-            | { total?: number; active?: number; inactive?: number; indonesia?: number; expat?: number }
+            | { total?: number; active?: number; inactive?: number; indonesia?: number; expat?: number; departments?: Array<{ department?: string; count?: number }> }
             | null;
           setStats({
             total: Number(data?.total || 0),
@@ -91,8 +95,17 @@ const Index = () => {
             indonesia: Number(data?.indonesia || 0),
             expat: Number(data?.expat || 0),
           });
+          setDepartments(
+            Array.isArray(data?.departments)
+              ? data.departments.map((d) => ({
+                  department: String(d?.department || "-").trim() || "-",
+                  count: Number(d?.count || 0),
+                }))
+              : [],
+          );
         }
-      } catch {
+      } catch (e: unknown) {
+        void e;
       }
       toast({ title: "Deleted", description: `Employee ${employeeId} deleted` });
     } catch (err: unknown) {
@@ -195,14 +208,14 @@ const Index = () => {
           {/* Department Distribution */}
           <div className="rounded-xl border border-border bg-card p-4 shadow-card">
             <h3 className="font-medium mb-3">Department Distribution</h3>
-            <div className="space-y-2">
-              {topDepartments.map(([dept, count]) => {
-                const percentage = employees.length ? (count / employees.length) * 100 : 0;
+            <div className="space-y-2 max-h-96 overflow-auto">
+              {departments.map((d) => {
+                const percentage = stats.total ? (d.count / stats.total) * 100 : 0;
                 return (
-                  <div key={dept}>
+                  <div key={d.department}>
                     <div className="flex justify-between text-sm mb-1">
-                      <span>{dept}</span>
-                      <span className="text-muted-foreground">{count}</span>
+                      <span>{d.department}</span>
+                      <span className="text-muted-foreground">{d.count}</span>
                     </div>
                     <div className="h-2 rounded-full bg-muted overflow-hidden">
                       <div 

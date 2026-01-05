@@ -259,3 +259,21 @@ Wednesday, December 17, 2025 4:24:46 PM - Secured env handling: added .env to .g
 
 - Hid the Employment Status row when the API omits `employment.employment_status` due to RBAC (`src/pages/EmployeeDetail.tsx:358–368`).
 - Rechecked `hr_general` API response: `employment_status` is not present in `GET /api/employees/:id` payload.
+
+## 2026-01-05 09:01:34 WIB — Dashboard Accurate Employee Counts
+
+- Added `GET /api/employees/stats` to compute total/active/inactive/indonesia/expat using DB aggregates and department-rep scoping (`backend/src/routes/employees.ts`).
+- Updated Dashboard to fetch stats from the new endpoint while keeping employee list fetch limited to 500 (`src/pages/Index.tsx`).
+- Ran `npm run lint`, `npx tsc --noEmit`, and `npm --prefix backend run typecheck` — passed (warnings only).
+
+## 2026-01-05 09:15:13 WIB — Dashboard Full Department Distribution
+
+- Extended `GET /api/employees/stats` to return department counts from the database (`backend/src/routes/employees.ts`).
+- Updated Dashboard Department Distribution to render the backend department list (not the first 500 employees) (`src/pages/Index.tsx`).
+- Ran `npm run lint`, `npx tsc --noEmit`, and `npm --prefix backend run typecheck` — passed (warnings only).
+
+## 2026-01-05 10:45:11 WIB — Employee Detail 500 Fix (Missing Column-Access Tables)
+
+- Prevented `GET /api/employees/:id` from failing when `dbo.column_access_assignments` / `dbo.column_access_templates` tables are missing (`backend/src/routes/employees.ts`).
+- Improved Employee Detail page to surface API error messages instead of only `HTTP_<status>` (`src/pages/EmployeeDetail.tsx`).
+- Ran `npm run lint`, `npx tsc --noEmit`, and `npm --prefix backend run typecheck` — passed (warnings only).

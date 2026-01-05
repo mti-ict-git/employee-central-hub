@@ -606,33 +606,54 @@ async function scanColumns(pool: sql.ConnectionPool, table: string): Promise<Set
 }
 
 async function loadUserTemplateAllowed(pool: sql.ConnectionPool, username: string): Promise<Set<string> | null> {
+  try {
+    const hasAssignRes = await new sql.Request(pool).query(`
+      SELECT 1 AS ok FROM sys.tables WHERE name = 'column_access_assignments'
+    `);
+    const hasAssign = !!((hasAssignRes.recordset || [])[0]);
+    if (!hasAssign) return null;
+  } catch {
+    return null;
+  }
+
   const req = new sql.Request(pool);
   req.input("username", sql.NVarChar(100), username);
-  const resAssign = await req.query(`
-    SELECT TOP 1 [template_name], [active]
-    FROM dbo.column_access_assignments
-    WHERE [username]=@username AND [active]=1
-  `);
+  let resAssign: sql.IResult<unknown>;
+  try {
+    resAssign = await req.query(`
+      SELECT TOP 1 [template_name], [active]
+      FROM dbo.column_access_assignments
+      WHERE [username]=@username AND [active]=1
+    `);
+  } catch {
+    return null;
+  }
   const row = (resAssign.recordset || [])[0] as { template_name?: unknown } | undefined;
   const templateName = String(row?.template_name || "").trim();
   if (!templateName) return null;
   const reqTpl = new sql.Request(pool);
   reqTpl.input("template_name", sql.NVarChar(100), templateName);
-  const resTpl = await reqTpl.query(`
-    SELECT TOP 1 [payload]
-    FROM dbo.column_access_templates
-    WHERE [template_name]=@template_name
-  `);
+  let resTpl: sql.IResult<unknown>;
+  try {
+    resTpl = await reqTpl.query(`
+      SELECT TOP 1 [payload]
+      FROM dbo.column_access_templates
+      WHERE [template_name]=@template_name
+    `);
+  } catch {
+    return null;
+  }
   const trow = (resTpl.recordset || [])[0] as { payload?: unknown } | undefined;
   const payloadStr = typeof trow?.payload === "string" ? trow?.payload as string : null;
   if (!payloadStr) return null;
-  let items: Array<{ section?: unknown; column?: unknown; read?: unknown; write?: unknown }> = [];
+  let items: unknown = null;
   try {
-    const parsed = JSON.parse(payloadStr);
-    if (Array.isArray(parsed)) items = parsed as any[];
+    items = JSON.parse(payloadStr);
   } catch { return null; }
+  if (!Array.isArray(items)) return null;
   const set = new Set<string>();
   for (const it of items) {
+    if (!isObjectRecord(it)) continue;
     const sec = canonicalSectionKey(String(it.section || ""));
     const col = String(it.column || "").trim().toLowerCase();
     const read = it.read === true;
@@ -655,6 +676,11 @@ type EmployeeStatsRow = {
   total: number;
   active: number;
   indonesia: number;
+};
+
+type EmployeeDeptRow = {
+  department: string;
+  count: number;
 };
 
 employeesRouter.get("/stats", async (req, res) => {
@@ -702,7 +728,22 @@ employeesRouter.get("/stats", async (req, res) => {
       ${whereClause}
     `;
 
-    const result = await request.query<EmployeeStatsRow>(statsSql);
+    const deptSql = `
+      SELECT
+        COALESCE(NULLIF(LTRIM(RTRIM(ISNULL(emp.department, ''))), ''), '-') AS department,
+        COUNT(DISTINCT core.employee_id) AS count
+      FROM dbo.employee_core AS core
+      LEFT JOIN dbo.employee_employment AS emp ON emp.employee_id = core.employee_id
+      ${whereClause}
+      GROUP BY COALESCE(NULLIF(LTRIM(RTRIM(ISNULL(emp.department, ''))), ''), '-')
+      ORDER BY count DESC, department ASC
+    `;
+
+    const [result, deptResult] = await Promise.all([
+      request.query<EmployeeStatsRow>(statsSql),
+      request.query<EmployeeDeptRow>(deptSql),
+    ]);
+
     const row = (result.recordset || [])[0];
     const total = Number(row?.total || 0);
     const active = Number(row?.active || 0);
@@ -710,7 +751,12 @@ employeesRouter.get("/stats", async (req, res) => {
     const inactive = Math.max(0, total - active);
     const expat = Math.max(0, total - indonesia);
 
-    return res.json({ total, active, inactive, indonesia, expat });
+    const departments = (deptResult.recordset || []).map((r) => ({
+      department: String(r.department || "-").trim() || "-",
+      count: Number(r.count || 0),
+    }));
+
+    return res.json({ total, active, inactive, indonesia, expat, departments });
   } catch (err: unknown) {
     const message = err instanceof Error ? err.message : "FAILED_TO_QUERY_EMPLOYEE_STATS";
     const details = extractDbErrorDetails(err);

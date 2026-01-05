@@ -22,6 +22,10 @@ import { useRBAC } from "@/hooks/useRBAC";
 import { apiFetch } from "@/lib/api";
 import { Input } from "@/components/ui/input";
 
+function isRecord(value: unknown): value is Record<string, unknown> {
+  return typeof value === "object" && value !== null && !Array.isArray(value);
+}
+
 const InfoRow = ({ label, value, visible = true }: { label: string; value?: string | boolean | null; visible?: boolean }) => {
   if (!visible) return null;
   const displayValue = typeof value === 'boolean' ? (value ? 'Yes' : 'No') : (value ?? '');
@@ -125,25 +129,33 @@ const EmployeeDetail = () => {
         setLoading(true);
         setError(null);
         const res = await apiFetch(`/employees/${encodeURIComponent(id)}`, { signal: ctrl.signal, credentials: "include" });
-        if (!res.ok) throw new Error(`HTTP_${res.status}`);
-        const data = await res.json();
+        const body = (await res.json().catch(() => null)) as unknown;
+        if (!res.ok) {
+          const msg =
+            (isRecord(body) && typeof body.error === "string" && body.error.trim())
+              ? body.error
+              : `HTTP_${res.status}`;
+          throw new Error(msg);
+        }
+        const data = isRecord(body) ? body : {};
         const normalizedType = (() => {
-          const raw = String(data?.type || "").trim().toLowerCase();
-          const nat = String(data?.core?.nationality || "").trim().toLowerCase();
+          const raw = String(data.type || "").trim().toLowerCase();
+          const core = isRecord(data.core) ? data.core : {};
+          const nat = String(core.nationality || "").trim().toLowerCase();
           if (raw.startsWith("expat")) return "expat";
           if (nat === "indonesia" || nat.startsWith("indo")) return "indonesia";
           return "expat";
         })();
         const normalized: Employee = {
-          core: data.core,
-          contact: data.contact,
-          employment: data.employment,
-          onboard: data.onboard,
-          bank: data.bank,
-          insurance: data.insurance,
-          travel: data.travel,
-          checklist: data.checklist,
-          notes: data.notes,
+          core: data.core as Employee["core"],
+          contact: data.contact as Employee["contact"],
+          employment: data.employment as Employee["employment"],
+          onboard: data.onboard as Employee["onboard"],
+          bank: data.bank as Employee["bank"],
+          insurance: data.insurance as Employee["insurance"],
+          travel: data.travel as Employee["travel"],
+          checklist: data.checklist as Employee["checklist"],
+          notes: data.notes as Employee["notes"],
           type: normalizedType,
         };
         setEmployee(normalized);
