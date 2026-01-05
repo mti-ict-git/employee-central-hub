@@ -60,6 +60,11 @@ This project is built with:
 - shadcn-ui
 - Tailwind CSS
 
+## User preferences
+
+- Theme (Light/Dark/System) is available in Settings → Preferences and is saved per user via `GET/PUT /api/users/me/preferences`.
+- Color palette (Corporate/Emerald/Violet/Rose/Amber) is available in Settings → Preferences and is saved per user via `GET/PUT /api/users/me/preferences`.
+
 ## How can I deploy this project?
 
 You can deploy with Docker using the included Compose setup.

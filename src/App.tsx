@@ -4,6 +4,7 @@ import { TooltipProvider } from "@/components/ui/tooltip";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import { useEffect } from "react";
 import { BrowserRouter, Routes, Route } from "react-router-dom";
+import { useTheme } from "next-themes";
 import Index from "./pages/Index";
 import EmployeeList from "./pages/EmployeeList";
 import EmployeeDetail from "./pages/EmployeeDetail";
@@ -20,6 +21,7 @@ import Auth from "./pages/Auth";
 import NotFound from "./pages/NotFound";
 import RequireAuth from "./components/auth/RequireAuth";
 import RequireRole from "./components/auth/RequireRole";
+import { apiFetch } from "@/lib/api";
 
 const queryClient = new QueryClient();
 
@@ -49,6 +51,68 @@ function readStoredAuthUser(): StoredAuthUser | null {
   }
 }
 
+function isRecord(value: unknown): value is Record<string, unknown> {
+  return typeof value === "object" && value !== null && !Array.isArray(value);
+}
+
+function normalizeThemePref(value: unknown): "light" | "dark" | "system" | null {
+  const v = String(value || "").trim().toLowerCase();
+  if (v === "light" || v === "dark" || v === "system") return v;
+  return null;
+}
+
+type PalettePref = "corporate" | "emerald" | "violet" | "rose" | "amber";
+
+const PALETTE_CLASS_BY_PREF: Record<Exclude<PalettePref, "corporate">, string> = {
+  emerald: "theme-emerald",
+  violet: "theme-violet",
+  rose: "theme-rose",
+  amber: "theme-amber",
+};
+
+function normalizePalettePref(value: unknown): PalettePref | null {
+  const v = String(value || "").trim().toLowerCase();
+  if (v === "corporate" || v === "default" || v === "blue") return "corporate";
+  if (v === "emerald" || v === "violet" || v === "rose" || v === "amber") return v;
+  return null;
+}
+
+function applyPalettePref(pref: PalettePref) {
+  if (typeof document === "undefined") return;
+  const root = document.documentElement;
+  const allClasses = new Set<string>(Object.values(PALETTE_CLASS_BY_PREF));
+  for (const c of allClasses) root.classList.remove(c);
+  if (pref === "corporate") return;
+  root.classList.add(PALETTE_CLASS_BY_PREF[pref]);
+}
+
+const ThemePreferenceLoader = () => {
+  const { setTheme } = useTheme();
+
+  useEffect(() => {
+    const token = typeof window !== "undefined" ? localStorage.getItem("auth_token") : null;
+    if (!token) return;
+
+    const ctrl = new AbortController();
+    const run = async () => {
+      const res = await apiFetch(`/users/me/preferences`, { signal: ctrl.signal, credentials: "include" });
+      if (!res.ok) return;
+      const body = (await res.json().catch(() => null)) as unknown;
+      if (!isRecord(body)) return;
+      const theme = normalizeThemePref(body.theme);
+      if (theme) setTheme(theme);
+
+      const palette = normalizePalettePref(body.palette);
+      if (palette) applyPalettePref(palette);
+    };
+
+    run().catch(() => {});
+    return () => ctrl.abort();
+  }, [setTheme]);
+
+  return null;
+};
+
 const App = () => {
   useEffect(() => {
     const token = typeof window !== "undefined" ? localStorage.getItem("auth_token") : null;
@@ -73,6 +137,7 @@ const App = () => {
   return (
     <QueryClientProvider client={queryClient}>
       <TooltipProvider>
+        <ThemePreferenceLoader />
         <Toaster />
         <Sonner />
         <BrowserRouter>

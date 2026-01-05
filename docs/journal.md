@@ -277,3 +277,21 @@ Wednesday, December 17, 2025 4:24:46 PM - Secured env handling: added .env to .g
 - Prevented `GET /api/employees/:id` from failing when `dbo.column_access_assignments` / `dbo.column_access_templates` tables are missing (`backend/src/routes/employees.ts`).
 - Improved Employee Detail page to surface API error messages instead of only `HTTP_<status>` (`src/pages/EmployeeDetail.tsx`).
 - Ran `npm run lint`, `npx tsc --noEmit`, and `npm --prefix backend run typecheck` — passed (warnings only).
+
+## 2026-01-05 12:15:21 WIB — Theme Preference (Dark/Light/System) Saved to User Profile
+
+- Added global theme support via `next-themes` ThemeProvider (`src/main.tsx`).
+- Loaded saved theme from `GET /api/users/me/preferences?key=theme` on app start (`src/App.tsx`).
+- Wired Settings > Preferences > Theme to apply instantly and save to DB via `PUT /api/users/me/preferences` (`src/pages/Settings.tsx`).
+
+## 2026-01-05 12:38:56 WIB — Cleanup and Integrity Check
+
+- Removed `any` usage in Reports route parsing and made row parsing safer (`backend/src/routes/reports.ts`).
+- Ran `npm run lint` and `npx tsc --noEmit` — passed (warnings only).
+
+## 2026-01-05 14:30:28 WIB — Switchable Theme + Color Palette Preferences
+
+- Added a header theme toggle (Light/Dark) that persists to user preferences (`src/components/layout/Header.tsx`).
+- Added Color Palette selection under Settings → Preferences and persisted it as `palette` (`src/pages/Settings.tsx`).
+- Applied saved palette globally on app start and added palette CSS tokens (`src/App.tsx`, `src/index.css`).
+- Ran `npm run lint` and `npx tsc --noEmit` — passed (warnings only).

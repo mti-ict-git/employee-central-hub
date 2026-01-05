@@ -8,6 +8,10 @@ export const reportsRouter = Router();
 
 reportsRouter.use(authMiddleware);
 
+function isRecord(value: unknown): value is Record<string, unknown> {
+  return typeof value === "object" && value !== null && !Array.isArray(value);
+}
+
 function getPool() {
   return new sql.ConnectionPool({
     server: CONFIG.DB.SERVER,
@@ -35,7 +39,10 @@ function normalizeRoleName(role: string) {
 }
 function canonicalSectionKey(section: string) {
   let s = String(section || "").trim().toLowerCase();
-  if (s.includes(".")) s = s.split(".").pop() as string;
+  if (s.includes(".")) {
+    const last = s.split(".").pop();
+    if (last) s = last;
+  }
   if (s.startsWith("employee ")) s = s.slice("employee ".length);
   if (s.startsWith("employee_")) s = s.slice("employee_".length);
   return s;
@@ -184,7 +191,7 @@ async function loadUserTemplateAllowed(pool: sql.ConnectionPool, username: strin
   if (!templateName) return null;
   const reqTpl = new sql.Request(pool);
   reqTpl.input("template_name", sql.NVarChar(100), templateName);
-  let resTpl: sql.IResult<any>;
+  let resTpl: sql.IResult<unknown>;
   try {
     resTpl = await reqTpl.query(`
       SELECT TOP 1 [payload]
@@ -200,7 +207,7 @@ async function loadUserTemplateAllowed(pool: sql.ConnectionPool, username: strin
   let items: Array<{ section?: unknown; column?: unknown; read?: unknown }> = [];
   try {
     const parsed = JSON.parse(payloadStr);
-    if (Array.isArray(parsed)) items = parsed as any[];
+    if (Array.isArray(parsed)) items = parsed as Array<{ section?: unknown; column?: unknown; read?: unknown }>;
   } catch { return null; }
   const set = new Set<string>();
   for (const it of items) {
@@ -218,12 +225,13 @@ async function fetchTypeAccessIndex(pool: sql.ConnectionPool) {
     FROM dbo.type_column_access
   `);
   const index: Record<"indonesia" | "expat", Record<string, Record<string, boolean>>> = { indonesia: {}, expat: {} };
-  const rows = res.recordset || [];
+  const rows = (res.recordset || []) as Array<unknown>;
   for (const r of rows) {
-    const type = String((r as any).employee_type || "").toLowerCase() === "expat" ? "expat" : "indonesia";
-    const section = String((r as any).section || "");
-    const column = String((r as any).column || "");
-    const accessible = !!(r as any).accessible;
+    const row = isRecord(r) ? r : {};
+    const type = String(row.employee_type || "").toLowerCase() === "expat" ? "expat" : "indonesia";
+    const section = String(row.section || "");
+    const column = String(row.column || "");
+    const accessible = row.accessible === true || row.accessible === 1;
     if (!index[type][section]) index[type][section] = {};
     index[type][section][column] = accessible;
     if (section.startsWith("Employee ")) {

@@ -112,6 +112,86 @@
     --sidebar-border: 217 32% 15%;
     --sidebar-ring: 217 91% 60%;
   }
+
+  .theme-emerald {
+    --primary: 160 84% 39%;
+    --ring: 160 84% 39%;
+    --accent: 160 84% 39%;
+    --info: 160 84% 39%;
+    --sidebar-primary: 160 84% 45%;
+    --sidebar-ring: 160 84% 45%;
+    --gradient-primary: linear-gradient(135deg, hsl(160 84% 39%) 0%, hsl(174 75% 36%) 100%);
+  }
+
+  .dark.theme-emerald {
+    --primary: 160 84% 55%;
+    --ring: 160 84% 55%;
+    --accent: 160 84% 55%;
+    --info: 160 84% 55%;
+    --sidebar-primary: 160 84% 60%;
+    --sidebar-ring: 160 84% 60%;
+    --gradient-primary: linear-gradient(135deg, hsl(160 84% 55%) 0%, hsl(174 75% 45%) 100%);
+  }
+
+  .theme-violet {
+    --primary: 262 83% 58%;
+    --ring: 262 83% 58%;
+    --accent: 262 83% 58%;
+    --info: 262 83% 58%;
+    --sidebar-primary: 262 83% 62%;
+    --sidebar-ring: 262 83% 62%;
+    --gradient-primary: linear-gradient(135deg, hsl(262 83% 58%) 0%, hsl(292 84% 50%) 100%);
+  }
+
+  .dark.theme-violet {
+    --primary: 262 83% 70%;
+    --ring: 262 83% 70%;
+    --accent: 262 83% 70%;
+    --info: 262 83% 70%;
+    --sidebar-primary: 262 83% 74%;
+    --sidebar-ring: 262 83% 74%;
+    --gradient-primary: linear-gradient(135deg, hsl(262 83% 70%) 0%, hsl(292 84% 62%) 100%);
+  }
+
+  .theme-rose {
+    --primary: 346 77% 49%;
+    --ring: 346 77% 49%;
+    --accent: 346 77% 49%;
+    --info: 346 77% 49%;
+    --sidebar-primary: 346 77% 55%;
+    --sidebar-ring: 346 77% 55%;
+    --gradient-primary: linear-gradient(135deg, hsl(346 77% 49%) 0%, hsl(8 83% 53%) 100%);
+  }
+
+  .dark.theme-rose {
+    --primary: 346 77% 65%;
+    --ring: 346 77% 65%;
+    --accent: 346 77% 65%;
+    --info: 346 77% 65%;
+    --sidebar-primary: 346 77% 70%;
+    --sidebar-ring: 346 77% 70%;
+    --gradient-primary: linear-gradient(135deg, hsl(346 77% 65%) 0%, hsl(8 83% 65%) 100%);
+  }
+
+  .theme-amber {
+    --primary: 43 96% 46%;
+    --ring: 43 96% 46%;
+    --accent: 43 96% 46%;
+    --info: 43 96% 46%;
+    --sidebar-primary: 43 96% 52%;
+    --sidebar-ring: 43 96% 52%;
+    --gradient-primary: linear-gradient(135deg, hsl(43 96% 46%) 0%, hsl(27 96% 50%) 100%);
+  }
+
+  .dark.theme-amber {
+    --primary: 43 96% 62%;
+    --ring: 43 96% 62%;
+    --accent: 43 96% 62%;
+    --info: 43 96% 62%;
+    --sidebar-primary: 43 96% 68%;
+    --sidebar-ring: 43 96% 68%;
+    --gradient-primary: linear-gradient(135deg, hsl(43 96% 62%) 0%, hsl(27 96% 62%) 100%);
+  }
 }
 
 @layer base {

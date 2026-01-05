@@ -1,6 +1,6 @@
 import { useEffect, useState } from "react";
 import { useNavigate } from "react-router-dom";
-import { Bell, Search, User, Settings, LogOut, Shield, HelpCircle } from "lucide-react";
+import { Bell, Search, User, Settings, LogOut, Shield, HelpCircle, Sun, Moon } from "lucide-react";
 import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
@@ -14,6 +14,8 @@ import {
 } from "@/components/ui/dropdown-menu";
 import { Avatar, AvatarFallback } from "@/components/ui/avatar";
 import { useToast } from "@/hooks/use-toast";
+import { useTheme } from "next-themes";
+import { apiFetch } from "@/lib/api";
 
 interface HeaderProps {
   title: string;
@@ -40,6 +42,7 @@ export function Header({ title, subtitle }: HeaderProps) {
   const [user, setUser] = useState<AuthUser | null>(null);
   const navigate = useNavigate();
   const { toast } = useToast();
+  const { resolvedTheme, setTheme } = useTheme();
 
   useEffect(() => {
     const storedUser = localStorage.getItem("auth_user");
@@ -53,6 +56,34 @@ export function Header({ title, subtitle }: HeaderProps) {
     localStorage.removeItem("auth_user");
     toast({ title: "Logged out", description: "You have been logged out successfully." });
     navigate("/auth");
+  };
+
+  const toggleTheme = async () => {
+    const next = resolvedTheme === "dark" ? "light" : "dark";
+    setTheme(next);
+    const token = typeof window !== "undefined" ? localStorage.getItem("auth_token") : null;
+    if (!token) return;
+    try {
+      const res = await apiFetch(`/users/me/preferences`, {
+        method: "PUT",
+        headers: { "Content-Type": "application/json" },
+        credentials: "include",
+        body: JSON.stringify({ key: "theme", value: next }),
+      });
+      const body = (await res.json().catch(() => null)) as unknown;
+      if (!res.ok) {
+        const msg = typeof body === "object" && body !== null && "error" in body && typeof (body as { error?: unknown }).error === "string"
+          ? String((body as { error?: unknown }).error)
+          : `HTTP_${res.status}`;
+        throw new Error(msg);
+      }
+    } catch (err: unknown) {
+      toast({
+        title: "Failed to Save Theme",
+        description: err instanceof Error ? err.message : "FAILED_TO_SAVE_THEME",
+        variant: "destructive",
+      });
+    }
   };
 
   const roleInfo = user?.role ? ROLE_LABELS[user.role] : null;
@@ -78,6 +109,18 @@ export function Header({ title, subtitle }: HeaderProps) {
             className="w-64 pl-9"
           />
         </div>
+
+        <Button
+          variant="ghost"
+          size="icon"
+          type="button"
+          onClick={() => {
+            toggleTheme().catch(() => {});
+          }}
+          aria-label="Toggle theme"
+        >
+          {resolvedTheme === "dark" ? <Sun className="h-5 w-5" /> : <Moon className="h-5 w-5" />}
+        </Button>
 
         <Button variant="ghost" size="icon" className="relative">
           <Bell className="h-5 w-5" />
