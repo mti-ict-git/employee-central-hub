@@ -440,6 +440,21 @@ const EmployeeList = () => {
     } catch (e) { void e; }
   };
 
+  const toggleAllColumns = async (on: boolean) => {
+    const keys = allowedColumns.map((d) => d.key);
+    const payload = on ? Array.from(new Set(keys)) : ["core.employee_id","core.name","type"];
+    setVisibleColumns(payload);
+    try {
+      const res = await apiFetch(`/users/me/preferences`, {
+        method: "PUT",
+        credentials: "include",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ key: "employee_list_columns", value: payload }),
+      });
+      if (!res.ok) throw new Error(`HTTP_${res.status}`);
+    } catch (e) { void e; }
+  };
+
   return (
     <MainLayout 
       title="Employee List" 
@@ -513,6 +528,12 @@ const EmployeeList = () => {
                   onChange={(e) => setColSearch(e.target.value)}
                 />
               </div>
+              <DropdownMenuCheckboxItem
+                checked={allowedColumns.length > 0 && allowedColumns.every((d) => visibleColumns.includes(d.key))}
+                onCheckedChange={(on) => toggleAllColumns(Boolean(on))}
+              >
+                All Columns
+              </DropdownMenuCheckboxItem>
               <div className="max-h-96 overflow-auto">
                 {allowedColumns
                   .filter((def) => {
