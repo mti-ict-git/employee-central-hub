@@ -1,6 +1,7 @@
 import { Router } from "express";
 import path from "path";
 import fs from "fs";
+import { authMiddleware, requireRole } from "../middleware/auth";
 async function loadXLSX() {
   const mod = await (0, eval)('import("xlsx/xlsx.mjs")');
   return mod;
@@ -17,6 +18,57 @@ mappingRouter.get("/dbinfo", (_req, res) => {
     return res.json(data);
   } catch (err: unknown) {
     const message = err instanceof Error ? err.message : "FAILED_TO_READ_DBINFO";
+    return res.status(500).json({ error: message });
+  }
+});
+
+mappingRouter.post("/dbinfo", authMiddleware, requireRole(["admin", "superadmin"]), (req, res) => {
+  try {
+    const tableRaw = typeof req.body?.table === "string" ? req.body.table : "";
+    const columnRaw = typeof req.body?.column === "string" ? req.body.column : "";
+    const labelRaw = typeof req.body?.label === "string" ? req.body.label : "";
+    const typeRaw = typeof req.body?.type === "string" ? req.body.type : "";
+    const table = tableRaw.trim();
+    const column = columnRaw.trim();
+    if (!table || !column) {
+      return res.status(400).json({ error: "INVALID_COLUMN_INPUT" });
+    }
+    const excelTable = table.includes(".") ? table.split(".").pop() || table : table;
+    const schema = table.includes(".") ? (table.split(".")[0] || "dbo") : "dbo";
+    const matchedTable = table.includes(".") ? table : `${schema}.${table}`;
+    const filePath = path.resolve(process.cwd(), "scripts", "dbinfo-mapping.json");
+    const existing = fs.existsSync(filePath) ? JSON.parse(fs.readFileSync(filePath, "utf-8")) : [];
+    const rows = Array.isArray(existing) ? existing : [];
+    const dup = rows.find((r: any) =>
+      String(r?.excel?.table || "").trim().toLowerCase() === excelTable.trim().toLowerCase() &&
+      String(r?.excel?.column || "").trim().toLowerCase() === column.toLowerCase(),
+    );
+    if (dup) {
+      return res.status(409).json({ error: "COLUMN_ALREADY_EXISTS" });
+    }
+    const item = {
+      excel: {
+        table: excelTable,
+        schema,
+        column,
+        excelName: labelRaw.trim() || undefined,
+        usedColumnHeader: "DB Column",
+        usedTableHeader: "Table Name",
+      },
+      matched: {
+        table: matchedTable,
+        column,
+        type: typeRaw.trim() || undefined,
+      },
+      status: "manual_added",
+      suggestion: null,
+      suggestions: null,
+    };
+    rows.push(item);
+    fs.writeFileSync(filePath, JSON.stringify(rows, null, 2));
+    return res.json({ ok: true });
+  } catch (err: unknown) {
+    const message = err instanceof Error ? err.message : "FAILED_TO_UPDATE_DBINFO";
     return res.status(500).json({ error: message });
   }
 });

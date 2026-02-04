@@ -9,6 +9,7 @@ import { toast } from "@/hooks/use-toast";
 import { apiFetch } from "@/lib/api";
 import { fetchRoles, fetchColumnAccess, type ColumnAccess } from "@/lib/rbac";
 import { Switch } from "@/components/ui/switch";
+import { Label } from "@/components/ui/label";
 
 type MappingRow = {
   excel: { table: string; column: string; excelName?: string };
@@ -291,6 +292,7 @@ export function ColumnAccessContent() {
       setApplyingTemplate(false);
     }
   };
+
   const assignTemplateToUser = async (username: string, name: string) => {
     try {
       if (!username || !name) return;

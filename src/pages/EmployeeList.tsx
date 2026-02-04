@@ -1,10 +1,10 @@
-import { useEffect, useMemo, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import { MainLayout } from "@/components/layout/MainLayout";
 import { EmployeeTable } from "@/components/employees/EmployeeTable";
 import { EmployeeFilters } from "@/components/employees/EmployeeFilters";
 import { Button } from "@/components/ui/button";
 import { Plus, Download, Upload, Columns } from "lucide-react";
-import { Link, useSearchParams } from "react-router-dom";
+import { Link, useNavigate, useSearchParams } from "react-router-dom";
 import type { Employee, EmployeeCore, EmployeeContact, EmployeeEmployment, EmployeeBank, EmployeeInsurance, EmployeeOnboard, EmployeeTravel, EmployeeChecklist, EmployeeNotes, EmployeeType } from "@/types/employee";
 import { toast } from "@/hooks/use-toast";
 import { useRBAC } from "@/hooks/useRBAC";
@@ -27,6 +27,7 @@ type EmployeeListAPIItem = {
 };
 
 const EmployeeList = () => {
+  const navigate = useNavigate();
   const [searchParams] = useSearchParams();
   const [search, setSearch] = useState("");
   const [typeFilter, setTypeFilter] = useState(searchParams.get('type') || 'all');
@@ -43,6 +44,35 @@ const EmployeeList = () => {
   const [visibleColumns, setVisibleColumns] = useState<string[]>(["core.employee_id","core.name","type","employment.department","employment.job_title","employment.status"]);
   const [colSearch, setColSearch] = useState("");
   const [allowedColumns, setAllowedColumns] = useState<Array<{ key: string; section: string; column: string; label: string }>>([]);
+
+  const minTableWidth = useMemo(() => Math.max(1000, (visibleColumns?.length || 0) * 160 + 480), [visibleColumns]);
+  const topScrollRef = useRef<HTMLDivElement | null>(null);
+  const bodyScrollRef = useRef<HTMLDivElement | null>(null);
+
+  useEffect(() => {
+    const top = topScrollRef.current;
+    const body = bodyScrollRef.current;
+    if (!top || !body) return;
+    let syncing = false;
+    const syncFromTop = () => {
+      if (syncing) return;
+      syncing = true;
+      body.scrollLeft = top.scrollLeft;
+      syncing = false;
+    };
+    const syncFromBody = () => {
+      if (syncing) return;
+      syncing = true;
+      top.scrollLeft = body.scrollLeft;
+      syncing = false;
+    };
+    top.addEventListener("scroll", syncFromTop);
+    body.addEventListener("scroll", syncFromBody);
+    return () => {
+      top.removeEventListener("scroll", syncFromTop);
+      body.removeEventListener("scroll", syncFromBody);
+    };
+  }, [visibleColumns]);
 
   useEffect(() => {
     const ctrl = new AbortController();
@@ -591,15 +621,25 @@ const EmployeeList = () => {
             <p className="text-muted-foreground">Failed to load employees ({error}).</p>
           </div>
         ) : filteredEmployees.length > 0 ? (
-          <EmployeeTable
-            employees={filteredEmployees}
-            onDelete={handleDelete}
-            selectable
-            selected={selected}
-            onToggleSelect={toggleSelect}
-            onToggleAll={toggleSelectAll}
-            visibleColumns={visibleColumns}
-          />
+          <>
+            <div className="overflow-x-auto mb-2" ref={topScrollRef}>
+              <div style={{ width: minTableWidth }} />
+            </div>
+            <div className="overflow-x-auto" ref={bodyScrollRef}>
+              <div style={{ minWidth: minTableWidth }}>
+                <EmployeeTable
+                  employees={filteredEmployees}
+                  onDelete={handleDelete}
+                  selectable
+                  selected={selected}
+                  onToggleSelect={toggleSelect}
+                  onToggleAll={toggleSelectAll}
+                  visibleColumns={visibleColumns}
+                  onRowClick={(employee) => navigate(`/employees/${employee.core.employee_id}`)}
+                />
+              </div>
+            </div>
+          </>
         ) : (
           <div className="rounded-xl border border-border bg-card p-12 text-center shadow-card">
             <p className="text-muted-foreground">No employees found matching your criteria.</p>

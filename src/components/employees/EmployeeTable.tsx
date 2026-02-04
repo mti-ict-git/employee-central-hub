@@ -23,9 +23,10 @@ interface EmployeeTableProps {
   onToggleSelect?: (employeeId: string, checked: boolean) => void;
   onToggleAll?: (checked: boolean) => void;
   visibleColumns?: string[];
+  onRowClick?: (employee: Employee) => void;
 }
 
-export function EmployeeTable({ employees, onDelete, selectable = false, selected, onToggleSelect, onToggleAll, visibleColumns }: EmployeeTableProps) {
+export function EmployeeTable({ employees, onDelete, selectable = false, selected, onToggleSelect, onToggleAll, visibleColumns, onRowClick }: EmployeeTableProps) {
   const { caps, typeAccess } = useRBAC();
   const columns = Array.isArray(visibleColumns) && visibleColumns.length
     ? visibleColumns
@@ -261,10 +262,14 @@ export function EmployeeTable({ employees, onDelete, selectable = false, selecte
           {employees.map((employee) => (
             <TableRow 
               key={employee.core.employee_id}
-              className="transition-colors hover:bg-muted/30"
+              className={cn(
+                "transition-colors hover:bg-muted/30",
+                onRowClick ? "cursor-pointer" : undefined
+              )}
+              onClick={() => onRowClick && onRowClick(employee)}
             >
               {selectable && (
-                <TableCell>
+                <TableCell onClick={(event) => event.stopPropagation()}>
                   <Checkbox
                     checked={selected ? selected.has(employee.core.employee_id) : false}
                     onCheckedChange={(v) => onToggleSelect && onToggleSelect(employee.core.employee_id, Boolean(v))}
@@ -279,7 +284,7 @@ export function EmployeeTable({ employees, onDelete, selectable = false, selecte
                     ) : renderCell(employee, key)}
                 </TableCell>
               ))}
-              <TableCell className="text-right">
+              <TableCell className="text-right" onClick={(event) => event.stopPropagation()}>
                 <div className="flex justify-end gap-2">
                   <Button variant="ghost" size="icon" asChild>
                     <Link to={`/employees/${employee.core.employee_id}`}>

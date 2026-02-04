@@ -17,6 +17,7 @@ import AdminPermissions from "./pages/AdminPermissions";
 import RbacDiagnostics from "./pages/RbacDiagnostics";
 import ReportsPage from "./pages/Reports";
 import SyncSettings from "./pages/SyncSettings";
+import AddColumn from "./pages/AddColumn";
 import Auth from "./pages/Auth";
 import NotFound from "./pages/NotFound";
 import RequireAuth from "./components/auth/RequireAuth";
@@ -215,6 +216,16 @@ const App = () => {
                 <RequireAuth>
                   <RequireRole allowed={["admin", "superadmin"]}>
                     <AdminPermissions />
+                  </RequireRole>
+                </RequireAuth>
+              }
+            />
+            <Route
+              path="/settings/columns/new"
+              element={
+                <RequireAuth>
+                  <RequireRole allowed={["admin", "superadmin"]}>
+                    <AddColumn />
                   </RequireRole>
                 </RequireAuth>
               }
