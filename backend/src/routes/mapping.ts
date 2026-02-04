@@ -107,6 +107,55 @@ async function seedDbinfoMappingsIfEmpty(pool: sql.ConnectionPool) {
   }
 }
 
+async function seedDbinfoMappingsForTable(pool: sql.ConnectionPool, tableName: string) {
+  const filePath = path.resolve(process.cwd(), "scripts", "dbinfo-mapping.json");
+  if (!fs.existsSync(filePath)) return { restored: 0, total: 0 };
+  const existing = JSON.parse(fs.readFileSync(filePath, "utf-8"));
+  const rows = Array.isArray(existing) ? existing : [];
+  const tableKey = tableName.trim().toLowerCase();
+  let restored = 0;
+  let total = 0;
+  for (const r of rows) {
+    const excelTable = String(r?.excel?.table || "").trim();
+    if (!excelTable || excelTable.trim().toLowerCase() !== tableKey) continue;
+    const excelSchema = String(r?.excel?.schema || "dbo").trim() || "dbo";
+    const excelColumn = String(r?.excel?.column || "").trim();
+    if (!excelColumn) continue;
+    total += 1;
+    const excelName = String(r?.excel?.excelName || "").trim() || null;
+    const matchedTable = String(r?.matched?.table || "").trim() || null;
+    const matchedColumn = String(r?.matched?.column || "").trim() || null;
+    const matchedType = String(r?.matched?.type || "").trim() || null;
+    const status = String(r?.status || "").trim() || null;
+    const req = new sql.Request(pool);
+    req.input("excel_table", sql.NVarChar(128), excelTable);
+    req.input("excel_schema", sql.NVarChar(128), excelSchema);
+    req.input("excel_column", sql.NVarChar(128), excelColumn);
+    req.input("excel_name", sql.NVarChar(256), excelName);
+    req.input("matched_table", sql.NVarChar(256), matchedTable);
+    req.input("matched_column", sql.NVarChar(128), matchedColumn);
+    req.input("matched_type", sql.NVarChar(64), matchedType);
+    req.input("status", sql.NVarChar(32), status);
+    const res = await req.query(`
+      IF NOT EXISTS (
+        SELECT 1 FROM dbo.dbinfo_mappings
+        WHERE LOWER(excel_table)=LOWER(@excel_table) AND LOWER(excel_column)=LOWER(@excel_column)
+      )
+      BEGIN
+        INSERT INTO dbo.dbinfo_mappings
+          (excel_table, excel_schema, excel_column, excel_name, matched_table, matched_column, matched_type, status)
+        VALUES
+          (@excel_table, @excel_schema, @excel_column, @excel_name, @matched_table, @matched_column, @matched_type, @status)
+        SELECT 1 AS inserted;
+      END
+      ELSE SELECT 0 AS inserted;
+    `);
+    const inserted = Number(((res.recordset || [])[0] as any)?.inserted || 0);
+    restored += inserted;
+  }
+  return { restored, total };
+}
+
 mappingRouter.get("/dbinfo", async (_req, res) => {
   const pool = getPool();
   try {
@@ -172,6 +221,30 @@ mappingRouter.get("/dbinfo/tables", async (_req, res) => {
     return res.json(items);
   } catch (err: unknown) {
     const message = err instanceof Error ? err.message : "FAILED_TO_LIST_DB_TABLES";
+    return res.status(500).json({ error: message });
+  } finally {
+    await pool.close();
+  }
+});
+
+mappingRouter.post("/dbinfo/restore", authMiddleware, requireRole(["admin", "superadmin"]), async (req, res) => {
+  const pool = getPool();
+  try {
+    const tableRaw = typeof req.body?.table === "string" ? req.body.table : "";
+    const table = tableRaw.trim();
+    if (!table) {
+      return res.status(400).json({ error: "INVALID_RESTORE_INPUT" });
+    }
+    const excelTable = table.includes(".") ? table.split(".").pop() || table : table;
+    await pool.connect();
+    await ensureDbinfoMappingSchema(pool);
+    const result = await seedDbinfoMappingsForTable(pool, excelTable);
+    if (result.total === 0) {
+      return res.status(404).json({ error: "MAPPING_SOURCE_NOT_FOUND" });
+    }
+    return res.json({ ok: true, restored: result.restored, total: result.total });
+  } catch (err: unknown) {
+    const message = err instanceof Error ? err.message : "FAILED_TO_RESTORE_DBINFO";
     return res.status(500).json({ error: message });
   } finally {
     await pool.close();
