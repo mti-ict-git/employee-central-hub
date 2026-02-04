@@ -7,15 +7,20 @@ export const apiFetch = async (path: string, init?: RequestInit) => {
   const token = typeof window !== "undefined" ? localStorage.getItem("auth_token") : null;
   const headers = new Headers(init?.headers || {});
   if (token && !headers.has("Authorization")) headers.set("Authorization", `Bearer ${token}`);
-  const primary = await fetch(`${API_BASE}${p}`, { ...init, headers });
-  if (primary.status !== 404) return primary;
-  if (API_BASE === "/api") {
+  const candidates = [API_BASE];
+  if (API_BASE !== "/api") candidates.push("/api");
+  if (!candidates.includes(FALLBACK_BASE)) candidates.push(FALLBACK_BASE);
+  let lastResponse: Response | null = null;
+  let lastError: unknown = null;
+  for (const base of candidates) {
     try {
-      const fallback = await fetch(`${FALLBACK_BASE}${p}`, { ...init, headers });
-      return fallback;
-    } catch {
-      // swallow and return original 404
+      const res = await fetch(`${base}${p}`, { ...init, headers });
+      if (res.status !== 404) return res;
+      if (!lastResponse) lastResponse = res;
+    } catch (err) {
+      lastError = err;
     }
   }
-  return primary;
+  if (lastResponse) return lastResponse;
+  throw lastError instanceof Error ? lastError : new Error("NETWORK_ERROR");
 };
