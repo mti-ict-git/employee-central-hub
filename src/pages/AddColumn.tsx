@@ -7,22 +7,27 @@ import { Label } from "@/components/ui/label";
 import { Badge } from "@/components/ui/badge";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
-import { Collapsible, CollapsibleContent, CollapsibleTrigger } from "@/components/ui/collapsible";
+import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger } from "@/components/ui/dropdown-menu";
 import { toast } from "@/hooks/use-toast";
 import { apiFetch } from "@/lib/api";
+import { MoreHorizontal } from "lucide-react";
 
 type MappingRow = {
-  excel?: { table?: string; column?: string; excelName?: string };
+  excel?: { table?: string; schema?: string; column?: string; excelName?: string };
   matched?: { table?: string; column?: string; type?: string };
   status?: string | null;
 };
 
 const formatGroupLabel = (value: string) => {
   const trimmed = String(value || "").trim();
-  if (!trimmed) return trimmed;
-  const withoutPrefix = trimmed.replace(/^employee[_\s-]+/i, "");
-  if (!withoutPrefix) return withoutPrefix;
-  return withoutPrefix.charAt(0).toUpperCase() + withoutPrefix.slice(1);
+  return trimmed;
+};
+
+const resolveGroupKey = (row: MappingRow) => {
+  const schema = String(row.excel?.schema || "").trim();
+  const table = String(row.excel?.table || "").trim();
+  if (!table) return "";
+  return schema ? `${schema}.${table}` : table;
 };
 
 export default function AddColumn() {
@@ -34,16 +39,16 @@ export default function AddColumn() {
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [rows, setRows] = useState<MappingRow[]>([]);
+  const [tableOptions, setTableOptions] = useState<Array<{ schema: string; table: string; fullName: string }>>([]);
+  const [loadingTables, setLoadingTables] = useState(false);
   const [query, setQuery] = useState("");
-  const [createOpen, setCreateOpen] = useState(false);
-  const [newGroup, setNewGroup] = useState("");
-  const [customGroups, setCustomGroups] = useState<string[]>([]);
+  const [deleting, setDeleting] = useState<string | null>(null);
 
   const groupValue = group.trim();
   const columnValue = column.trim();
   const labelValue = label.trim();
   const typeValue = type.trim();
-  const canSubmit = !!groupValue && !!columnValue && !saving;
+  const canSubmit = !!groupValue && !!columnValue && !!typeValue && !saving;
 
   const loadMappings = async () => {
     setLoading(true);
@@ -64,8 +69,28 @@ export default function AddColumn() {
     }
   };
 
+  const loadTables = async () => {
+    setLoadingTables(true);
+    try {
+      const res = await apiFetch(`/mapping/dbinfo/tables`, { credentials: "include" });
+      const data = await res.json().catch(() => []);
+      if (!res.ok) {
+        const msg = data?.error || `HTTP_${res.status}`;
+        throw new Error(msg);
+      }
+      const list = Array.isArray(data) ? data : [];
+      setTableOptions(list);
+    } catch (err: unknown) {
+      setTableOptions([]);
+      setError(err instanceof Error ? err.message : "Failed to load tables");
+    } finally {
+      setLoadingTables(false);
+    }
+  };
+
   useEffect(() => {
     loadMappings();
+    loadTables();
   }, []);
 
   const handleSubmit = async (event: React.FormEvent<HTMLFormElement>) => {
@@ -106,11 +131,52 @@ export default function AddColumn() {
     }
   };
 
+  const handleDelete = async (tableName: string, columnName?: string) => {
+    const table = String(tableName || "").trim();
+    const column = String(columnName || "").trim();
+    if (!table) return;
+    const groupCount = rows.filter((row) => resolveGroupKey(row).toLowerCase() === table.toLowerCase()).length;
+    const groupLabel = formatGroupLabel(table);
+    const message = column
+      ? `Hapus column ${groupLabel}.${column}?`
+      : `Hapus semua column di group ${groupLabel}? (${groupCount} column)`;
+    const ok = window.confirm(message);
+    if (!ok) return;
+    const key = column ? `${table}.${column}` : `${table}::*`;
+    setDeleting(key);
+    try {
+      const res = await apiFetch(`/mapping/dbinfo`, {
+        method: "DELETE",
+        credentials: "include",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ table, column: column || undefined }),
+      });
+      if (!res.ok) {
+        const data = await res.json().catch(() => null);
+        const msg = data?.error || `HTTP_${res.status}`;
+        throw new Error(msg);
+      }
+      toast({
+        title: "Mapping deleted",
+        description: column ? `${groupLabel}.${column} dihapus` : `Group ${groupLabel} dihapus`,
+      });
+      await loadMappings();
+    } catch (err: unknown) {
+      toast({
+        title: "Error",
+        description: err instanceof Error ? err.message : "Failed to delete mapping",
+        variant: "destructive",
+      });
+    } finally {
+      setDeleting(null);
+    }
+  };
+
   const filtered = useMemo(() => {
     const q = query.trim().toLowerCase();
     if (!q) return rows;
     return rows.filter((row) => {
-      const tableName = String(row.excel?.table || "").toLowerCase();
+      const tableName = resolveGroupKey(row).toLowerCase();
       const columnName = String(row.excel?.column || "").toLowerCase();
       const labelName = String(row.excel?.excelName || "").toLowerCase();
       const typeName = String(row.matched?.type || "").toLowerCase();
@@ -119,24 +185,15 @@ export default function AddColumn() {
   }, [query, rows]);
 
   const groups = useMemo(() => {
+    const fromTables = tableOptions.map((item) => item.fullName).filter(Boolean);
+    if (fromTables.length) return fromTables;
     const existing = new Set<string>();
     for (const row of rows) {
-      const g = String(row.excel?.table || "").trim();
+      const g = resolveGroupKey(row);
       if (g) existing.add(g);
     }
-    for (const g of customGroups) existing.add(g);
     return Array.from(existing).sort((a, b) => a.localeCompare(b));
-  }, [rows, customGroups]);
-
-  const canCreateGroup = !!newGroup.trim();
-  const createGroup = () => {
-    const value = newGroup.trim();
-    if (!value) return;
-    setCustomGroups((prev) => (prev.includes(value) ? prev : [...prev, value]));
-    setGroup(value);
-    setNewGroup("");
-    setCreateOpen(false);
-  };
+  }, [rows, tableOptions]);
 
   const typeOptions = [
     "varchar",
@@ -157,7 +214,7 @@ export default function AddColumn() {
     const tables = new Set<string>();
     let manual = 0;
     for (const row of rows) {
-      const t = String(row.excel?.table || "").trim();
+      const t = resolveGroupKey(row);
       if (t) tables.add(t);
       if (String(row.status || "") === "manual_added") manual += 1;
     }
@@ -165,7 +222,7 @@ export default function AddColumn() {
   }, [rows]);
 
   return (
-    <MainLayout title="Add Column" subtitle="Pilih group existing untuk menambahkan column, atau buat group baru dari submenu">
+    <MainLayout title="Add Column" subtitle="Pilih table database untuk menambahkan column">
       <div className="space-y-6">
         <div className="grid gap-6 lg:grid-cols-[2fr_1fr]">
           <Card>
@@ -173,40 +230,24 @@ export default function AddColumn() {
               <div className="flex flex-wrap items-start justify-between gap-3">
                 <div>
                   <CardTitle>Column Details</CardTitle>
-                  <CardDescription>Pilih group existing untuk menambahkan column. Gunakan format schema.group agar konsisten.</CardDescription>
+                  <CardDescription>Pilih table dari database. Gunakan format schema.table agar konsisten.</CardDescription>
                 </div>
-                <Collapsible open={createOpen} onOpenChange={setCreateOpen}>
-                  <CollapsibleTrigger asChild>
-                    <Button variant="outline">Create Group</Button>
-                  </CollapsibleTrigger>
-                  <CollapsibleContent className="mt-3 w-[260px] rounded-lg border bg-background p-3">
-                    <div className="space-y-3">
-                      <div className="space-y-1">
-                        <Label htmlFor="new-group">New Group</Label>
-                        <Input
-                          id="new-group"
-                          value={newGroup}
-                          onChange={(event) => setNewGroup(event.target.value)}
-                          placeholder="dbo.employee"
-                          autoComplete="off"
-                        />
-                      </div>
-                      <div className="flex items-center justify-end">
-                        <Button type="button" onClick={createGroup} disabled={!canCreateGroup}>Create</Button>
-                      </div>
-                    </div>
-                  </CollapsibleContent>
-                </Collapsible>
+                <Button variant="outline" onClick={loadTables} disabled={loadingTables}>
+                  {loadingTables ? "Refreshing..." : "Refresh Tables"}
+                </Button>
               </div>
             </CardHeader>
             <CardContent>
               <form className="space-y-6" onSubmit={handleSubmit}>
+                <p className="text-xs text-muted-foreground">Kolom bertanda * wajib diisi.</p>
                 <div className="grid gap-4 md:grid-cols-2">
                   <div className="space-y-2">
-                    <Label htmlFor="group">Group</Label>
+                    <Label htmlFor="group">
+                      Group <span className="text-destructive">*</span>
+                    </Label>
                     <Select value={group} onValueChange={setGroup}>
                       <SelectTrigger id="group">
-                        <SelectValue placeholder="Select group" />
+                        <SelectValue placeholder="Select table" />
                       </SelectTrigger>
                       <SelectContent className="max-h-60">
                         {groups.map((g) => (
@@ -216,7 +257,9 @@ export default function AddColumn() {
                     </Select>
                   </div>
                   <div className="space-y-2">
-                    <Label htmlFor="column">Column</Label>
+                    <Label htmlFor="column">
+                      Column <span className="text-destructive">*</span>
+                    </Label>
                     <Input
                       id="column"
                       value={column}
@@ -238,18 +281,22 @@ export default function AddColumn() {
                     />
                   </div>
                   <div className="space-y-2">
-                    <Label htmlFor="type">Type (optional)</Label>
+                    <Label htmlFor="type">
+                      Tipe Data <span className="text-destructive">*</span>
+                    </Label>
                     <Select value={type} onValueChange={setType}>
                       <SelectTrigger id="type">
-                        <SelectValue placeholder="Select type" />
+                      <SelectValue placeholder="Pilih tipe data" />
                       </SelectTrigger>
                       <SelectContent className="max-h-60">
                         {typeOptions.map((item) => (
-                          <SelectItem key={item} value={item}>{item}</SelectItem>
+                          <SelectItem key={item} value={item}>
+                            {item.charAt(0).toUpperCase() + item.slice(1)}
+                          </SelectItem>
                         ))}
                       </SelectContent>
                     </Select>
-                    <p className="text-xs text-muted-foreground">Isi tipe data kolom DB untuk referensi di Column Access.</p>
+                    <p className="text-xs text-muted-foreground">Wajib diisi untuk menandai tipe data kolom DB.</p>
                   </div>
                 </div>
                 <div className="flex items-center justify-end gap-3">
@@ -298,10 +345,9 @@ export default function AddColumn() {
               <CardContent>
                 <ul className="space-y-2 text-sm text-muted-foreground">
                   <li>Nama Group menentukan grouping di Column Access.</li>
-                  <li>Gunakan format schema.group agar grouping konsisten, contoh dbo.employee.</li>
+                  <li>Gunakan format schema.table agar grouping konsisten, contoh dbo.employee_core.</li>
                   <li>Column sebaiknya nama kolom database, Label untuk tampilan manusia.</li>
-                  <li>Type opsional, tapi membantu konteks di Column Access.</li>
-                  <li>Group baru muncul setelah kamu membuat column pertamanya.</li>
+                  <li>Tipe Data wajib untuk membantu konteks di Column Access.</li>
                 </ul>
               </CardContent>
             </Card>
@@ -344,19 +390,20 @@ export default function AddColumn() {
                       <TableHead>Label</TableHead>
                       <TableHead>Type</TableHead>
                       <TableHead>Status</TableHead>
+                      <TableHead className="text-right">Actions</TableHead>
                     </TableRow>
                   </TableHeader>
                   <TableBody>
                     {filtered.length === 0 ? (
                       <TableRow>
-                        <TableCell colSpan={5} className="text-center text-muted-foreground">
+                        <TableCell colSpan={6} className="text-center text-muted-foreground">
                           {loading ? "Loading mappings..." : "No mappings found"}
                         </TableCell>
                       </TableRow>
                     ) : (
                       filtered.map((row, index) => (
-                        <TableRow key={`${row.excel?.table || ""}-${row.excel?.column || ""}-${index}`}>
-                          <TableCell className="font-medium">{formatGroupLabel(row.excel?.table || "-")}</TableCell>
+                        <TableRow key={`${resolveGroupKey(row)}-${row.excel?.column || ""}-${index}`}>
+                          <TableCell className="font-medium">{formatGroupLabel(resolveGroupKey(row) || "-")}</TableCell>
                           <TableCell>{row.excel?.column || "-"}</TableCell>
                           <TableCell>{row.excel?.excelName || "-"}</TableCell>
                           <TableCell>{row.matched?.type || "-"}</TableCell>
@@ -364,6 +411,36 @@ export default function AddColumn() {
                             <Badge variant={row.status === "manual_added" ? "secondary" : "outline"}>
                               {row.status || "mapped"}
                             </Badge>
+                          </TableCell>
+                          <TableCell className="text-right">
+                            <DropdownMenu>
+                              <DropdownMenuTrigger asChild>
+                                <Button
+                                  variant="ghost"
+                                  size="icon"
+                                  disabled={
+                                    deleting === `${resolveGroupKey(row)}.${row.excel?.column || ""}` ||
+                                    deleting === `${resolveGroupKey(row)}::*`
+                                  }
+                                >
+                                  <MoreHorizontal className="h-4 w-4" />
+                                </Button>
+                              </DropdownMenuTrigger>
+                              <DropdownMenuContent align="end">
+                                <DropdownMenuItem
+                                  className="text-destructive"
+                                  onClick={() => handleDelete(resolveGroupKey(row), String(row.excel?.column || ""))}
+                                >
+                                  Delete Column
+                                </DropdownMenuItem>
+                                <DropdownMenuItem
+                                  className="text-destructive"
+                                  onClick={() => handleDelete(resolveGroupKey(row))}
+                                >
+                                  Delete Group
+                                </DropdownMenuItem>
+                              </DropdownMenuContent>
+                            </DropdownMenu>
                           </TableCell>
                         </TableRow>
                       ))
