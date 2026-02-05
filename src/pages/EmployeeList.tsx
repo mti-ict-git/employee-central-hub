@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useRef, useState } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { MainLayout } from "@/components/layout/MainLayout";
 import { EmployeeTable } from "@/components/employees/EmployeeTable";
 import { EmployeeFilters } from "@/components/employees/EmployeeFilters";
@@ -44,6 +44,84 @@ const EmployeeList = () => {
   const [visibleColumns, setVisibleColumns] = useState<string[]>(["core.employee_id","core.name","type","employment.department","employment.job_title","employment.status"]);
   const [colSearch, setColSearch] = useState("");
   const [allowedColumns, setAllowedColumns] = useState<Array<{ key: string; section: string; column: string; label: string }>>([]);
+
+  const preferredColumnOrder = useMemo(
+    () => [
+      "core.employee_id",
+      "core.imip_id",
+      "core.name",
+      "core.gender",
+      "core.place_of_birth",
+      "core.date_of_birth",
+      "core.age",
+      "core.marital_status",
+      "core.tax_status",
+      "core.religion",
+      "core.nationality",
+      "core.blood_type",
+      "contact.phone_number",
+      "contact.emergency_contact_phone",
+      "contact.email",
+      "core.office_email",
+      "core.ktp_no",
+      "contact.address",
+      "contact.city",
+      "onboard.point_of_hire",
+      "employment.locality_status",
+      "onboard.point_of_origin",
+      "core.education",
+      "onboard.schedule_type",
+      "onboard.first_join_date_merdeka",
+      "onboard.transfer_merdeka",
+      "onboard.first_join_date",
+      "onboard.join_date",
+      "employment.employment_status",
+      "onboard.end_contract",
+      "onboard.years_in_service",
+      "core.branch_id",
+      "core.branch",
+      "employment.division",
+      "employment.department",
+      "employment.section",
+      "employment.direct_report",
+      "employment.job_title",
+      "employment.position_grade",
+      "employment.group_job_title",
+      "employment.grade",
+      "insurance.insurance_endorsement",
+      "insurance.insurance_fpg",
+      "insurance.insurance_owlexa",
+      "contact.spouse_name",
+      "contact.child_name_1",
+      "contact.child_name_2",
+      "contact.child_name_3",
+      "core.kartu_keluarga_no",
+      "bank.bank_name",
+      "bank.account_name",
+      "bank.account_no",
+      "core.npwp",
+      "insurance.social_insurance_no_alt",
+      "insurance.bpjs_kes",
+      "insurance.bpjs_kes_no_alt",
+      "insurance.status_bpjs_kes",
+      "insurance.fpg_no",
+      "insurance.owlexa_no",
+      "core.month_of_birthday",
+    ],
+    [],
+  );
+  const preferredOrderIndex = useMemo(() => new Map(preferredColumnOrder.map((key, index) => [key, index])), [preferredColumnOrder]);
+  const orderColumns = useCallback((keys: string[]) => {
+    const unique = Array.from(new Set(keys));
+    return unique.sort((a, b) => {
+      const ai = preferredOrderIndex.get(a);
+      const bi = preferredOrderIndex.get(b);
+      if (ai !== undefined && bi !== undefined) return ai - bi;
+      if (ai !== undefined) return -1;
+      if (bi !== undefined) return 1;
+      return a.localeCompare(b);
+    });
+  }, [preferredOrderIndex]);
 
   const minTableWidth = useMemo(() => Math.max(1000, (visibleColumns?.length || 0) * 160 + 480), [visibleColumns]);
   const allowedKeySet = useMemo(() => new Set(allowedColumns.map((d) => d.key)), [allowedColumns]);
@@ -254,18 +332,22 @@ const EmployeeList = () => {
         ensure("employment.job_title", "employment", "job_title", "Employment • Job Title");
         ensure("employment.status", "employment", "status", "Employment • Status");
         ensure("type", "core", "type", "Type");
-        setAllowedColumns(defs);
+        const orderedDefs = orderColumns(defs.map((d) => d.key)).map((key) => defs.find((d) => d.key === key)).filter(Boolean) as Array<{ key: string; section: string; column: string; label: string }>;
+        setAllowedColumns(orderedDefs);
       } catch (e) { void e; }
     };
     run();
     return () => ctrl.abort();
-  }, [rbacReady, caps]);
+  }, [rbacReady, caps, orderColumns]);
 
   useEffect(() => {
     if (!allowedColumns.length) return;
     const filtered = visibleColumns.filter((col) => col === "type" || allowedKeySet.has(col));
-    const fallback = ["core.employee_id","core.name","type"];
-    const next = filtered.length ? filtered : fallback;
+    const hasType = filtered.includes("type");
+    const fallbackBase = ["core.employee_id","core.name"];
+    const ordered = orderColumns(filtered.filter((col) => col !== "type"));
+    const nextBase = ordered.length ? ordered : orderColumns(fallbackBase);
+    const next = hasType ? nextBase.concat("type") : nextBase;
     const same = next.length === visibleColumns.length && next.every((val, idx) => val === visibleColumns[idx]);
     if (same) return;
     setVisibleColumns(next);
@@ -284,7 +366,7 @@ const EmployeeList = () => {
     };
     run();
     return () => ctrl.abort();
-  }, [allowedColumns, allowedKeySet, visibleColumns]);
+  }, [allowedColumns, allowedKeySet, visibleColumns, orderColumns]);
 
   const loadMore = async () => {
     try {
