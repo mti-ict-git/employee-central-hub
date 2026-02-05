@@ -10,6 +10,26 @@ async function loadXLSX() {
 }
 export const mappingRouter = Router();
 
+const isSafeIdent = (value: string) => /^[A-Za-z_][A-Za-z0-9_]*$/.test(value);
+
+const normalizeSqlType = (raw: string) => {
+  const key = String(raw || "").trim().toLowerCase();
+  if (!key) return "";
+  if (key === "varchar") return "VARCHAR(255)";
+  if (key === "nvarchar") return "NVARCHAR(255)";
+  if (key === "text") return "NVARCHAR(MAX)";
+  if (key === "int") return "INT";
+  if (key === "bigint") return "BIGINT";
+  if (key === "bit") return "BIT";
+  if (key === "decimal") return "DECIMAL(18,2)";
+  if (key === "date") return "DATE";
+  if (key === "datetime") return "DATETIME";
+  if (key === "datetime2") return "DATETIME2";
+  if (key === "time") return "TIME";
+  if (key === "uniqueidentifier") return "UNIQUEIDENTIFIER";
+  return "";
+};
+
 function getPool() {
   return new sql.ConnectionPool({
     server: CONFIG.DB.SERVER,
@@ -266,8 +286,41 @@ mappingRouter.post("/dbinfo", authMiddleware, requireRole(["admin", "superadmin"
     const excelTable = table.includes(".") ? table.split(".").pop() || table : table;
     const schema = table.includes(".") ? (table.split(".")[0] || "dbo") : "dbo";
     const matchedTable = table.includes(".") ? table : `${schema}.${table}`;
+    if (!isSafeIdent(schema) || !isSafeIdent(excelTable) || !isSafeIdent(column)) {
+      return res.status(400).json({ error: "INVALID_IDENTIFIER" });
+    }
+    const sqlType = normalizeSqlType(typeRaw);
+    if (!sqlType) {
+      return res.status(400).json({ error: "INVALID_COLUMN_TYPE" });
+    }
     await pool.connect();
     await ensureDbinfoMappingSchema(pool);
+    const tableCheckReq = new sql.Request(pool);
+    tableCheckReq.input("schema", sql.NVarChar(128), schema.trim());
+    tableCheckReq.input("table", sql.NVarChar(128), excelTable.trim());
+    const tableCheckRes = await tableCheckReq.query(`
+      SELECT 1 AS ok
+      FROM INFORMATION_SCHEMA.TABLES
+      WHERE TABLE_SCHEMA=@schema AND TABLE_NAME=@table
+    `);
+    if (!((tableCheckRes.recordset || [])[0] as any)?.ok) {
+      return res.status(404).json({ error: "TABLE_NOT_FOUND" });
+    }
+    const colCheckReq = new sql.Request(pool);
+    colCheckReq.input("schema", sql.NVarChar(128), schema.trim());
+    colCheckReq.input("table", sql.NVarChar(128), excelTable.trim());
+    colCheckReq.input("column", sql.NVarChar(128), column.trim());
+    const colCheckRes = await colCheckReq.query(`
+      SELECT 1 AS ok
+      FROM INFORMATION_SCHEMA.COLUMNS
+      WHERE TABLE_SCHEMA=@schema AND TABLE_NAME=@table AND LOWER(COLUMN_NAME)=LOWER(@column)
+    `);
+    const columnExists = !!((colCheckRes.recordset || [])[0] as any)?.ok;
+    if (!columnExists) {
+      await new sql.Request(pool).query(`
+        ALTER TABLE [${schema}].[${excelTable}] ADD [${column}] ${sqlType} NULL;
+      `);
+    }
     const dupReq = new sql.Request(pool);
     dupReq.input("excel_table", sql.NVarChar(128), excelTable.trim());
     dupReq.input("excel_column", sql.NVarChar(128), column.trim());

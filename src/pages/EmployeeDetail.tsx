@@ -1,7 +1,7 @@
 import { useParams, Link } from "react-router-dom";
 import { useEffect, useState } from "react";
 import { MainLayout } from "@/components/layout/MainLayout";
-import type { Employee } from "@/types/employee";
+import type { Employee, EmployeeCustomField } from "@/types/employee";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
@@ -15,7 +15,8 @@ import {
   Plane,
   Phone,
   CheckSquare,
-  StickyNote
+  StickyNote,
+  Tag
 } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { useRBAC } from "@/hooks/useRBAC";
@@ -50,6 +51,41 @@ const SectionCard = ({ title, icon: Icon, children }: { title: string; icon: Rea
   </div>
 );
 
+type BankFieldDef = { column: string; label: string; type?: string };
+
+const toLabel = (s: string) =>
+  String(s || "")
+    .replace(/_/g, " ")
+    .split(" ")
+    .filter(Boolean)
+    .map((w) => (w[0] ? w[0].toUpperCase() + w.slice(1) : ""))
+    .join(" ");
+
+const normalizeSection = (value: string) => (
+  String(value || "")
+    .trim()
+    .toLowerCase()
+    .replace(/^dbo\./, "")
+    .replace(/^employee\s+/, "")
+    .replace(/^employee_/, "")
+);
+
+const isBankSection = (value: string) => {
+  const section = normalizeSection(value);
+  if (!section) return false;
+  if (section === "bank" || section === "bank_account") return true;
+  return section.includes("bank") && !section.includes("insurance");
+};
+
+const defaultBankFields: BankFieldDef[] = [
+  { column: "bank_name", label: "Bank Name" },
+  { column: "account_name", label: "Account Name" },
+  { column: "account_no", label: "Account No" },
+  { column: "bank_code", label: "Bank Code" },
+  { column: "icbc_bank_account_no", label: "ICBC Account No" },
+  { column: "icbc_username", label: "ICBC Username" },
+];
+
 const EmployeeDetail = () => {
   const { id } = useParams();
   const { caps, typeAccess } = useRBAC();
@@ -59,13 +95,9 @@ const EmployeeDetail = () => {
   const [assigning, setAssigning] = useState(false);
   const [newId, setNewId] = useState("");
   const [assignError, setAssignError] = useState<string | null>(null);
-  const toLabel = (s: string) =>
-    String(s || "")
-      .replace(/_/g, " ")
-      .split(" ")
-      .filter(Boolean)
-      .map((w) => (w[0] ? w[0].toUpperCase() + w.slice(1) : ""))
-      .join(" ");
+  const [customFields, setCustomFields] = useState<EmployeeCustomField[]>([]);
+  const [customFieldsLoading, setCustomFieldsLoading] = useState(false);
+  const [bankFields, setBankFields] = useState<BankFieldDef[]>(defaultBankFields);
   const hasSectionData = (key: string) => {
     const obj = (employee as unknown as Record<string, unknown>) || {};
     return obj[key] !== undefined && obj[key] !== null;
@@ -169,6 +201,76 @@ const EmployeeDetail = () => {
     return () => ctrl.abort();
   }, [id]);
 
+  useEffect(() => {
+    const ctrl = new AbortController();
+    const run = async () => {
+      if (!id) return;
+      try {
+        setCustomFieldsLoading(true);
+        const res = await apiFetch(`/employees/${encodeURIComponent(id)}/custom-fields`, {
+          signal: ctrl.signal,
+          credentials: "include",
+        });
+        const data = await res.json().catch(() => null);
+        if (!res.ok) {
+          const msg = data?.error || `HTTP_${res.status}`;
+          throw new Error(msg);
+        }
+        const items = Array.isArray(data?.items) ? data.items : [];
+        const normalized = items.map((item: Record<string, unknown>) => ({
+          key: String(item.key || ""),
+          value: item.value === null || item.value === undefined ? null : String(item.value),
+          type: item.type ? String(item.type) : null,
+          updated_at: item.updated_at ? String(item.updated_at) : null,
+        }));
+        setCustomFields(normalized);
+      } catch {
+        setCustomFields([]);
+      } finally {
+        setCustomFieldsLoading(false);
+      }
+    };
+    run();
+    return () => ctrl.abort();
+  }, [id]);
+
+  useEffect(() => {
+    const ctrl = new AbortController();
+    const run = async () => {
+      try {
+        const res = await apiFetch(`/mapping/dbinfo`, { signal: ctrl.signal, credentials: "include" });
+        const data = await res.json().catch(() => []);
+        if (!res.ok) {
+          const msg = data?.error || `HTTP_${res.status}`;
+          throw new Error(msg);
+        }
+        const rows = Array.isArray(data) ? data : [];
+        const defs = rows
+          .map((row: { excel?: { table?: string; column?: string; excelName?: string }; matched?: { table?: string; column?: string; type?: string } }) => {
+            const tableRaw = String(row.excel?.table || row.matched?.table || "");
+            if (!isBankSection(tableRaw)) return null;
+            const column = String(row.excel?.column || row.matched?.column || "").trim().toLowerCase();
+            if (!column || column === "employee_id") return null;
+            const label = row.excel?.excelName ? String(row.excel.excelName) : toLabel(column);
+            const type = row.matched?.type ? String(row.matched.type) : "";
+            return { column, label, type } as BankFieldDef;
+          })
+          .filter(Boolean) as BankFieldDef[];
+        const dedup = new Map<string, BankFieldDef>();
+        for (const def of defs) {
+          if (!dedup.has(def.column)) dedup.set(def.column, def);
+        }
+        const list = [...dedup.values()];
+        if (list.length) setBankFields(list);
+        else setBankFields(defaultBankFields);
+      } catch {
+        setBankFields(defaultBankFields);
+      }
+    };
+    run();
+    return () => ctrl.abort();
+  }, []);
+
   if (!employee) {
     return (
       <MainLayout title="Employee Not Found">
@@ -196,6 +298,7 @@ const EmployeeDetail = () => {
     }
     return false;
   })();
+  const canReadCustomFields = caps?.can("employees", "read") ?? true;
 
   return (
     <MainLayout title="Employee Details" subtitle={employee.core?.name || ""}>
@@ -359,6 +462,12 @@ const EmployeeDetail = () => {
               Notes
             </TabsTrigger>
           )}
+          {canReadCustomFields && (
+            <TabsTrigger value="custom" className="gap-2">
+              <Tag className="h-4 w-4" />
+              Custom Fields
+            </TabsTrigger>
+          )}
         </TabsList>
 
         <TabsContent value="personal">
@@ -472,12 +581,14 @@ const EmployeeDetail = () => {
 
         <TabsContent value="bank">
           <SectionCard title="Bank Account" icon={CreditCard}>
-            <InfoRow label="Bank Name" value={employee.bank?.bank_name} visible={canReadCol("bank","bank_name")} />
-            <InfoRow label="Account Name" value={employee.bank?.account_name} visible={canReadCol("bank","account_name")} />
-            <InfoRow label="Account No" value={employee.bank?.account_no} visible={canReadCol("bank","account_no")} />
-            <InfoRow label="Bank Code" value={employee.bank?.bank_code} visible={canReadCol("bank","bank_code")} />
-            <InfoRow label="ICBC Account No" value={employee.bank?.icbc_bank_account_no} visible={canReadCol("bank","icbc_bank_account_no")} />
-            <InfoRow label="ICBC Username" value={employee.bank?.icbc_username} visible={canReadCol("bank","icbc_username")} />
+            {bankFields.map((field) => (
+              <InfoRow
+                key={field.column}
+                label={field.label}
+                value={(employee.bank as Record<string, string | null | undefined>)[field.column] ?? ""}
+                visible={canReadCol("bank", field.column)}
+              />
+            ))}
           </SectionCard>
         </TabsContent>
 
@@ -538,6 +649,23 @@ const EmployeeDetail = () => {
           <SectionCard title="Notes & Batch" icon={StickyNote}>
             <InfoRow label="Batch" value={employee.notes?.batch} visible={canReadCol("notes","batch")} />
             <InfoRow label="Notes" value={employee.notes?.note} visible={canReadCol("notes","note")} />
+          </SectionCard>
+        </TabsContent>
+
+        <TabsContent value="custom">
+          <SectionCard title="Custom Fields" icon={Tag}>
+            {customFieldsLoading ? (
+              <div className="text-sm text-muted-foreground">Loading custom fields...</div>
+            ) : (
+              <div className="space-y-1">
+                {customFields.length === 0 && (
+                  <div className="text-sm text-muted-foreground">No custom fields yet.</div>
+                )}
+                {customFields.map((field, index) => (
+                  <InfoRow key={`${field.key}-${index}`} label={field.key || "Field"} value={field.value ?? ""} visible />
+                ))}
+              </div>
+            )}
           </SectionCard>
         </TabsContent>
       </Tabs>

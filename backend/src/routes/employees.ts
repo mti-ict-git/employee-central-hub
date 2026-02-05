@@ -392,11 +392,13 @@ async function buildReadAccess(pool: sql.ConnectionPool, rolesRaw: string[]): Pr
   return { canReadColumn, hasColumnRule };
 }
 
+type UpdateField = { column: string; param: string; sqlType: sql.ISqlType; value: unknown };
+
 async function upsertEmployeeSection(
   trx: sql.Transaction,
   table: string,
   employeeId: string,
-  fields: Array<{ column: string; param: string; sqlType: sql.ISqlType; value: unknown }>,
+  fields: UpdateField[],
 ) {
   if (!fields.length) return;
   const request = new sql.Request(trx);
@@ -603,6 +605,133 @@ async function scanColumns(pool: sql.ConnectionPool, table: string): Promise<Set
   const rows = (result.recordset || []) as Array<{ COLUMN_NAME?: unknown }>;
   for (const r of rows) out.add(String(r.COLUMN_NAME || "").trim().toLowerCase());
   return out;
+}
+
+type ColumnMeta = {
+  dataType: string;
+  maxLength: number | null;
+  precision: number | null;
+  scale: number | null;
+};
+
+async function scanColumnMeta(pool: sql.ConnectionPool, table: string): Promise<Map<string, ColumnMeta>> {
+  const request = new sql.Request(pool);
+  request.input("table", sql.NVarChar(128), table);
+  const result = await request.query(`
+    SELECT COLUMN_NAME, DATA_TYPE, CHARACTER_MAXIMUM_LENGTH, NUMERIC_PRECISION, NUMERIC_SCALE
+    FROM INFORMATION_SCHEMA.COLUMNS
+    WHERE TABLE_SCHEMA='dbo' AND TABLE_NAME=@table
+  `);
+  const out = new Map<string, ColumnMeta>();
+  const rows = (result.recordset || []) as Array<Record<string, unknown>>;
+  for (const r of rows) {
+    const column = String(r.COLUMN_NAME || "").trim().toLowerCase();
+    if (!column) continue;
+    out.set(column, {
+      dataType: String(r.DATA_TYPE || ""),
+      maxLength: r.CHARACTER_MAXIMUM_LENGTH === null || r.CHARACTER_MAXIMUM_LENGTH === undefined ? null : Number(r.CHARACTER_MAXIMUM_LENGTH),
+      precision: r.NUMERIC_PRECISION === null || r.NUMERIC_PRECISION === undefined ? null : Number(r.NUMERIC_PRECISION),
+      scale: r.NUMERIC_SCALE === null || r.NUMERIC_SCALE === undefined ? null : Number(r.NUMERIC_SCALE),
+    });
+  }
+  return out;
+}
+
+function resolveSqlType(meta?: ColumnMeta): sql.ISqlType {
+  const t = String(meta?.dataType || "").trim().toLowerCase();
+  if (t === "nvarchar") return sql.NVarChar(meta?.maxLength && meta.maxLength > 0 ? meta.maxLength : sql.MAX);
+  if (t === "varchar") return sql.VarChar(meta?.maxLength && meta.maxLength > 0 ? meta.maxLength : sql.MAX);
+  if (t === "nchar") return sql.NChar(meta?.maxLength && meta.maxLength > 0 ? meta.maxLength : 1);
+  if (t === "char") return sql.Char(meta?.maxLength && meta.maxLength > 0 ? meta.maxLength : 1);
+  if (t === "text" || t === "ntext") return sql.NVarChar(sql.MAX);
+  if (t === "int") return sql.Int();
+  if (t === "bigint") return sql.BigInt();
+  if (t === "smallint") return sql.SmallInt();
+  if (t === "tinyint") return sql.TinyInt();
+  if (t === "bit") return sql.Bit();
+  if (t === "decimal" || t === "numeric") return sql.Decimal(meta?.precision || 18, meta?.scale || 0);
+  if (t === "date") return sql.Date();
+  if (t === "datetime") return sql.DateTime();
+  if (t === "datetime2") return sql.DateTime2();
+  if (t === "time") return sql.Time();
+  if (t === "uniqueidentifier") return sql.UniqueIdentifier();
+  return sql.NVarChar(sql.MAX);
+}
+
+function normalizeDynamicValue(value: unknown, meta?: ColumnMeta) {
+  if (value === undefined || value === null || value === "") return null;
+  const t = String(meta?.dataType || "").trim().toLowerCase();
+  if (t === "bit") {
+    if (value === true) return 1;
+    if (value === false) return 0;
+    const s = String(value || "").trim().toLowerCase();
+    if (s === "1" || s === "y" || s === "yes" || s === "true") return 1;
+    if (s === "0" || s === "n" || s === "no" || s === "false") return 0;
+    return null;
+  }
+  if (t === "int" || t === "bigint" || t === "smallint" || t === "tinyint" || t === "decimal" || t === "numeric") {
+    const n = Number(value);
+    return Number.isNaN(n) ? null : n;
+  }
+  if (t === "date" || t === "datetime" || t === "datetime2") return parseDate(value);
+  if (t === "uniqueidentifier") return String(value || "").trim() || null;
+  return String(value);
+}
+
+async function ensureEmployeeCustomFieldsSchema(pool: sql.ConnectionPool) {
+  const hasTableRes = await new sql.Request(pool).query(`
+    SELECT 1 AS ok FROM sys.tables WHERE name = 'employee_custom_fields'
+  `);
+  const hasTable = !!((hasTableRes.recordset || [])[0]);
+  if (!hasTable) {
+    await new sql.Request(pool).query(`
+      CREATE TABLE dbo.employee_custom_fields (
+        [id] BIGINT IDENTITY(1,1) PRIMARY KEY,
+        [employee_id] VARCHAR(20) NOT NULL,
+        [field_key] NVARCHAR(128) NOT NULL,
+        [field_value] NVARCHAR(MAX) NULL,
+        [value_type] NVARCHAR(32) NULL,
+        [created_at] DATETIME2 NOT NULL DEFAULT SYSDATETIME(),
+        [updated_at] DATETIME2 NOT NULL DEFAULT SYSDATETIME()
+      );
+      CREATE UNIQUE INDEX UX_employee_custom_fields_key ON dbo.employee_custom_fields(employee_id, field_key);
+      ALTER TABLE dbo.employee_custom_fields
+        ADD CONSTRAINT FK_employee_custom_fields_employee_core
+        FOREIGN KEY (employee_id) REFERENCES dbo.employee_core(employee_id);
+    `);
+    return;
+  }
+
+  const colsRes = await new sql.Request(pool).query(`
+    SELECT COLUMN_NAME
+    FROM INFORMATION_SCHEMA.COLUMNS
+    WHERE TABLE_SCHEMA='dbo' AND TABLE_NAME='employee_custom_fields'
+  `);
+  const cols = new Set((colsRes.recordset || []).map((r: any) => String(r.COLUMN_NAME || "").toLowerCase()));
+  const ops: string[] = [];
+  if (!cols.has("id")) ops.push("ALTER TABLE dbo.employee_custom_fields ADD [id] BIGINT IDENTITY(1,1) NOT NULL;");
+  if (!cols.has("employee_id")) ops.push("ALTER TABLE dbo.employee_custom_fields ADD [employee_id] VARCHAR(20) NOT NULL DEFAULT '';");
+  if (!cols.has("field_key")) ops.push("ALTER TABLE dbo.employee_custom_fields ADD [field_key] NVARCHAR(128) NOT NULL DEFAULT '';");
+  if (!cols.has("field_value")) ops.push("ALTER TABLE dbo.employee_custom_fields ADD [field_value] NVARCHAR(MAX) NULL;");
+  if (!cols.has("value_type")) ops.push("ALTER TABLE dbo.employee_custom_fields ADD [value_type] NVARCHAR(32) NULL;");
+  if (!cols.has("created_at")) ops.push("ALTER TABLE dbo.employee_custom_fields ADD [created_at] DATETIME2 NOT NULL DEFAULT SYSDATETIME();");
+  if (!cols.has("updated_at")) ops.push("ALTER TABLE dbo.employee_custom_fields ADD [updated_at] DATETIME2 NOT NULL DEFAULT SYSDATETIME();");
+  for (const q of ops) await new sql.Request(pool).query(q);
+
+  await new sql.Request(pool).query(`
+    IF NOT EXISTS (
+      SELECT 1 FROM sys.indexes WHERE name = 'UX_employee_custom_fields_key' AND object_id = OBJECT_ID('dbo.employee_custom_fields')
+    )
+      CREATE UNIQUE INDEX UX_employee_custom_fields_key ON dbo.employee_custom_fields(employee_id, field_key);
+  `);
+  await new sql.Request(pool).query(`
+    IF NOT EXISTS (
+      SELECT 1 FROM sys.foreign_keys WHERE name = 'FK_employee_custom_fields_employee_core'
+    )
+      ALTER TABLE dbo.employee_custom_fields
+        ADD CONSTRAINT FK_employee_custom_fields_employee_core
+        FOREIGN KEY (employee_id) REFERENCES dbo.employee_core(employee_id);
+  `);
 }
 
 async function loadUserTemplateAllowed(pool: sql.ConnectionPool, username: string): Promise<Set<string> | null> {
@@ -1007,6 +1136,7 @@ employeesRouter.delete("/:id", async (req, res) => {
     const request = new sql.Request(trx);
     request.input("employee_id", sql.VarChar(100), id);
     await request.query(`
+      DELETE FROM dbo.employee_custom_fields WHERE employee_id=@employee_id;
       DELETE FROM dbo.employee_notes WHERE employee_id=@employee_id;
       DELETE FROM dbo.employee_checklist WHERE employee_id=@employee_id;
       DELETE FROM dbo.employee_travel WHERE employee_id=@employee_id;
@@ -1103,12 +1233,143 @@ employeesRouter.put("/:id", async (req, res) => {
     const checklistTableCols = await scanColumns(pool, "employee_checklist");
     const notesTableCols = await scanColumns(pool, "employee_notes");
 
+    const coreColumnMeta = await scanColumnMeta(pool, "employee_core");
+    const contactColumnMeta = await scanColumnMeta(pool, "employee_contact");
+    const employmentColumnMeta = await scanColumnMeta(pool, "employee_employment");
+    const onboardColumnMeta = await scanColumnMeta(pool, "employee_onboard");
+    const insuranceColumnMeta = await scanColumnMeta(pool, "employee_insurance");
+    const travelColumnMeta = await scanColumnMeta(pool, "employee_travel");
+    const checklistColumnMeta = await scanColumnMeta(pool, "employee_checklist");
+    const notesColumnMeta = await scanColumnMeta(pool, "employee_notes");
+
+    const coreBaseColumns = new Set([
+      "name",
+      "gender",
+      "place_of_birth",
+      "date_of_birth",
+      "marital_status",
+      "religion",
+      "nationality",
+      "blood_type",
+      "kartu_keluarga_no",
+      "ktp_no",
+      "npwp",
+      "tax_status",
+      "education",
+      "imip_id",
+      "branch",
+      "branch_id",
+      "office_email",
+      "id_card_mti",
+      "residen",
+      "field",
+    ]);
+    const contactBaseColumns = new Set([
+      "phone_number",
+      "email",
+      "address",
+      "city",
+      "spouse_name",
+      "child_name_1",
+      "child_name_2",
+      "child_name_3",
+      "emergency_contact_name",
+      "emergency_contact_phone",
+    ]);
+    const employmentBaseColumns = new Set([
+      "employment_status",
+      "status",
+      "division",
+      "department",
+      "section",
+      "job_title",
+      "grade",
+      "position_grade",
+      "group_job_title",
+      "direct_report",
+      "company_office",
+      "work_location",
+      "locality_status",
+      "blacklist_mti",
+      "blacklist_imip",
+    ]);
+    const onboardBaseColumns = new Set([
+      "point_of_hire",
+      "point_of_origin",
+      "schedule_type",
+      "first_join_date_merdeka",
+      "transfer_merdeka",
+      "first_join_date",
+      "join_date",
+      "end_contract",
+    ]);
+    const insuranceBaseColumns = new Set([
+      "bpjs_tk",
+      "bpjs_kes",
+      "status_bpjs_kes",
+      "fpg_no",
+      "owlexa_no",
+      "social_insurance_no_alt",
+      "bpjs_kes_no_alt",
+      "insurance_endorsement",
+      "insurance_owlexa",
+      "insurance_fpg",
+    ]);
+    const travelBaseColumns = new Set([
+      "passport_no",
+      "name_as_passport",
+      "passport_expiry",
+      "kitas_no",
+      "kitas_expiry",
+      "kitas_address",
+      "imta",
+      "rptka_no",
+      "rptka_position",
+      "job_title_kitas",
+      "travel_in",
+      "travel_out",
+    ]);
+    const checklistBaseColumns = new Set([
+      "paspor_checklist",
+      "passport_checklist",
+      "kitas_checklist",
+      "imta_checklist",
+      "rptka_checklist",
+      "npwp_checklist",
+      "bpjs_kes_checklist",
+      "bpjs_tk_checklist",
+      "bank_checklist",
+    ]);
+    const notesBaseColumns = new Set(["batch", "note"]);
+
+    const buildDynamicSectionFields = (
+      sectionData: Record<string, unknown>,
+      section: string,
+      tableCols: Set<string>,
+      columnMeta: Map<string, ColumnMeta>,
+      baseColumns: Set<string>
+    ) => {
+      const fields: UpdateField[] = [];
+      for (const [rawColumn, rawValue] of Object.entries(sectionData)) {
+        const column = String(rawColumn || "").trim().toLowerCase();
+        if (!column || column === "employee_id") continue;
+        if (baseColumns.has(column)) continue;
+        if (!tableCols.has(column)) continue;
+        if (!canWrite(section, column)) continue;
+        const param = `${section}_${column.replace(/[^a-z0-9_]/gi, "_")}`;
+        const meta = columnMeta.get(column);
+        const value = normalizeDynamicValue(rawValue, meta);
+        fields.push({ column, param, sqlType: resolveSqlType(meta), value });
+      }
+      return fields;
+    };
+
     const idCardRaw = core.id_card_mti;
     const idCardVal = idCardRaw === true ? 1 : idCardRaw === false ? 0 : null;
     const residenRaw = core.residen;
     const residenVal = residenRaw === true ? 1 : residenRaw === false ? 0 : null;
 
-    const coreFields = [
+    const coreFields: UpdateField[] = [
       { column: "name", param: "name", sqlType: sql.NVarChar(200), value: core.name ? String(core.name) : null, gate: "name" },
       { column: "gender", param: "gender", sqlType: sql.Char(1), value: genderToCode(core.gender ? String(core.gender) : null), gate: "gender" },
       { column: "place_of_birth", param: "place_of_birth", sqlType: sql.NVarChar(100), value: core.place_of_birth ? String(core.place_of_birth) : null, gate: "place_of_birth" },
@@ -1132,8 +1393,10 @@ employeesRouter.put("/:id", async (req, res) => {
     ]
       .filter((f) => coreTableCols.has(f.column) && canWrite("core", f.gate))
       .map((f) => ({ column: f.column, param: f.param, sqlType: f.sqlType, value: f.value }));
+    const dynamicCoreFields = buildDynamicSectionFields(core as Record<string, unknown>, "core", coreTableCols, coreColumnMeta, coreBaseColumns);
+    if (dynamicCoreFields.length) coreFields.push(...dynamicCoreFields);
 
-    const contactFields = [
+    const contactFields: UpdateField[] = [
       { column: "phone_number", param: "phone_number", sqlType: sql.NVarChar(50), value: contact.phone_number ? String(contact.phone_number) : null, gate: "phone_number" },
       { column: "email", param: "email", sqlType: sql.NVarChar(200), value: contact.email ? String(contact.email) : null, gate: "email" },
       { column: "address", param: "address", sqlType: sql.NVarChar(255), value: contact.address ? String(contact.address) : null, gate: "address" },
@@ -1147,6 +1410,8 @@ employeesRouter.put("/:id", async (req, res) => {
     ]
       .filter((f) => contactTableCols.has(f.column) && canWrite("contact", f.gate))
       .map((f) => ({ column: f.column, param: f.param, sqlType: f.sqlType, value: f.value }));
+    const dynamicContactFields = buildDynamicSectionFields(contact as Record<string, unknown>, "contact", contactTableCols, contactColumnMeta, contactBaseColumns);
+    if (dynamicContactFields.length) contactFields.push(...dynamicContactFields);
 
     const normalizedEmploymentStatus = normalizeEmploymentStatus(employment.employment_status);
     if (employment.employment_status !== undefined && normalizedEmploymentStatus === null && canWrite("employment", "employment_status")) {
@@ -1157,7 +1422,7 @@ employeesRouter.put("/:id", async (req, res) => {
       });
     }
 
-    const employmentFields = [
+    const employmentFields: UpdateField[] = [
       ...(normalizedEmploymentStatus !== undefined
         ? [{ column: "employment_status", param: "employment_status", sqlType: sql.NVarChar(50), value: normalizedEmploymentStatus, gate: "employment_status" }]
         : []),
@@ -1178,8 +1443,10 @@ employeesRouter.put("/:id", async (req, res) => {
     ]
       .filter((f) => employmentTableCols.has(f.column) && canWrite("employment", f.gate))
       .map((f) => ({ column: f.column, param: f.param, sqlType: f.sqlType, value: f.value }));
+    const dynamicEmploymentFields = buildDynamicSectionFields(employment as Record<string, unknown>, "employment", employmentTableCols, employmentColumnMeta, employmentBaseColumns);
+    if (dynamicEmploymentFields.length) employmentFields.push(...dynamicEmploymentFields);
 
-    const onboardFields = [
+    const onboardFields: UpdateField[] = [
       { column: "point_of_hire", param: "point_of_hire", sqlType: sql.NVarChar(100), value: onboard.point_of_hire ? String(onboard.point_of_hire) : null, gate: "point_of_hire" },
       { column: "point_of_origin", param: "point_of_origin", sqlType: sql.NVarChar(100), value: onboard.point_of_origin ? String(onboard.point_of_origin) : null, gate: "point_of_origin" },
       { column: "schedule_type", param: "schedule_type", sqlType: sql.NVarChar(50), value: onboard.schedule_type ? String(onboard.schedule_type) : null, gate: "schedule_type" },
@@ -1191,19 +1458,36 @@ employeesRouter.put("/:id", async (req, res) => {
     ]
       .filter((f) => onboardTableCols.has(f.column) && canWrite("onboard", f.gate))
       .map((f) => ({ column: f.column, param: f.param, sqlType: f.sqlType, value: f.value }));
+    const dynamicOnboardFields = buildDynamicSectionFields(onboard as Record<string, unknown>, "onboard", onboardTableCols, onboardColumnMeta, onboardBaseColumns);
+    if (dynamicOnboardFields.length) onboardFields.push(...dynamicOnboardFields);
 
-    const bankFields = [
-      { column: "bank_name", param: "bank_name", sqlType: sql.NVarChar(100), value: bank.bank_name ? String(bank.bank_name) : null, gate: "bank_name" },
-      { column: "account_name", param: "account_name", sqlType: sql.NVarChar(100), value: bank.account_name ? String(bank.account_name) : null, gate: "account_name" },
-      { column: "account_no", param: "account_no", sqlType: sql.NVarChar(50), value: bank.account_no ? String(bank.account_no) : null, gate: "account_no" },
-      { column: "bank_code", param: "bank_code", sqlType: sql.NVarChar(50), value: bank.bank_code ? String(bank.bank_code) : null, gate: "bank_code" },
-      { column: "icbc_bank_account_no", param: "icbc_bank_account_no", sqlType: sql.NVarChar(50), value: bank.icbc_bank_account_no ? String(bank.icbc_bank_account_no) : null, gate: "icbc_bank_account_no" },
-      { column: "icbc_username", param: "icbc_username", sqlType: sql.NVarChar(50), value: bank.icbc_username ? String(bank.icbc_username) : null, gate: "icbc_username" },
-    ]
-      .filter((f) => bankTableCols.has(f.column) && canWrite("bank", f.gate))
-      .map((f) => ({ column: f.column, param: f.param, sqlType: f.sqlType, value: f.value }));
+    const bankFieldMap = new Map<string, UpdateField>();
+    for (const [rawColumn, rawValue] of Object.entries(bank)) {
+      const column = String(rawColumn || "").trim().toLowerCase();
+      if (!column || column === "employee_id") continue;
+      if (!bankTableCols.has(column)) continue;
+      if (!canWrite("bank", column)) continue;
+      if (bankFieldMap.has(column)) continue;
+      const param = `bank_${column.replace(/[^a-z0-9_]/gi, "_")}`;
+      const value = rawValue === undefined || rawValue === null || rawValue === "" ? null : String(rawValue);
+      bankFieldMap.set(column, { column, param, sqlType: sql.NVarChar(255), value });
+    }
+    const bankFields = [...bankFieldMap.values()];
 
-    const insuranceFields = [
+    const baseBankColumns = new Set(["bank_name", "account_name", "account_no", "bank_code", "icbc_bank_account_no", "icbc_username"]);
+    const customBankMap = new Map<string, { key: string; value: string | null }>();
+    for (const [rawColumn, rawValue] of Object.entries(bank)) {
+      const column = String(rawColumn || "").trim().toLowerCase();
+      if (!column || column === "employee_id") continue;
+      if (baseBankColumns.has(column)) continue;
+      if (!canWrite("bank", column)) continue;
+      if (customBankMap.has(column)) continue;
+      const value = rawValue === undefined || rawValue === null || rawValue === "" ? null : String(rawValue);
+      customBankMap.set(column, { key: `bank.${column}`, value });
+    }
+    const customBankFields = [...customBankMap.values()];
+
+    const insuranceFields: UpdateField[] = [
       { column: "bpjs_tk", param: "bpjs_tk", sqlType: sql.NVarChar(50), value: insurance.bpjs_tk ? String(insurance.bpjs_tk) : null, gate: "bpjs_tk" },
       { column: "bpjs_kes", param: "bpjs_kes", sqlType: sql.NVarChar(50), value: insurance.bpjs_kes ? String(insurance.bpjs_kes) : null, gate: "bpjs_kes" },
       { column: "status_bpjs_kes", param: "status_bpjs_kes", sqlType: sql.NVarChar(50), value: insurance.status_bpjs_kes ? String(insurance.status_bpjs_kes) : null, gate: "status_bpjs_kes" },
@@ -1217,8 +1501,10 @@ employeesRouter.put("/:id", async (req, res) => {
     ]
       .filter((f) => insuranceTableCols.has(f.column) && canWrite("insurance", f.gate))
       .map((f) => ({ column: f.column, param: f.param, sqlType: f.sqlType, value: f.value }));
+    const dynamicInsuranceFields = buildDynamicSectionFields(insurance as Record<string, unknown>, "insurance", insuranceTableCols, insuranceColumnMeta, insuranceBaseColumns);
+    if (dynamicInsuranceFields.length) insuranceFields.push(...dynamicInsuranceFields);
 
-    const travelFields = [
+    const travelFields: UpdateField[] = [
       { column: "passport_no", param: "passport_no", sqlType: sql.NVarChar(50), value: travel.passport_no ? String(travel.passport_no) : null, gate: "passport_no" },
       { column: "name_as_passport", param: "name_as_passport", sqlType: sql.NVarChar(100), value: travel.name_as_passport ? String(travel.name_as_passport) : null, gate: "name_as_passport" },
       { column: "passport_expiry", param: "passport_expiry", sqlType: sql.Date(), value: parseDate(travel.passport_expiry), gate: "passport_expiry" },
@@ -1234,8 +1520,10 @@ employeesRouter.put("/:id", async (req, res) => {
     ]
       .filter((f) => travelTableCols.has(f.column) && canWrite("travel", f.gate))
       .map((f) => ({ column: f.column, param: f.param, sqlType: f.sqlType, value: f.value }));
+    const dynamicTravelFields = buildDynamicSectionFields(travel as Record<string, unknown>, "travel", travelTableCols, travelColumnMeta, travelBaseColumns);
+    if (dynamicTravelFields.length) travelFields.push(...dynamicTravelFields);
 
-    const checklistFields = [
+    const checklistFields: UpdateField[] = [
       { column: "paspor_checklist", param: "paspor_checklist", sqlType: sql.NVarChar(1), value: boolToYN(checklist.passport_checklist), gate: "passport_checklist" },
       { column: "kitas_checklist", param: "kitas_checklist", sqlType: sql.NVarChar(1), value: boolToYN(checklist.kitas_checklist), gate: "kitas_checklist" },
       { column: "imta_checklist", param: "imta_checklist", sqlType: sql.NVarChar(1), value: boolToYN(checklist.imta_checklist), gate: "imta_checklist" },
@@ -1247,13 +1535,17 @@ employeesRouter.put("/:id", async (req, res) => {
     ]
       .filter((f) => checklistTableCols.has(f.column) && canWrite("checklist", f.gate))
       .map((f) => ({ column: f.column, param: f.param, sqlType: f.sqlType, value: f.value }));
+    const dynamicChecklistFields = buildDynamicSectionFields(checklist as Record<string, unknown>, "checklist", checklistTableCols, checklistColumnMeta, checklistBaseColumns);
+    if (dynamicChecklistFields.length) checklistFields.push(...dynamicChecklistFields);
 
-    const notesFields = [
+    const notesFields: UpdateField[] = [
       { column: "batch", param: "batch", sqlType: sql.NVarChar(50), value: notes.batch ? String(notes.batch) : null, gate: "batch" },
       { column: "note", param: "note", sqlType: sql.NVarChar(sql.MAX), value: notes.note ? String(notes.note) : null, gate: "note" },
     ]
       .filter((f) => notesTableCols.has(f.column) && canWrite("notes", f.gate))
       .map((f) => ({ column: f.column, param: f.param, sqlType: f.sqlType, value: f.value }));
+    const dynamicNotesFields = buildDynamicSectionFields(notes as Record<string, unknown>, "notes", notesTableCols, notesColumnMeta, notesBaseColumns);
+    if (dynamicNotesFields.length) notesFields.push(...dynamicNotesFields);
 
     const totalUpdates =
       coreFields.length +
@@ -1261,6 +1553,7 @@ employeesRouter.put("/:id", async (req, res) => {
       employmentFields.length +
       onboardFields.length +
       bankFields.length +
+      customBankFields.length +
       insuranceFields.length +
       travelFields.length +
       checklistFields.length +
@@ -1269,6 +1562,9 @@ employeesRouter.put("/:id", async (req, res) => {
       return res.status(403).json({ error: "FORBIDDEN_UPDATE_EMPLOYEE", reason: "NO_ALLOWED_FIELDS" });
     }
 
+    if (customBankFields.length) {
+      await ensureEmployeeCustomFieldsSchema(pool);
+    }
     await trx.begin();
     try {
       await upsertEmployeeSection(trx, "employee_core", id, coreFields);
@@ -1276,6 +1572,31 @@ employeesRouter.put("/:id", async (req, res) => {
       await upsertEmployeeSection(trx, "employee_employment", id, employmentFields);
       await upsertEmployeeSection(trx, "employee_onboard", id, onboardFields);
       await upsertEmployeeSection(trx, "employee_bank", id, bankFields);
+      if (customBankFields.length) {
+        for (const item of customBankFields) {
+          const reqCustom = new sql.Request(trx);
+          reqCustom.input("employee_id", sql.VarChar(100), id);
+          reqCustom.input("field_key", sql.NVarChar(128), item.key);
+          if (item.value === null) {
+            await reqCustom.query(`
+              DELETE FROM dbo.employee_custom_fields
+              WHERE employee_id=@employee_id AND field_key=@field_key;
+            `);
+            continue;
+          }
+          reqCustom.input("field_value", sql.NVarChar(sql.MAX), item.value);
+          reqCustom.input("value_type", sql.NVarChar(32), "string");
+          await reqCustom.query(`
+            IF EXISTS (SELECT 1 FROM dbo.employee_custom_fields WHERE employee_id=@employee_id AND field_key=@field_key)
+              UPDATE dbo.employee_custom_fields
+              SET field_value=@field_value, value_type=@value_type, updated_at=SYSDATETIME()
+              WHERE employee_id=@employee_id AND field_key=@field_key
+            ELSE
+              INSERT INTO dbo.employee_custom_fields (employee_id, field_key, field_value, value_type)
+              VALUES (@employee_id, @field_key, @field_value, @value_type);
+          `);
+        }
+      }
       await upsertEmployeeSection(trx, "employee_insurance", id, insuranceFields);
       await upsertEmployeeSection(trx, "employee_travel", id, travelFields);
       await upsertEmployeeSection(trx, "employee_checklist", id, checklistFields);
@@ -1890,6 +2211,119 @@ employeesRouter.post("/import", async (req, res) => {
   return res.json({ ok: true, success, failed, skipped, inserted, updated, total: rows.length, results, dry_run: dryRun, on_exist: onExist, update_mode: updateMode });
 });
 
+employeesRouter.get("/:id/custom-fields", async (req, res) => {
+  const id = String(req.params.id || "").trim();
+  if (!id) return res.status(400).json({ error: "EMPLOYEE_ID_REQUIRED" });
+  const roles = req.user?.roles || [];
+  if (!roles.some((r) => can(r, "read", "employees"))) {
+    return res.status(403).json({ error: "FORBIDDEN_READ_EMPLOYEE" });
+  }
+  const pool = getPool();
+  try {
+    await pool.connect();
+    await ensureEmployeeCustomFieldsSchema(pool);
+    const request = new sql.Request(pool);
+    request.input("employee_id", sql.VarChar(100), id);
+    const result = await request.query(`
+      SELECT field_key, field_value, value_type, updated_at
+      FROM dbo.employee_custom_fields
+      WHERE employee_id=@employee_id
+      ORDER BY field_key
+    `);
+    const items = (result.recordset || []).map((row) => {
+      const r = row as { field_key?: unknown; field_value?: unknown; value_type?: unknown; updated_at?: Date | null };
+      return {
+        key: String(r.field_key || ""),
+        value: r.field_value === null || r.field_value === undefined ? null : String(r.field_value),
+        type: r.value_type ? String(r.value_type) : null,
+        updated_at: r.updated_at || null,
+      };
+    });
+    return res.json({ employee_id: id, items });
+  } catch (err: unknown) {
+    const message = err instanceof Error ? err.message : "FAILED_TO_READ_CUSTOM_FIELDS";
+    const details = extractDbErrorDetails(err);
+    return res.status(500).json({ error: message, details });
+  } finally {
+    await pool.close();
+  }
+});
+
+employeesRouter.put("/:id/custom-fields", async (req, res) => {
+  const id = String(req.params.id || "").trim();
+  if (!id) return res.status(400).json({ error: "EMPLOYEE_ID_REQUIRED" });
+  const roles = req.user?.roles || [];
+  if (!roles.some((r) => can(r, "update", "employees"))) {
+    return res.status(403).json({ error: "FORBIDDEN_UPDATE_EMPLOYEE" });
+  }
+  const body = req.body;
+  const fieldsRaw = isObjectRecord(body) && "fields" in body ? (body as { fields?: unknown }).fields : body;
+  const fieldsInput = Array.isArray(fieldsRaw) ? fieldsRaw : isObjectRecord(fieldsRaw) ? Object.entries(fieldsRaw).map(([key, value]) => ({ key, value })) : [];
+  if (!fieldsInput.length) return res.status(400).json({ error: "CUSTOM_FIELDS_REQUIRED" });
+  const pool = getPool();
+  await pool.connect();
+  const trx = new sql.Transaction(pool);
+  try {
+    await ensureEmployeeCustomFieldsSchema(pool);
+    await trx.begin();
+    let upserted = 0;
+    let removed = 0;
+    for (const item of fieldsInput) {
+      const key = isObjectRecord(item) ? String((item as { key?: unknown }).key || "").trim() : "";
+      if (!key) continue;
+      const value = isObjectRecord(item) && "value" in item ? (item as { value?: unknown }).value : undefined;
+      const typeRaw = isObjectRecord(item) && "type" in item ? (item as { type?: unknown }).type : undefined;
+      if (value === undefined) continue;
+      if (value === null) {
+        const delReq = new sql.Request(trx);
+        delReq.input("employee_id", sql.VarChar(100), id);
+        delReq.input("field_key", sql.NVarChar(128), key);
+        await delReq.query(`
+          DELETE FROM dbo.employee_custom_fields
+          WHERE employee_id=@employee_id AND field_key=@field_key;
+        `);
+        removed += 1;
+        continue;
+      }
+      let valueType = typeRaw ? String(typeRaw) : "";
+      let valueText: string;
+      if (!valueType) {
+        if (typeof value === "number") valueType = "number";
+        else if (typeof value === "boolean") valueType = "boolean";
+        else if (typeof value === "string") valueType = "string";
+        else valueType = "json";
+      }
+      if (valueType === "json") valueText = JSON.stringify(value);
+      else if (value instanceof Date) { valueText = value.toISOString(); valueType = "date"; }
+      else valueText = String(value);
+      const upsertReq = new sql.Request(trx);
+      upsertReq.input("employee_id", sql.VarChar(100), id);
+      upsertReq.input("field_key", sql.NVarChar(128), key);
+      upsertReq.input("field_value", sql.NVarChar(sql.MAX), valueText);
+      upsertReq.input("value_type", sql.NVarChar(32), valueType || null);
+      await upsertReq.query(`
+        IF EXISTS (SELECT 1 FROM dbo.employee_custom_fields WHERE employee_id=@employee_id AND field_key=@field_key)
+          UPDATE dbo.employee_custom_fields
+          SET field_value=@field_value, value_type=@value_type, updated_at=SYSDATETIME()
+          WHERE employee_id=@employee_id AND field_key=@field_key
+        ELSE
+          INSERT INTO dbo.employee_custom_fields (employee_id, field_key, field_value, value_type)
+          VALUES (@employee_id, @field_key, @field_value, @value_type);
+      `);
+      upserted += 1;
+    }
+    await trx.commit();
+    return res.json({ ok: true, employee_id: id, upserted, removed });
+  } catch (err: unknown) {
+    await trx.rollback();
+    const message = err instanceof Error ? err.message : "FAILED_TO_SAVE_CUSTOM_FIELDS";
+    const details = extractDbErrorDetails(err);
+    return res.status(500).json({ error: message, details });
+  } finally {
+    await pool.close();
+  }
+});
+
 employeesRouter.get("/:id", async (req, res) => {
   const id = String(req.params.id || "").trim();
   if (!id) return res.status(400).json({ error: "EMPLOYEE_ID_REQUIRED" });
@@ -2075,6 +2509,65 @@ employeesRouter.get("/:id", async (req, res) => {
       },
       type: (String(r.nationality || "").toLowerCase() === "indonesia" ? "indonesia" : "expat") as "indonesia" | "expat",
     };
+
+    const sectionTableMap: Record<string, string> = {
+      core: "employee_core",
+      contact: "employee_contact",
+      employment: "employee_employment",
+      onboard: "employee_onboard",
+      bank: "employee_bank",
+      insurance: "employee_insurance",
+      travel: "employee_travel",
+      checklist: "employee_checklist",
+      notes: "employee_notes",
+    };
+    const excludedBySection: Record<string, Set<string>> = {
+      checklist: new Set(["paspor_checklist"]),
+    };
+    for (const [sectionKey, tableName] of Object.entries(sectionTableMap)) {
+      const sectionValue = (payload as Record<string, unknown>)[sectionKey];
+      const sectionObj = isObjectRecord(sectionValue) ? sectionValue : {};
+      const existingKeys = new Set(Object.keys(sectionObj).map((k) => k.toLowerCase()));
+      const tableCols = await scanColumns(pool, tableName);
+      const excluded = excludedBySection[sectionKey] || new Set<string>();
+      const extraCols = [...tableCols].filter((c) => c !== "employee_id" && !existingKeys.has(c) && !excluded.has(c));
+      if (!extraCols.length) continue;
+      const selectCols = extraCols.map((c) => `[${c}]`).join(", ");
+      const extraReq = new sql.Request(pool);
+      extraReq.input("employee_id", sql.VarChar(100), id);
+      const extraRes = await extraReq.query(`
+        SELECT ${selectCols} FROM dbo.[${tableName}]
+        WHERE employee_id=@employee_id
+      `);
+      const row = (extraRes.recordset || [])[0] as Record<string, unknown> | undefined;
+      if (!row) continue;
+      for (const col of extraCols) {
+        const value = row[col];
+        sectionObj[col] = value === undefined ? null : value;
+      }
+      (payload as Record<string, unknown>)[sectionKey] = sectionObj;
+    }
+
+    await ensureEmployeeCustomFieldsSchema(pool);
+    const cfReq = new sql.Request(pool);
+    cfReq.input("employee_id", sql.VarChar(100), id);
+    const cfRes = await cfReq.query(`
+      SELECT field_key, field_value
+      FROM dbo.employee_custom_fields
+      WHERE employee_id=@employee_id AND field_key LIKE 'bank.%'
+      ORDER BY field_key
+    `);
+    const bankObj: Record<string, string | null> = isObjectRecord(payload.bank) ? (payload.bank as Record<string, string | null>) : {};
+    for (const row of (cfRes.recordset || []) as Array<{ field_key?: unknown; field_value?: unknown }>) {
+      const key = String(row.field_key || "").trim();
+      if (!key || !key.toLowerCase().startsWith("bank.")) continue;
+      const col = key.slice(5).trim();
+      if (!col) continue;
+      if (bankObj[col] !== undefined) continue;
+      const value = row.field_value === null || row.field_value === undefined ? null : String(row.field_value);
+      bankObj[col] = value;
+    }
+    (payload as Record<string, unknown>).bank = bankObj;
 
     const readAccess = await buildReadAccess(pool, rolesRaw);
     const employeeType: "indonesia" | "expat" = String(r.nationality || "").trim().toLowerCase() === "indonesia" ? "indonesia" : "expat";

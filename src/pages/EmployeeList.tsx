@@ -197,7 +197,11 @@ const EmployeeList = () => {
     const ctrl = new AbortController();
     const toTitle = (s: string) => s.replace(/[-_]+/g, " ").split(" ").filter(Boolean).map((w) => w[0] ? w[0].toUpperCase() + w.slice(1) : "").join(" ");
     const canonical = (section: string) => {
-      const raw = String(section || "");
+      let raw = String(section || "").trim();
+      if (raw.includes(".")) raw = raw.split(".").pop() || raw;
+      const lower = raw.toLowerCase();
+      if (lower.startsWith("dbo ")) raw = raw.slice("dbo ".length);
+      if (lower.startsWith("dbo_")) raw = raw.slice("dbo_".length);
       const withoutEmployeeWord = raw.startsWith("Employee ") ? raw.slice("Employee ".length) : raw;
       const trimmed = withoutEmployeeWord.trim();
       const lowered = trimmed.toLowerCase();

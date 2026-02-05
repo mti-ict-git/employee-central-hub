@@ -8,7 +8,11 @@ export type TypeName = "indonesia" | "expat";
 export type TypeColumnAccess = { type: TypeName; section: string; column: string; accessible: boolean };
 
 function canonicalSectionKey(section: string) {
-  const raw = String(section || "");
+  let raw = String(section || "").trim();
+  if (raw.includes(".")) raw = raw.split(".").pop() || raw;
+  const lower = raw.toLowerCase();
+  if (lower.startsWith("dbo ")) raw = raw.slice("dbo ".length);
+  if (lower.startsWith("dbo_")) raw = raw.slice("dbo_".length);
   const withoutEmployeeWord = raw.startsWith("Employee ") ? raw.slice("Employee ".length) : raw;
   const trimmed = withoutEmployeeWord.trim();
   const lowered = trimmed.toLowerCase();

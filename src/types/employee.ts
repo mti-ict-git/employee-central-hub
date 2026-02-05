@@ -72,6 +72,7 @@ export interface EmployeeBank {
   bank_code?: string;
   icbc_bank_account_no?: string;
   icbc_username?: string;
+  [key: string]: string | undefined | null;
 }
 
 export interface EmployeeInsurance {
@@ -133,6 +134,13 @@ export interface EmployeeNotes {
   employee_id: string;
   batch?: string;
   note?: string;
+}
+
+export interface EmployeeCustomField {
+  key: string;
+  value: string | null;
+  type?: string | null;
+  updated_at?: string | null;
 }
 
 export interface Employee {

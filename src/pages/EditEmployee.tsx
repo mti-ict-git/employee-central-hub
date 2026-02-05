@@ -1,7 +1,7 @@
 import { useParams, Link, useNavigate } from "react-router-dom";
 import { useEffect, useState } from "react";
 import { MainLayout } from "@/components/layout/MainLayout";
-import type { Employee, EmployeeChecklist, EmployeeType, EmployeeStatus } from "@/types/employee";
+import type { Employee, EmployeeChecklist, EmployeeCustomField, EmployeeType, EmployeeStatus } from "@/types/employee";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
@@ -22,7 +22,10 @@ import {
   Phone,
   CheckSquare,
   StickyNote,
-  Loader2
+  Loader2,
+  Tag,
+  Plus,
+  Trash2
 } from "lucide-react";
 import { useRBAC } from "@/hooks/useRBAC";
 import { apiFetch } from "@/lib/api";
@@ -93,6 +96,162 @@ const SelectField = ({
   )
 );
 
+type BankFieldDef = { column: string; label: string; type?: string };
+type SectionKey = Exclude<keyof Employee, "type">;
+type DynamicFieldDef = { section: SectionKey; column: string; label: string; type?: string };
+
+const toLabel = (value: string) => (
+  String(value || "")
+    .replace(/_/g, " ")
+    .split(" ")
+    .filter(Boolean)
+    .map((word) => (word[0] ? word[0].toUpperCase() + word.slice(1) : ""))
+    .join(" ")
+);
+
+const normalizeSection = (value: string) => (
+  String(value || "")
+    .trim()
+    .toLowerCase()
+    .replace(/^dbo\./, "")
+    .replace(/^employee\s+/, "")
+    .replace(/^employee_/, "")
+);
+
+const isBankSection = (value: string) => {
+  const section = normalizeSection(value);
+  if (!section) return false;
+  if (section === "bank" || section === "bank_account") return true;
+  return section.includes("bank") && !section.includes("insurance");
+};
+
+const resolveInputType = (type?: string) => {
+  const t = String(type || "").trim().toLowerCase();
+  if (t === "date") return "date";
+  if (t === "datetime" || t === "datetime2") return "datetime-local";
+  if (t === "time") return "time";
+  if (t === "int" || t === "bigint" || t === "decimal" || t === "numeric") return "number";
+  return "text";
+};
+
+const toSelectBoolValue = (value: unknown) => {
+  if (value === true || value === 1) return "true";
+  if (value === false || value === 0) return "false";
+  const s = String(value ?? "").trim().toLowerCase();
+  if (s === "true" || s === "1" || s === "y" || s === "yes") return "true";
+  if (s === "false" || s === "0" || s === "n" || s === "no") return "false";
+  return "";
+};
+
+const defaultBankFields: BankFieldDef[] = [
+  { column: "bank_name", label: "Bank Name" },
+  { column: "account_name", label: "Account Name" },
+  { column: "account_no", label: "Account No" },
+  { column: "bank_code", label: "Bank Code" },
+  { column: "icbc_bank_account_no", label: "ICBC Account No" },
+  { column: "icbc_username", label: "ICBC Username" },
+];
+
+const baseColumnsBySection: Record<string, Set<string>> = {
+  core: new Set([
+    "imip_id",
+    "name",
+    "gender",
+    "place_of_birth",
+    "date_of_birth",
+    "marital_status",
+    "religion",
+    "nationality",
+    "blood_type",
+    "ktp_no",
+    "kartu_keluarga_no",
+    "npwp",
+    "tax_status",
+    "education",
+    "office_email",
+    "id_card_mti",
+    "residen",
+  ]),
+  contact: new Set([
+    "phone_number",
+    "email",
+    "address",
+    "city",
+    "spouse_name",
+    "child_name_1",
+    "child_name_2",
+    "child_name_3",
+    "emergency_contact_name",
+    "emergency_contact_phone",
+  ]),
+  employment: new Set([
+    "employment_status",
+    "status",
+    "division",
+    "department",
+    "section",
+    "job_title",
+    "grade",
+    "position_grade",
+    "group_job_title",
+    "direct_report",
+    "company_office",
+    "work_location",
+    "locality_status",
+    "blacklist_mti",
+    "blacklist_imip",
+  ]),
+  onboard: new Set([
+    "point_of_hire",
+    "point_of_origin",
+    "schedule_type",
+    "first_join_date",
+    "join_date",
+    "end_contract",
+    "first_join_date_merdeka",
+    "transfer_merdeka",
+  ]),
+  bank: new Set(defaultBankFields.map((f) => f.column)),
+  insurance: new Set([
+    "bpjs_tk",
+    "bpjs_kes",
+    "status_bpjs_kes",
+    "insurance_endorsement",
+    "insurance_owlexa",
+    "insurance_fpg",
+    "fpg_no",
+    "owlexa_no",
+    "social_insurance_no_alt",
+    "bpjs_kes_no_alt",
+  ]),
+  travel: new Set([
+    "passport_no",
+    "name_as_passport",
+    "passport_expiry",
+    "kitas_no",
+    "kitas_expiry",
+    "kitas_address",
+    "imta",
+    "rptka_no",
+    "rptka_position",
+    "job_title_kitas",
+    "travel_in",
+    "travel_out",
+  ]),
+  checklist: new Set([
+    "passport_checklist",
+    "paspor_checklist",
+    "kitas_checklist",
+    "imta_checklist",
+    "rptka_checklist",
+    "npwp_checklist",
+    "bpjs_kes_checklist",
+    "bpjs_tk_checklist",
+    "bank_checklist",
+  ]),
+  notes: new Set(["batch", "note"]),
+};
+
 const EditEmployee = () => {
   const { id } = useParams();
   const navigate = useNavigate();
@@ -100,6 +259,12 @@ const EditEmployee = () => {
   const [loading, setLoading] = useState(false);
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const [customFields, setCustomFields] = useState<EmployeeCustomField[]>([]);
+  const [customFieldsLoading, setCustomFieldsLoading] = useState(false);
+  const [customFieldsDirty, setCustomFieldsDirty] = useState(false);
+  const [removedCustomFieldKeys, setRemovedCustomFieldKeys] = useState<string[]>([]);
+  const [bankFields, setBankFields] = useState<BankFieldDef[]>(defaultBankFields);
+  const [dynamicFields, setDynamicFields] = useState<Record<string, DynamicFieldDef[]>>({});
   const { caps, typeAccess } = useRBAC();
 
   const employeeType = (() => {
@@ -172,6 +337,90 @@ const EditEmployee = () => {
     return () => ctrl.abort();
   }, [id]);
 
+  useEffect(() => {
+    const ctrl = new AbortController();
+    const run = async () => {
+      if (!id) return;
+      try {
+        setCustomFieldsLoading(true);
+        const res = await apiFetch(`/employees/${encodeURIComponent(id)}/custom-fields`, {
+          signal: ctrl.signal,
+          credentials: "include",
+        });
+        const data = await res.json().catch(() => null);
+        if (!res.ok) {
+          const msg = data?.error || `HTTP_${res.status}`;
+          throw new Error(msg);
+        }
+        const items = Array.isArray(data?.items) ? data.items : [];
+        const normalized = items.map((item: Record<string, unknown>) => ({
+          key: String(item.key || ""),
+          value: item.value === null || item.value === undefined ? null : String(item.value),
+          type: item.type ? String(item.type) : null,
+          updated_at: item.updated_at ? String(item.updated_at) : null,
+        }));
+        setCustomFields(normalized);
+        setCustomFieldsDirty(false);
+        setRemovedCustomFieldKeys([]);
+      } catch {
+        setCustomFields([]);
+      } finally {
+        setCustomFieldsLoading(false);
+      }
+    };
+    run();
+    return () => ctrl.abort();
+  }, [id]);
+
+  useEffect(() => {
+    const ctrl = new AbortController();
+    const run = async () => {
+      try {
+        const res = await apiFetch(`/mapping/dbinfo`, { signal: ctrl.signal, credentials: "include" });
+        const data = await res.json().catch(() => []);
+        if (!res.ok) {
+          const msg = data?.error || `HTTP_${res.status}`;
+          throw new Error(msg);
+        }
+        const rows = Array.isArray(data) ? data : [];
+        const bankMap = new Map<string, BankFieldDef>();
+        const sectionMap = new Map<string, Map<string, DynamicFieldDef>>();
+        for (const row of rows) {
+          const tableRaw = String(row.excel?.table || row.matched?.table || "");
+          const normalized = normalizeSection(tableRaw);
+          const section = isBankSection(tableRaw) ? "bank" : normalized;
+          if (!section || !baseColumnsBySection[section]) continue;
+          const column = String(row.excel?.column || row.matched?.column || "").trim().toLowerCase();
+          if (!column || column === "employee_id") continue;
+          const label = row.excel?.excelName ? String(row.excel.excelName) : toLabel(column);
+          const type = row.matched?.type ? String(row.matched.type) : undefined;
+          if (section === "bank") {
+            if (!bankMap.has(column)) bankMap.set(column, { column, label, type });
+          }
+          if (!sectionMap.has(section)) sectionMap.set(section, new Map());
+          const bucket = sectionMap.get(section) as Map<string, DynamicFieldDef>;
+          if (!bucket.has(column)) bucket.set(column, { section: section as SectionKey, column, label, type });
+        }
+        const nextDynamic: Record<string, DynamicFieldDef[]> = {};
+        for (const [section, map] of sectionMap) {
+          if (section === "bank") continue;
+          const base = baseColumnsBySection[section];
+          const list = [...map.values()].filter((f) => !base || !base.has(f.column));
+          if (list.length) nextDynamic[section] = list;
+        }
+        setDynamicFields(nextDynamic);
+        const bankList = [...bankMap.values()];
+        if (bankList.length) setBankFields(bankList);
+        else setBankFields(defaultBankFields);
+      } catch {
+        setBankFields(defaultBankFields);
+        setDynamicFields({});
+      }
+    };
+    run();
+    return () => ctrl.abort();
+  }, []);
+
   const handleSave = async () => {
     if (!employee || !id) return;
     
@@ -188,6 +437,40 @@ const EditEmployee = () => {
         const detail = data?.details ? ` (${JSON.stringify(data.details)})` : "";
         const msg = (data?.error || `HTTP_${res.status}`) + detail;
         throw new Error(msg);
+      }
+
+      if (customFieldsDirty) {
+        const trimmed = customFields.map((f) => ({
+          key: String(f.key || "").trim(),
+          value: f.value === undefined ? null : f.value,
+          type: f.type || null,
+        }));
+        const keyCounts = trimmed.reduce((acc, cur) => {
+          if (!cur.key) return acc;
+          acc[cur.key] = (acc[cur.key] || 0) + 1;
+          return acc;
+        }, {} as Record<string, number>);
+        const duplicates = Object.entries(keyCounts).filter(([, v]) => v > 1).map(([k]) => k);
+        if (duplicates.length) {
+          throw new Error(`Duplicate custom field keys: ${duplicates.join(", ")}`);
+        }
+        const payloadFields = [
+          ...trimmed.filter((f) => f.key),
+          ...removedCustomFieldKeys.map((key) => ({ key, value: null, type: null })),
+        ];
+        const cfRes = await apiFetch(`/employees/${encodeURIComponent(id)}/custom-fields`, {
+          method: "PUT",
+          headers: { "Content-Type": "application/json" },
+          credentials: "include",
+          body: JSON.stringify({ fields: payloadFields }),
+        });
+        const cfData = await cfRes.json().catch(() => null);
+        if (!cfRes.ok) {
+          const msg = cfData?.error || `HTTP_${cfRes.status}`;
+          throw new Error(msg);
+        }
+        setCustomFieldsDirty(false);
+        setRemovedCustomFieldKeys([]);
       }
       
       toast({
@@ -252,6 +535,15 @@ const EditEmployee = () => {
     if (!employee) return;
     setEmployee({ ...employee, bank: { ...employee.bank, [key]: value } });
   };
+  const updateBankDynamic = (key: string, value: string) => {
+    if (!employee) return;
+    setEmployee({ ...employee, bank: { ...employee.bank, [key]: value } as Employee["bank"] });
+  };
+  const updateSectionDynamic = (section: SectionKey, key: string, value: unknown) => {
+    if (!employee) return;
+    const current = (employee[section] || {}) as Record<string, unknown>;
+    setEmployee({ ...employee, [section]: { ...current, [key]: value } as Employee[SectionKey] });
+  };
 
   const updateInsurance = <K extends keyof Employee['insurance']>(key: K, value: Employee['insurance'][K]) => {
     if (!employee) return;
@@ -276,6 +568,67 @@ const EditEmployee = () => {
   const updateNotes = <K extends keyof Employee['notes']>(key: K, value: Employee['notes'][K]) => {
     if (!employee) return;
     setEmployee({ ...employee, notes: { ...employee.notes, [key]: value } });
+  };
+
+  const renderDynamicFields = (section: SectionKey, fields: DynamicFieldDef[]) => (
+    fields.map((field) => {
+      const sectionData = (employee?.[section] || {}) as Record<string, unknown>;
+      const rawValue = sectionData[field.column];
+      const isBit = String(field.type || "").trim().toLowerCase() === "bit";
+      if (isBit) {
+        const selectValue = toSelectBoolValue(rawValue);
+        return (
+          <SelectField
+            key={`${section}-${field.column}`}
+            label={field.label}
+            value={selectValue}
+            onChange={(v) => updateSectionDynamic(section, field.column, v === "true" ? true : v === "false" ? false : null)}
+            options={[{ value: "true", label: "Yes" }, { value: "false", label: "No" }]}
+            disabled={!canWrite(section, field.column)}
+            visible={canWrite(section, field.column)}
+          />
+        );
+      }
+      const value = rawValue === null || rawValue === undefined ? "" : String(rawValue);
+      return (
+        <FormField
+          key={`${section}-${field.column}`}
+          label={field.label}
+          value={value}
+          onChange={(v) => updateSectionDynamic(section, field.column, v)}
+          type={resolveInputType(field.type)}
+          disabled={!canWrite(section, field.column)}
+          visible={canWrite(section, field.column)}
+        />
+      );
+    })
+  );
+
+  const canReadCustomFields = caps?.can("employees", "read") ?? true;
+  const canWriteCustomFields = caps?.can("employees", "update") ?? false;
+  const hasCustomWrites = canWriteCustomFields;
+
+  const addCustomField = () => {
+    setCustomFields((prev) => [...prev, { key: "", value: "", type: "string" }]);
+    setCustomFieldsDirty(true);
+  };
+  const updateCustomField = (index: number, next: Partial<EmployeeCustomField>) => {
+    setCustomFields((prev) => {
+      const updated = [...prev];
+      updated[index] = { ...updated[index], ...next };
+      return updated;
+    });
+    setCustomFieldsDirty(true);
+  };
+  const removeCustomField = (index: number) => {
+    setCustomFields((prev) => {
+      const target = prev[index];
+      const key = String(target?.key || "").trim();
+      if (key) setRemovedCustomFieldKeys((keys) => Array.from(new Set([...keys, key])));
+      const next = prev.filter((_, i) => i !== index);
+      return next;
+    });
+    setCustomFieldsDirty(true);
   };
 
   if (loading) {
@@ -306,6 +659,15 @@ const EditEmployee = () => {
     if (raw === 'active') return 'active';
     return 'inactive';
   })();
+  const dynamicCoreFields = dynamicFields["core"] || [];
+  const dynamicContactFields = dynamicFields["contact"] || [];
+  const dynamicEmploymentFields = dynamicFields["employment"] || [];
+  const dynamicOnboardFields = dynamicFields["onboard"] || [];
+  const dynamicInsuranceFields = dynamicFields["insurance"] || [];
+  const dynamicTravelFields = dynamicFields["travel"] || [];
+  const dynamicChecklistFields = dynamicFields["checklist"] || [];
+  const dynamicNotesFields = dynamicFields["notes"] || [];
+
   const hasPersonalWrites = [
     "imip_id",
     "name",
@@ -326,7 +688,7 @@ const EditEmployee = () => {
     "field",
     "branch_id",
     "branch",
-  ].some((c) => canWrite("core", c));
+  ].some((c) => canWrite("core", c)) || dynamicCoreFields.some((f) => canWrite("core", f.column));
   const hasContactWrites = [
     "phone_number",
     "email",
@@ -338,7 +700,7 @@ const EditEmployee = () => {
     "child_name_3",
     "emergency_contact_name",
     "emergency_contact_phone",
-  ].some((c) => canWrite("contact", c));
+  ].some((c) => canWrite("contact", c)) || dynamicContactFields.some((f) => canWrite("contact", f.column));
   const hasEmploymentWrites = [
     "employment_status",
     "status",
@@ -355,7 +717,7 @@ const EditEmployee = () => {
     "locality_status",
     "blacklist_mti",
     "blacklist_imip",
-  ].some((c) => canWrite("employment", c));
+  ].some((c) => canWrite("employment", c)) || dynamicEmploymentFields.some((f) => canWrite("employment", f.column));
   const hasOnboardWrites = [
     "point_of_hire",
     "point_of_origin",
@@ -365,15 +727,8 @@ const EditEmployee = () => {
     "first_join_date",
     "join_date",
     "end_contract",
-  ].some((c) => canWrite("onboard", c));
-  const hasBankWrites = [
-    "bank_name",
-    "account_name",
-    "account_no",
-    "bank_code",
-    "icbc_bank_account_no",
-    "icbc_username",
-  ].some((c) => canWrite("bank", c));
+  ].some((c) => canWrite("onboard", c)) || dynamicOnboardFields.some((f) => canWrite("onboard", f.column));
+  const hasBankWrites = bankFields.some((field) => canWrite("bank", field.column));
   const hasInsuranceWrites = [
     "bpjs_tk",
     "bpjs_kes",
@@ -385,7 +740,7 @@ const EditEmployee = () => {
     "owlexa_no",
     "social_insurance_no_alt",
     "bpjs_kes_no_alt",
-  ].some((c) => canWrite("insurance", c));
+  ].some((c) => canWrite("insurance", c)) || dynamicInsuranceFields.some((f) => canWrite("insurance", f.column));
   const hasTravelWrites = [
     "passport_no",
     "name_as_passport",
@@ -399,7 +754,7 @@ const EditEmployee = () => {
     "job_title_kitas",
     "travel_in",
     "travel_out",
-  ].some((c) => canWrite("travel", c));
+  ].some((c) => canWrite("travel", c)) || dynamicTravelFields.some((f) => canWrite("travel", f.column));
   const hasChecklistWrites = [
     "passport_checklist",
     "kitas_checklist",
@@ -409,13 +764,13 @@ const EditEmployee = () => {
     "bpjs_kes_checklist",
     "bpjs_tk_checklist",
     "bank_checklist",
-  ].some((c) => canWrite("checklist", c)) ||
+  ].some((c) => canWrite("checklist", c)) || dynamicChecklistFields.some((f) => canWrite("checklist", f.column)) ||
     ["insurance_endorsement", "insurance_owlexa", "insurance_fpg"].some((c) => canWrite("insurance", c)) ||
     ["blacklist_mti", "blacklist_imip"].some((c) => canWrite("employment", c)) ||
     canWrite("core", "id_card_mti") ||
     canWrite("core", "residen");
-  const hasNotesWrites = ["batch", "note"].some((c) => canWrite("notes", c));
-  const hasAnyWritable = hasPersonalWrites || hasContactWrites || hasEmploymentWrites || hasOnboardWrites || hasBankWrites || hasInsuranceWrites || hasTravelWrites || hasChecklistWrites || hasNotesWrites;
+  const hasNotesWrites = ["batch", "note"].some((c) => canWrite("notes", c)) || dynamicNotesFields.some((f) => canWrite("notes", f.column));
+  const hasAnyWritable = hasPersonalWrites || hasContactWrites || hasEmploymentWrites || hasOnboardWrites || hasBankWrites || hasInsuranceWrites || hasTravelWrites || hasChecklistWrites || hasNotesWrites || hasCustomWrites;
   const defaultTab = hasPersonalWrites
     ? "personal"
     : hasContactWrites
@@ -432,7 +787,9 @@ const EditEmployee = () => {
                 ? "checklist"
                 : hasNotesWrites
                   ? "notes"
-                  : "personal";
+                  : hasCustomWrites
+                    ? "custom"
+                    : "personal";
 
   return (
     <MainLayout title="Edit Employee" subtitle={employee.core.name}>
@@ -505,6 +862,12 @@ const EditEmployee = () => {
             Notes
           </TabsTrigger>
           )}
+          {canReadCustomFields && hasCustomWrites && (
+          <TabsTrigger value="custom" className="gap-2">
+            <Tag className="h-4 w-4" />
+            Custom Fields
+          </TabsTrigger>
+          )}
         </TabsList>
 
         <TabsContent value="personal">
@@ -563,6 +926,17 @@ const EditEmployee = () => {
                 <FormField label="Office Email" value={employee.core.office_email} onChange={(v) => updateCore('office_email', v)} type="email" visible={canWrite('core','office_email')} />
               </CardContent>
             </Card>
+            {dynamicCoreFields.length > 0 && (
+              <Card>
+                <CardHeader>
+                  <CardTitle>Additional Fields</CardTitle>
+                  <CardDescription>Dynamic fields from mapping</CardDescription>
+                </CardHeader>
+                <CardContent className="space-y-4">
+                  {renderDynamicFields("core", dynamicCoreFields)}
+                </CardContent>
+              </Card>
+            )}
           </div>
         </TabsContent>
 
@@ -592,6 +966,17 @@ const EditEmployee = () => {
                 <FormField label="Emergency Contact Phone" value={employee.contact.emergency_contact_phone} onChange={(v) => updateContact('emergency_contact_phone', v)} visible={canWrite('contact','emergency_contact_phone')} />
               </CardContent>
             </Card>
+            {dynamicContactFields.length > 0 && (
+              <Card>
+                <CardHeader>
+                  <CardTitle>Additional Fields</CardTitle>
+                  <CardDescription>Dynamic fields from mapping</CardDescription>
+                </CardHeader>
+                <CardContent className="space-y-4">
+                  {renderDynamicFields("contact", dynamicContactFields)}
+                </CardContent>
+              </Card>
+            )}
           </div>
         </TabsContent>
 
@@ -688,6 +1073,28 @@ const EditEmployee = () => {
                 <FormField label="End Contract" value={employee.onboard.end_contract} onChange={(v) => updateOnboard('end_contract', v)} type="date" visible={canWrite('onboard','end_contract')} />
               </CardContent>
             </Card>
+            {dynamicEmploymentFields.length > 0 && (
+              <Card>
+                <CardHeader>
+                  <CardTitle>Additional Employment Fields</CardTitle>
+                  <CardDescription>Dynamic fields from mapping</CardDescription>
+                </CardHeader>
+                <CardContent className="space-y-4">
+                  {renderDynamicFields("employment", dynamicEmploymentFields)}
+                </CardContent>
+              </Card>
+            )}
+            {dynamicOnboardFields.length > 0 && (
+              <Card>
+                <CardHeader>
+                  <CardTitle>Additional Onboarding Fields</CardTitle>
+                  <CardDescription>Dynamic fields from mapping</CardDescription>
+                </CardHeader>
+                <CardContent className="space-y-4">
+                  {renderDynamicFields("onboard", dynamicOnboardFields)}
+                </CardContent>
+              </Card>
+            )}
           </div>
         </TabsContent>
 
@@ -698,12 +1105,15 @@ const EditEmployee = () => {
               <CardDescription>Bank account details for payroll</CardDescription>
             </CardHeader>
             <CardContent className="space-y-4">
-              <FormField label="Bank Name" value={employee.bank.bank_name} onChange={(v) => updateBank('bank_name', v)} visible={canWrite('bank','bank_name')} />
-              <FormField label="Account Name" value={employee.bank.account_name} onChange={(v) => updateBank('account_name', v)} visible={canWrite('bank','account_name')} />
-              <FormField label="Account No" value={employee.bank.account_no} onChange={(v) => updateBank('account_no', v)} visible={canWrite('bank','account_no')} />
-              <FormField label="Bank Code" value={employee.bank.bank_code} onChange={(v) => updateBank('bank_code', v)} visible={canWrite('bank','bank_code')} />
-              <FormField label="ICBC Account No" value={employee.bank.icbc_bank_account_no} onChange={(v) => updateBank('icbc_bank_account_no', v)} visible={canWrite('bank','icbc_bank_account_no')} />
-              <FormField label="ICBC Username" value={employee.bank.icbc_username} onChange={(v) => updateBank('icbc_username', v)} visible={canWrite('bank','icbc_username')} />
+              {bankFields.map((field) => (
+                <FormField
+                  key={field.column}
+                  label={field.label}
+                  value={(employee.bank as Record<string, string | null | undefined>)[field.column] ?? ""}
+                  onChange={(v) => updateBankDynamic(field.column, v)}
+                  visible={canWrite("bank", field.column)}
+                />
+              ))}
             </CardContent>
           </Card>
         </TabsContent>
@@ -743,6 +1153,17 @@ const EditEmployee = () => {
                 <FormField label="BPJS KES No (Alt)" value={employee.insurance.bpjs_kes_no_alt} onChange={(v) => updateInsurance('bpjs_kes_no_alt', v)} visible={canWrite('insurance','bpjs_kes_no_alt')} />
               </CardContent>
             </Card>
+            {dynamicInsuranceFields.length > 0 && (
+              <Card>
+                <CardHeader>
+                  <CardTitle>Additional Insurance Fields</CardTitle>
+                  <CardDescription>Dynamic fields from mapping</CardDescription>
+                </CardHeader>
+                <CardContent className="space-y-4">
+                  {renderDynamicFields("insurance", dynamicInsuranceFields)}
+                </CardContent>
+              </Card>
+            )}
           </div>
         </TabsContent>
 
@@ -774,54 +1195,161 @@ const EditEmployee = () => {
                 <FormField label="Travel Out" value={employee.travel.travel_out} onChange={(v) => updateTravel('travel_out', v)} type="date" visible={canWrite('travel','travel_out')} />
               </CardContent>
             </Card>
+            {dynamicTravelFields.length > 0 && (
+              <Card>
+                <CardHeader>
+                  <CardTitle>Additional Travel Fields</CardTitle>
+                  <CardDescription>Dynamic fields from mapping</CardDescription>
+                </CardHeader>
+                <CardContent className="space-y-4">
+                  {renderDynamicFields("travel", dynamicTravelFields)}
+                </CardContent>
+              </Card>
+            )}
           </div>
         </TabsContent>
 
         <TabsContent value="checklist">
-          <ChecklistEditor
-            checklist={employee.checklist}
-            insurance={{
-              insurance_endorsement: employee.insurance.insurance_endorsement,
-              insurance_owlexa: employee.insurance.insurance_owlexa,
-              insurance_fpg: employee.insurance.insurance_fpg,
-            }}
-            employment={{
-              blacklist_mti: employee.employment.blacklist_mti,
-              blacklist_imip: employee.employment.blacklist_imip,
-            }}
-            core={{
-              id_card_mti: employee.core.id_card_mti,
-              residen: employee.core.residen,
-            }}
-            employeeType={employee.type}
-            employeeStatus={employeeStatus}
-            canWrite={canWrite}
-            onChecklistChange={updateChecklist}
-            onInsuranceChange={(key, value) => updateInsurance(key, value)}
-            onEmploymentChange={(key, value) => updateEmployment(key, value)}
-            onCoreChange={(key, value) => updateCore(key, value)}
-          />
+          <div className="space-y-6">
+            <ChecklistEditor
+              checklist={employee.checklist}
+              insurance={{
+                insurance_endorsement: employee.insurance.insurance_endorsement,
+                insurance_owlexa: employee.insurance.insurance_owlexa,
+                insurance_fpg: employee.insurance.insurance_fpg,
+              }}
+              employment={{
+                blacklist_mti: employee.employment.blacklist_mti,
+                blacklist_imip: employee.employment.blacklist_imip,
+              }}
+              core={{
+                id_card_mti: employee.core.id_card_mti,
+                residen: employee.core.residen,
+              }}
+              employeeType={employee.type}
+              employeeStatus={employeeStatus}
+              canWrite={canWrite}
+              onChecklistChange={updateChecklist}
+              onInsuranceChange={(key, value) => updateInsurance(key, value)}
+              onEmploymentChange={(key, value) => updateEmployment(key, value)}
+              onCoreChange={(key, value) => updateCore(key, value)}
+            />
+            {dynamicChecklistFields.length > 0 && (
+              <Card className="max-w-2xl">
+                <CardHeader>
+                  <CardTitle>Additional Checklist Fields</CardTitle>
+                  <CardDescription>Dynamic fields from mapping</CardDescription>
+                </CardHeader>
+                <CardContent className="space-y-4">
+                  {renderDynamicFields("checklist", dynamicChecklistFields)}
+                </CardContent>
+              </Card>
+            )}
+          </div>
         </TabsContent>
 
         <TabsContent value="notes">
-          <Card className="max-w-2xl">
+          <div className="grid gap-6 md:grid-cols-2">
+            <Card className="max-w-2xl">
+              <CardHeader>
+                <CardTitle>Notes & Batch</CardTitle>
+              </CardHeader>
+              <CardContent className="space-y-4">
+                <FormField label="Batch" value={employee.notes.batch} onChange={(v) => updateNotes('batch', v)} visible={canWrite('notes','batch')} />
+                {canWrite('notes','note') && (
+                  <div className="space-y-2">
+                    <Label className="text-sm font-medium">Notes</Label>
+                    <Textarea 
+                      value={employee.notes.note || ''} 
+                      onChange={(e) => updateNotes('note', e.target.value)}
+                      rows={6}
+                      placeholder="Add notes about this employee..."
+                      className="bg-background"
+                    />
+                  </div>
+                )}
+              </CardContent>
+            </Card>
+            {dynamicNotesFields.length > 0 && (
+              <Card>
+                <CardHeader>
+                  <CardTitle>Additional Notes Fields</CardTitle>
+                  <CardDescription>Dynamic fields from mapping</CardDescription>
+                </CardHeader>
+                <CardContent className="space-y-4">
+                  {renderDynamicFields("notes", dynamicNotesFields)}
+                </CardContent>
+              </Card>
+            )}
+          </div>
+        </TabsContent>
+
+        <TabsContent value="custom">
+          <Card>
             <CardHeader>
-              <CardTitle>Notes & Batch</CardTitle>
+              <CardTitle>Custom Fields</CardTitle>
+              <CardDescription>Flexible fields for employee metadata</CardDescription>
             </CardHeader>
             <CardContent className="space-y-4">
-              <FormField label="Batch" value={employee.notes.batch} onChange={(v) => updateNotes('batch', v)} visible={canWrite('notes','batch')} />
-              {canWrite('notes','note') && (
-                <div className="space-y-2">
-                  <Label className="text-sm font-medium">Notes</Label>
-                  <Textarea 
-                    value={employee.notes.note || ''} 
-                    onChange={(e) => updateNotes('note', e.target.value)}
-                    rows={6}
-                    placeholder="Add notes about this employee..."
-                    className="bg-background"
-                  />
+              {customFieldsLoading ? (
+                <div className="flex items-center gap-2 text-sm text-muted-foreground">
+                  <Loader2 className="h-4 w-4 animate-spin" />
+                  Loading custom fields...
+                </div>
+              ) : (
+                <div className="space-y-3">
+                  {customFields.length === 0 && (
+                    <div className="text-sm text-muted-foreground">No custom fields yet.</div>
+                  )}
+                  {customFields.map((field, index) => (
+                    <div key={`${field.key}-${index}`} className="grid gap-3 md:grid-cols-[1.3fr_1fr_2fr_auto]">
+                      <Input
+                        value={field.key}
+                        placeholder="field_key"
+                        onChange={(e) => updateCustomField(index, { key: e.target.value })}
+                        disabled={!canWriteCustomFields}
+                      />
+                      <Select
+                        value={field.type || "string"}
+                        onValueChange={(v) => updateCustomField(index, { type: v })}
+                        disabled={!canWriteCustomFields}
+                      >
+                        <SelectTrigger>
+                          <SelectValue placeholder="Type" />
+                        </SelectTrigger>
+                        <SelectContent>
+                          <SelectItem value="string">string</SelectItem>
+                          <SelectItem value="number">number</SelectItem>
+                          <SelectItem value="boolean">boolean</SelectItem>
+                          <SelectItem value="date">date</SelectItem>
+                          <SelectItem value="json">json</SelectItem>
+                        </SelectContent>
+                      </Select>
+                      <Input
+                        value={field.value ?? ""}
+                        placeholder="value"
+                        onChange={(e) => updateCustomField(index, { value: e.target.value })}
+                        disabled={!canWriteCustomFields}
+                      />
+                      <Button
+                        type="button"
+                        variant="outline"
+                        size="icon"
+                        onClick={() => removeCustomField(index)}
+                        disabled={!canWriteCustomFields}
+                      >
+                        <Trash2 className="h-4 w-4" />
+                      </Button>
+                    </div>
+                  ))}
                 </div>
               )}
+              <div>
+                <Button type="button" variant="secondary" onClick={addCustomField} disabled={!canWriteCustomFields}>
+                  <Plus className="mr-2 h-4 w-4" />
+                  Add Field
+                </Button>
+              </div>
             </CardContent>
           </Card>
         </TabsContent>

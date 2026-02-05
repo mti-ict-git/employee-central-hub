@@ -48,7 +48,15 @@ export default function AddColumn() {
   const columnValue = column.trim();
   const labelValue = label.trim();
   const typeValue = type.trim();
-  const canSubmit = !!groupValue && !!columnValue && !!typeValue && !saving;
+  const normalizeColumn = (raw: string) => {
+    const base = raw.trim().replace(/\s+/g, "_").replace(/[^A-Za-z0-9_]/g, "_");
+    if (!base) return "";
+    const prefixed = /^[A-Za-z_]/.test(base) ? base : `_${base}`;
+    return prefixed.replace(/_+/g, "_").toLowerCase();
+  };
+  const normalizedColumn = normalizeColumn(columnValue);
+  const columnValid = /^[A-Za-z_][A-Za-z0-9_]*$/.test(normalizedColumn);
+  const canSubmit = !!groupValue && !!normalizedColumn && !!typeValue && columnValid && !saving;
 
   const loadMappings = async () => {
     setLoading(true);
@@ -104,7 +112,7 @@ export default function AddColumn() {
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
           table: groupValue,
-          column: columnValue,
+          column: normalizedColumn,
           label: labelValue || undefined,
           type: typeValue || undefined,
         }),
@@ -114,7 +122,7 @@ export default function AddColumn() {
         const msg = data?.error || `HTTP_${res.status}`;
         throw new Error(msg);
       }
-      toast({ title: "Column added", description: `${groupValue}.${columnValue} is now available` });
+      toast({ title: "Column added", description: `${groupValue}.${normalizedColumn} is now available` });
       setGroup("");
       setColumn("");
       setLabel("");
@@ -267,6 +275,12 @@ export default function AddColumn() {
                       placeholder="employee_id"
                       autoComplete="off"
                     />
+                    {columnValue && normalizedColumn && normalizedColumn !== columnValue && (
+                      <p className="text-xs text-muted-foreground">Akan disimpan sebagai: {normalizedColumn}</p>
+                    )}
+                    {columnValue && !columnValid && (
+                      <p className="text-xs text-destructive">Gunakan huruf, angka, dan underscore saja, diawali huruf/underscore.</p>
+                    )}
                   </div>
                 </div>
                 <div className="grid gap-4 md:grid-cols-2">
