@@ -46,6 +46,7 @@ const EmployeeList = () => {
   const [allowedColumns, setAllowedColumns] = useState<Array<{ key: string; section: string; column: string; label: string }>>([]);
 
   const minTableWidth = useMemo(() => Math.max(1000, (visibleColumns?.length || 0) * 160 + 480), [visibleColumns]);
+  const allowedKeySet = useMemo(() => new Set(allowedColumns.map((d) => d.key)), [allowedColumns]);
   const topScrollRef = useRef<HTMLDivElement | null>(null);
   const bodyScrollRef = useRef<HTMLDivElement | null>(null);
 
@@ -213,6 +214,24 @@ const EmployeeList = () => {
       try {
         if (!rbacReady || !caps) return;
         const rows = await fetchColumnAccess();
+        let mappingKeys: Set<string> | null = null;
+        try {
+          const mappingRes = await apiFetch(`/mapping/dbinfo`, { signal: ctrl.signal, credentials: "include" });
+          const mappingData = await mappingRes.json().catch(() => []);
+          if (mappingRes.ok) {
+            const mappingRows = Array.isArray(mappingData) ? mappingData : [];
+            const next = new Set<string>();
+            for (const row of mappingRows) {
+              const tableRaw = String(row?.excel?.table || row?.matched?.table || "");
+              const columnRaw = String(row?.excel?.column || row?.matched?.column || "");
+              const secKey = canonical(tableRaw);
+              const colKey = String(columnRaw || "").trim().toLowerCase();
+              if (!secKey || !colKey) continue;
+              next.add(`${secKey}.${colKey}`);
+            }
+            mappingKeys = next;
+          }
+        } catch (e) { void e; }
         const set = new Set<string>();
         const defs: Array<{ key: string; section: string; column: string; label: string }> = [];
         const ensure = (key: string, section: string, column: string, label: string) => {
@@ -225,6 +244,7 @@ const EmployeeList = () => {
           const colKey = String(r.column || "").trim().toLowerCase();
           if (!caps.canColumn(secKey, colKey, "read")) continue;
           const dotted = `${secKey}.${colKey}`;
+          if (mappingKeys && !mappingKeys.has(dotted)) continue;
           const label = `${toTitle(secKey)} • ${toTitle(colKey)}`;
           ensure(dotted, secKey, colKey, label);
         }
@@ -240,6 +260,31 @@ const EmployeeList = () => {
     run();
     return () => ctrl.abort();
   }, [rbacReady, caps]);
+
+  useEffect(() => {
+    if (!allowedColumns.length) return;
+    const filtered = visibleColumns.filter((col) => col === "type" || allowedKeySet.has(col));
+    const fallback = ["core.employee_id","core.name","type"];
+    const next = filtered.length ? filtered : fallback;
+    const same = next.length === visibleColumns.length && next.every((val, idx) => val === visibleColumns[idx]);
+    if (same) return;
+    setVisibleColumns(next);
+    const ctrl = new AbortController();
+    const run = async () => {
+      try {
+        const res = await apiFetch(`/users/me/preferences`, {
+          method: "PUT",
+          credentials: "include",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ key: "employee_list_columns", value: next }),
+          signal: ctrl.signal,
+        });
+        if (!res.ok) throw new Error(`HTTP_${res.status}`);
+      } catch (e) { void e; }
+    };
+    run();
+    return () => ctrl.abort();
+  }, [allowedColumns, allowedKeySet, visibleColumns]);
 
   const loadMore = async () => {
     try {
