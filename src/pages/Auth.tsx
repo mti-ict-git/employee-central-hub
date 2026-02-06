@@ -5,25 +5,7 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { useToast } from "@/hooks/use-toast";
 import { Eye, EyeOff, LogIn, Shield, Users, Building2, Lock } from "lucide-react";
-import { Badge } from "@/components/ui/badge";
 import { apiFetch } from "@/lib/api";
-
-// Mock users for development
-const MOCK_USERS = [
-  { username: "admin", password: "P@ssw0rd.123", role: "superadmin", displayName: "Super Administrator" },
-  { username: "hradmin", password: "P@ssw0rd.123", role: "admin", displayName: "HR Administrator" },
-  { username: "hruser", password: "P@ssw0rd.123", role: "hr_general", displayName: "HR Staff" },
-  { username: "finance", password: "P@ssw0rd.123", role: "finance", displayName: "Finance Staff" },
-  { username: "deprep", password: "P@ssw0rd.123", role: "department_rep", displayName: "Department Representative" },
-];
-
-const ROLE_LABELS: Record<string, { label: string; color: string }> = {
-  superadmin: { label: "Super Admin", color: "bg-red-500" },
-  admin: { label: "Admin", color: "bg-orange-500" },
-  hr_general: { label: "HR General", color: "bg-blue-500" },
-  finance: { label: "Finance", color: "bg-green-500" },
-  department_rep: { label: "Dept. Rep", color: "bg-purple-500" },
-};
 
 const Auth = () => {
   const [username, setUsername] = useState("");
@@ -343,38 +325,6 @@ const Auth = () => {
               <Shield className="h-4 w-4" />
               <span className="text-sm">Secured with Active Directory</span>
             </div>
-          </div>
-
-          {/* Dev Test Accounts */}
-          <div className="mt-6 p-4 rounded-xl bg-muted/50 border border-border/50">
-            <div className="flex items-center gap-2 mb-3">
-              <div className="h-2 w-2 rounded-full bg-amber-500 animate-pulse" />
-              <p className="text-xs font-medium text-muted-foreground uppercase tracking-wider">Development Mode</p>
-            </div>
-            <div className="space-y-2">
-              {MOCK_USERS.map((user) => (
-                <button 
-                  key={user.username}
-                  type="button"
-                  className="w-full flex items-center justify-between text-sm px-3 py-2 rounded-lg hover:bg-background border border-transparent hover:border-border/50 transition-all cursor-pointer"
-                  onClick={() => {
-                    setUsername(user.username);
-                    setPassword(user.password);
-                  }}
-                >
-                  <span className="font-mono text-foreground">{user.username}</span>
-                  <Badge 
-                    variant="secondary" 
-                    className={`${ROLE_LABELS[user.role].color} text-white text-[10px] px-2 py-0.5`}
-                  >
-                    {ROLE_LABELS[user.role].label}
-                  </Badge>
-                </button>
-              ))}
-            </div>
-            <p className="text-[11px] text-muted-foreground text-center mt-3 font-mono">
-              Password: P@ssw0rd.123
-            </p>
           </div>
 
           {/* Request Access */}
