@@ -252,12 +252,12 @@ export function EmployeeTable({ employees, onDelete, selectable = false, selecte
   };
 
   return (
-    <div className="rounded-xl border border-border bg-card shadow-card overflow-hidden">
-      <Table>
+    <div className="rounded-2xl border border-border bg-card/95 shadow-lg overflow-hidden">
+      <Table className="[&_tbody_tr:last-child]:border-b-0">
         <TableHeader>
-          <TableRow className="bg-muted/50">
+          <TableRow className="bg-muted/60">
             {selectable && (
-              <TableHead className="w-10">
+              <TableHead className="w-10 text-xs font-semibold uppercase tracking-wide text-muted-foreground">
                 <Checkbox
                   checked={selected && employees.every((e) => selected.has(e.core.employee_id)) && employees.length > 0}
                   onCheckedChange={(v) => onToggleAll && onToggleAll(Boolean(v))}
@@ -265,9 +265,11 @@ export function EmployeeTable({ employees, onDelete, selectable = false, selecte
               </TableHead>
             )}
             {columns.map((key) => (
-              <TableHead key={key} className="font-semibold">{headerLabel(key)}</TableHead>
+              <TableHead key={key} className="text-xs font-semibold uppercase tracking-wide text-muted-foreground">
+                {headerLabel(key)}
+              </TableHead>
             ))}
-            <TableHead className="font-semibold text-right">Actions</TableHead>
+            <TableHead className="text-right text-xs font-semibold uppercase tracking-wide text-muted-foreground">Actions</TableHead>
           </TableRow>
         </TableHeader>
         <TableBody>
@@ -275,7 +277,7 @@ export function EmployeeTable({ employees, onDelete, selectable = false, selecte
             <TableRow 
               key={employee.core.employee_id}
               className={cn(
-                "transition-colors hover:bg-muted/30",
+                "border-b border-border/60 transition-colors hover:bg-muted/40",
                 onRowClick ? "cursor-pointer" : undefined
               )}
               onClick={() => onRowClick && onRowClick(employee)}
@@ -289,7 +291,7 @@ export function EmployeeTable({ employees, onDelete, selectable = false, selecte
                 </TableCell>
               )}
               {columns.map((key) => (
-                <TableCell key={key} className={key === "core.employee_id" ? "font-medium text-primary" : undefined}>
+                <TableCell key={key} className={cn("py-3.5", key === "core.employee_id" ? "font-semibold text-primary" : "text-foreground") }>
                   {key === "core.employee_id" ? employee.core.employee_id
                     : key === "core.name" ? (
                       renderNameCell(employee)
@@ -298,13 +300,13 @@ export function EmployeeTable({ employees, onDelete, selectable = false, selecte
               ))}
               <TableCell className="text-right" onClick={(event) => event.stopPropagation()}>
                 <div className="flex justify-end gap-2">
-                  <Button variant="ghost" size="icon" asChild>
+                  <Button variant="ghost" size="icon" className="rounded-lg hover:bg-muted/60" asChild>
                     <Link to={`/employees/${employee.core.employee_id}`}>
                       <Eye className="h-4 w-4" />
                     </Link>
                   </Button>
                   {((employee.type === "indonesia" ? canEditIndonesia : canEditExpat)) && (
-                    <Button variant="ghost" size="icon" asChild>
+                    <Button variant="ghost" size="icon" className="rounded-lg hover:bg-muted/60" asChild>
                       <Link to={`/employees/${employee.core.employee_id}/edit`}>
                         <Pencil className="h-4 w-4" />
                       </Link>
@@ -314,6 +316,7 @@ export function EmployeeTable({ employees, onDelete, selectable = false, selecte
                     <Button
                       variant="ghost"
                       size="icon"
+                      className="rounded-lg text-destructive hover:bg-destructive/10 hover:text-destructive"
                       onClick={() => {
                         setDeleteTarget(employee);
                       }}
