@@ -38,6 +38,9 @@ type EmployeeListAPIItem = {
   type?: EmployeeType;
 };
 
+type SortDirection = "asc" | "desc";
+type SortState = { key: string; direction: SortDirection } | null;
+
 const EmployeeList = () => {
   const navigate = useNavigate();
   const [searchParams] = useSearchParams();
@@ -51,6 +54,8 @@ const EmployeeList = () => {
   const [selected, setSelected] = useState<Set<string>>(new Set());
   const { caps, typeAccess, ready: rbacReady } = useRBAC();
   const [visibleColumns, setVisibleColumns] = useState<string[]>(["core.employee_id","core.name","type","employment.department","employment.job_title","employment.status"]);
+  const [sortState, setSortState] = useState<SortState>(null);
+  const [columnPins, setColumnPins] = useState<Record<string, "left" | "right" | undefined>>({});
   const [colSearch, setColSearch] = useState("");
   const [allowedColumns, setAllowedColumns] = useState<Array<{ key: string; section: string; column: string; label: string }>>([]);
   const [page, setPage] = useState(1);
@@ -135,7 +140,54 @@ const EmployeeList = () => {
     });
   }, [preferredOrderIndex]);
 
-  const minTableWidth = useMemo(() => Math.max(1000, (visibleColumns?.length || 0) * 160 + 480), [visibleColumns]);
+  const displayedColumns = useMemo(() => {
+    const left: string[] = [];
+    const center: string[] = [];
+    const right: string[] = [];
+    for (const key of visibleColumns) {
+      const pin = columnPins[key];
+      if (pin === "left") left.push(key);
+      else if (pin === "right") right.push(key);
+      else center.push(key);
+    }
+    return [...left, ...center, ...right];
+  }, [visibleColumns, columnPins]);
+
+  const defaultColumnWidths = useMemo(() => {
+    const base = 160;
+    const map: Record<string, number> = {};
+    for (const key of visibleColumns) {
+      if (key === "core.name") {
+        map[key] = 240;
+      } else if (key === "employment.department") {
+        map[key] = 200;
+      } else if (key === "employment.job_title") {
+        map[key] = 220;
+      } else if (key === "core.employee_id") {
+        map[key] = 180;
+      } else if (key === "type") {
+        map[key] = 140;
+      } else {
+        map[key] = base;
+      }
+    }
+    return map;
+  }, [visibleColumns]);
+  const [columnWidths, setColumnWidths] = useState<Record<string, number>>({});
+  useEffect(() => {
+    setColumnWidths((prev) => {
+      const next: Record<string, number> = {};
+      for (const key of visibleColumns) {
+        const prevVal = prev[key];
+        next[key] = typeof prevVal === "number" ? prevVal : defaultColumnWidths[key] ?? 160;
+      }
+      return next;
+    });
+  }, [visibleColumns, defaultColumnWidths]);
+  const columnWidthsTotal = useMemo(() => (
+    visibleColumns.reduce((sum, key) => sum + (columnWidths[key] ?? defaultColumnWidths[key] ?? 160), 0)
+  ), [visibleColumns, columnWidths, defaultColumnWidths]);
+  const minTableWidth = useMemo(() => Math.max(1000, columnWidthsTotal + 240), [columnWidthsTotal]);
   const allowedKeySet = useMemo(() => new Set(allowedColumns.map((d) => d.key)), [allowedColumns]);
   const totalPages = useMemo(() => {
     if (serverTotal === null || serverTotal <= 0) {
@@ -484,6 +536,28 @@ const EmployeeList = () => {
     return list;
   }, [search, typeFilter, statusFilter, remoteEmployees, selected]);
 
+  const sortedEmployees = useMemo(() => {
+    if (!sortState) return filteredEmployees;
+    const { key, direction } = sortState;
+    const multiplier = direction === "asc" ? 1 : -1;
+    const extractValue = (employee: Employee) => {
+      if (key === "type") return employee.type ?? "";
+      const [section, column] = key.split(".");
+      const secObj = (employee as unknown as Record<string, Record<string, unknown> | undefined>)[section];
+      if (!secObj) return "";
+      const value = secObj[column];
+      return value ?? "";
+    };
+    return [...filteredEmployees].sort((a, b) => {
+      const av = extractValue(a);
+      const bv = extractValue(b);
+      if (typeof av === "number" && typeof bv === "number") {
+        return (av - bv) * multiplier;
+      }
+      return String(av).localeCompare(String(bv), undefined, { numeric: true, sensitivity: "base" }) * multiplier;
+    });
+  }, [filteredEmployees, sortState]);
+
   const handleDelete = async (employeeId: string) => {
     try {
       const res = await apiFetch(`/employees/${encodeURIComponent(employeeId)}`, {
@@ -529,7 +603,7 @@ const EmployeeList = () => {
     setSelected((prev) => {
       if (!checked) return new Set();
       const next = new Set(prev);
-      for (const e of filteredEmployees) next.add(e.core.employee_id);
+      for (const e of sortedEmployees) next.add(e.core.employee_id);
       return next;
     });
   };
@@ -541,7 +615,7 @@ const EmployeeList = () => {
       const label = found ? found.label : key;
       return label.replace(/\s*•\s*/g, " ").replace(/\s+/g, " ").trim();
     });
-    const rows = filteredEmployees.map((e: Employee) => {
+    const rows = sortedEmployees.map((e: Employee) => {
       return cols.map((key) => {
         if (key === "type") return e.type || "";
         const [section, column] = key.split(".");
@@ -645,13 +719,53 @@ const EmployeeList = () => {
     } catch (e) { void e; }
   };
 
+  const reorderColumn = async (sourceKey: string, targetKey: string) => {
+    let nextOrder: string[] | null = null;
+    setVisibleColumns((prev) => {
+      if (sourceKey === targetKey) return prev;
+      const sourcePin = columnPins[sourceKey] ?? null;
+      const targetPin = columnPins[targetKey] ?? null;
+      if (sourcePin !== targetPin) return prev;
+      const sourceIndex = prev.indexOf(sourceKey);
+      const targetIndex = prev.indexOf(targetKey);
+      if (sourceIndex === -1 || targetIndex === -1) return prev;
+      const next = [...prev];
+      next.splice(sourceIndex, 1);
+      const insertIndex = sourceIndex < targetIndex ? targetIndex - 1 : targetIndex;
+      next.splice(insertIndex, 0, sourceKey);
+      nextOrder = next;
+      return next;
+    });
+    if (!nextOrder) return;
+    try {
+      const res = await apiFetch(`/users/me/preferences`, {
+        method: "PUT",
+        credentials: "include",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ key: "employee_list_columns", value: nextOrder }),
+      });
+      if (!res.ok) throw new Error(`HTTP_${res.status}`);
+    } catch (e) { void e; }
+  };
+
+  const pinColumn = (key: string, pin: "left" | "right" | null) => {
+    setColumnPins((prev) => {
+      if (pin === null) {
+        const next = { ...prev };
+        delete next[key];
+        return next;
+      }
+      return { ...prev, [key]: pin };
+    });
+  };
+
   return (
     <MainLayout 
       title="Employee List" 
       subtitle={
         serverTotal !== null
-          ? `${filteredEmployees.length} of ${serverTotal} employees`
-          : `${filteredEmployees.length} employees found`
+          ? `${sortedEmployees.length} of ${serverTotal} employees`
+          : `${sortedEmployees.length} employees found`
       }
     >
       {/* Header Actions */}
@@ -829,7 +943,7 @@ const EmployeeList = () => {
           <div className="rounded-xl border border-border bg-card p-12 text-center shadow-card">
             <p className="text-muted-foreground">Failed to load employees ({error}).</p>
           </div>
-        ) : filteredEmployees.length > 0 ? (
+        ) : sortedEmployees.length > 0 ? (
           <>
             <div className="overflow-x-auto mb-2" ref={topScrollRef}>
               <div style={{ width: minTableWidth }} />
@@ -837,14 +951,30 @@ const EmployeeList = () => {
             <div className="overflow-x-auto" ref={bodyScrollRef}>
               <div style={{ minWidth: minTableWidth }}>
                 <EmployeeTable
-                  employees={filteredEmployees}
+                  employees={sortedEmployees}
                   onDelete={handleDelete}
                   selectable
                   selected={selected}
                   onToggleSelect={toggleSelect}
                   onToggleAll={toggleSelectAll}
-                  visibleColumns={visibleColumns}
+                  visibleColumns={displayedColumns}
+                  resizable
+                  columnWidths={columnWidths}
+                  onColumnResize={(key, width) => {
+                    setColumnWidths((prev) => ({ ...prev, [key]: width }));
+                  }}
                   onRowClick={(employee) => navigate(`/employees/${employee.core.employee_id}`)}
+                  sortState={sortState}
+                  onSortChange={(key, direction) => {
+                    if (!direction) {
+                      setSortState(null);
+                      return;
+                    }
+                    setSortState({ key, direction });
+                  }}
+                  pinState={columnPins}
+                  onPinChange={pinColumn}
+                  onReorderColumn={reorderColumn}
                 />
               </div>
             </div>
@@ -857,7 +987,7 @@ const EmployeeList = () => {
             </Button>
           </div>
         )}
-        {filteredEmployees.length > 0 && (
+        {sortedEmployees.length > 0 && (
           <div className="mt-6 flex flex-wrap items-center justify-between gap-3">
             <div className="flex items-center gap-3 text-sm text-muted-foreground">
               <span>{serverTotal ? `Page ${page} of ${totalPages}` : `Page ${page}`}</span>

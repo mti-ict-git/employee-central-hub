@@ -2,6 +2,7 @@ import { useEffect, useMemo, useState } from "react";
 import { MainLayout } from "@/components/layout/MainLayout";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { Input } from "@/components/ui/input";
 import { Download, FileText } from "lucide-react";
 import { useRBAC } from "@/hooks/useRBAC";
@@ -136,34 +137,34 @@ export default function ReportsPage() {
                     <p className="text-destructive">{error}</p>
                   </div>
                 ) : (
-                  <div className="rounded-lg border border-border overflow-x-auto">
-                    <table className="min-w-full text-sm">
-                      <thead className="bg-muted">
-                        <tr>
+                  <div className="rounded-xl border border-border/70 bg-card/95 shadow-card">
+                    <Table>
+                      <TableHeader>
+                        <TableRow>
                           {filtered[0]
                             ? Object.keys(filtered[0]).map((k) => (
-                                <th key={k} className="px-3 py-2 text-left font-medium">{k}</th>
+                                <TableHead key={k}>{k}</TableHead>
                               ))
                             : ["employee_id","name","department","status","job_title"].map((k) => (
-                                <th key={k} className="px-3 py-2 text-left font-medium">{k}</th>
+                                <TableHead key={k}>{k}</TableHead>
                               ))}
-                        </tr>
-                      </thead>
-                      <tbody>
+                        </TableRow>
+                      </TableHeader>
+                      <TableBody>
                         {filtered.slice(0, 20).map((row, i) => (
-                          <tr key={i} className="border-t border-border">
+                          <TableRow key={i}>
                             {Object.keys(filtered[0] || row).map((k) => (
-                              <td key={k} className="px-3 py-2">{String(row[k] ?? "")}</td>
+                              <TableCell key={k}>{String(row[k] ?? "")}</TableCell>
                             ))}
-                          </tr>
+                          </TableRow>
                         ))}
                         {filtered.length === 0 ? (
-                          <tr>
-                            <td className="px-3 py-4 text-muted-foreground">No data</td>
-                          </tr>
+                          <TableRow>
+                            <TableCell className="text-muted-foreground">No data</TableCell>
+                          </TableRow>
                         ) : null}
-                      </tbody>
-                    </table>
+                      </TableBody>
+                    </Table>
                   </div>
                 )}
               </>

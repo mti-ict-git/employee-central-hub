@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useCallback, useMemo, useState, type CSSProperties, type MouseEvent, type ReactNode } from "react";
 import { Employee } from "@/types/employee";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
@@ -10,11 +10,30 @@ import {
   TableHeader,
   TableRow,
 } from "@/components/ui/table";
-import { AlertTriangle, Eye, Pencil, Trash } from "lucide-react";
+import { AlertTriangle, ArrowDown, ArrowUp, ChevronDown, Eye, GripVertical, Pencil, Pin, PinOff, Trash } from "lucide-react";
+import {
+  DndContext,
+  PointerSensor,
+  closestCenter,
+  useSensor,
+  useSensors,
+  type DraggableAttributes,
+  type DragEndEvent,
+  type SyntheticListenerMap,
+} from "@dnd-kit/core";
+import { SortableContext, horizontalListSortingStrategy, useSortable } from "@dnd-kit/sortable";
+import { CSS } from "@dnd-kit/utilities";
 import { Link } from "react-router-dom";
 import { cn } from "@/lib/utils";
 import { Checkbox } from "@/components/ui/checkbox";
 import { useRBAC } from "@/hooks/useRBAC";
+import {
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuSeparator,
+  DropdownMenuTrigger,
+} from "@/components/ui/dropdown-menu";
 import {
   AlertDialog,
   AlertDialogAction,
@@ -35,14 +54,45 @@ interface EmployeeTableProps {
   onToggleAll?: (checked: boolean) => void;
   visibleColumns?: string[];
   onRowClick?: (employee: Employee) => void;
+  resizable?: boolean;
+  columnWidths?: Record<string, number>;
+  onColumnResize?: (key: string, width: number) => void;
+  sortState?: { key: string; direction: "asc" | "desc" } | null;
+  onSortChange?: (key: string, direction: "asc" | "desc" | null) => void;
+  pinState?: Record<string, "left" | "right" | undefined>;
+  onPinChange?: (key: string, pin: "left" | "right" | null) => void;
+  onReorderColumn?: (sourceKey: string, targetKey: string) => void;
 }
 
-export function EmployeeTable({ employees, onDelete, selectable = false, selected, onToggleSelect, onToggleAll, visibleColumns, onRowClick }: EmployeeTableProps) {
+type SortableHeaderCellProps = {
+  id: string;
+  className?: string;
+  style?: CSSProperties;
+  children: (props: { attributes: DraggableAttributes; listeners: SyntheticListenerMap | undefined; isDragging: boolean }) => ReactNode;
+};
+
+const SortableHeaderCell = ({ id, className, style, children }: SortableHeaderCellProps) => {
+  const { attributes, listeners, setNodeRef, transform, transition, isDragging } = useSortable({ id });
+  const mergedStyle = {
+    ...style,
+    transform: CSS.Transform.toString(transform),
+    transition,
+  } as CSSProperties;
+  return (
+    <TableHead ref={setNodeRef} className={cn(className, isDragging ? "opacity-60" : undefined)} style={mergedStyle}>
+      {children({ attributes, listeners, isDragging })}
+    </TableHead>
+  );
+};
+
+export function EmployeeTable({ employees, onDelete, selectable = false, selected, onToggleSelect, onToggleAll, visibleColumns, onRowClick, resizable = false, columnWidths, onColumnResize, sortState, onSortChange, pinState, onPinChange, onReorderColumn }: EmployeeTableProps) {
   const { caps, typeAccess } = useRBAC();
   const [deleteTarget, setDeleteTarget] = useState<Employee | null>(null);
-  const columns = Array.isArray(visibleColumns) && visibleColumns.length
-    ? visibleColumns
-    : ["core.employee_id","core.name","type","employment.department","employment.job_title","employment.status"];
+  const columns = useMemo(() => (
+    Array.isArray(visibleColumns) && visibleColumns.length
+      ? visibleColumns
+      : ["core.employee_id","core.name","type","employment.department","employment.job_title","employment.status"]
+  ), [visibleColumns]);
 
   const renderNameCell = (employee: Employee) => {
     const rawName: unknown = (employee.core as { name: unknown }).name;
@@ -58,6 +108,32 @@ export function EmployeeTable({ employees, onDelete, selectable = false, selecte
 
     const rawNationality: unknown = (employee.core as { nationality?: unknown }).nationality;
     const nationality = typeof rawNationality === "string" && rawNationality.length > 0 ? rawNationality : "-";
+    const flagStyleMap: Record<string, CSSProperties> = {
+      indonesia: { background: "linear-gradient(180deg,#dc2626 50%,#ffffff 50%)" },
+      china: { background: "#dc2626" },
+      expat: { background: "#dc2626" },
+      "people's republic of china": { background: "#dc2626" },
+      prc: { background: "#dc2626" },
+      philippines: { background: "linear-gradient(90deg,#1d4ed8 50%,#dc2626 50%)" },
+      usa: { background: "linear-gradient(180deg,#ef4444 50%,#ffffff 50%)" },
+      "united states": { background: "linear-gradient(180deg,#ef4444 50%,#ffffff 50%)" },
+      "united states of america": { background: "linear-gradient(180deg,#ef4444 50%,#ffffff 50%)" },
+      malaysia: { background: "linear-gradient(180deg,#ef4444 50%,#ffffff 50%)" },
+      singapore: { background: "linear-gradient(180deg,#ef4444 50%,#ffffff 50%)" },
+      japan: { background: "radial-gradient(circle at 50% 50%,#dc2626 35%,#ffffff 36%)" },
+      korea: { background: "#ffffff" },
+      "south korea": { background: "#ffffff" },
+      india: { background: "linear-gradient(180deg,#f97316 33%,#ffffff 33% 66%,#16a34a 66%)" },
+      australia: { background: "#1d4ed8" },
+      vietnam: { background: "#dc2626" },
+      thailand: { background: "linear-gradient(180deg,#1d4ed8 33%,#ffffff 33% 66%,#ef4444 66%)" },
+      uk: { background: "#1d4ed8" },
+      "united kingdom": { background: "#1d4ed8" },
+    };
+    const nationalityKey = typeof nationality === "string" ? nationality.trim().toLowerCase() : "";
+    const flagStyle = nationalityKey && nationalityKey !== "-"
+      ? (flagStyleMap[nationalityKey] ?? { background: "linear-gradient(180deg,#9ca3af 50%,#e5e7eb 50%)" })
+      : undefined;
 
     return (
       <div className="flex items-center gap-3">
@@ -66,7 +142,16 @@ export function EmployeeTable({ employees, onDelete, selectable = false, selecte
         </div>
         <div>
           <p className="font-medium">{name || "-"}</p>
-          <p className="text-xs text-muted-foreground">{nationality}</p>
+          <p className="text-xs text-muted-foreground">
+            {flagStyle ? (
+              <span
+                className="mr-1 inline-flex h-3 w-4 rounded-sm border border-border/70"
+                style={flagStyle}
+                aria-hidden
+              />
+            ) : null}
+            {nationality}
+          </p>
         </div>
       </div>
     );
@@ -206,9 +291,9 @@ export function EmployeeTable({ employees, onDelete, selectable = false, selecte
     if (key === "type") return "Type";
     const parts = key.split(".");
     if (parts.length === 2) {
-      const [section, column] = parts;
+      const [, column] = parts;
       const toTitle = (s: string) => s.replace(/[-_]+/g, " ").split(" ").filter(Boolean).map((w) => w[0] ? w[0].toUpperCase() + w.slice(1) : "").join(" ");
-      return `${toTitle(section)} • ${toTitle(column)}`;
+      return toTitle(column);
     }
     return key;
   };
@@ -229,6 +314,23 @@ export function EmployeeTable({ employees, onDelete, selectable = false, selecte
       if (!isSectionKey(section)) return "-";
       const sectionObj = employee[section] as unknown as Record<string, unknown> | undefined;
       const val: unknown = sectionObj ? sectionObj[column] : undefined;
+      if (section === "core" && column === "gender") {
+        const genderRaw = typeof val === "string" ? val.trim().toLowerCase() : "";
+        const isMale = genderRaw === "m" || genderRaw === "male" || genderRaw === "l" || genderRaw === "laki-laki";
+        const isFemale = genderRaw === "f" || genderRaw === "female" || genderRaw === "p" || genderRaw === "perempuan";
+        if (!isMale && !isFemale) return val ? String(val) : "-";
+        return (
+          <span className={cn(
+            "inline-flex items-center gap-1.5 rounded-full px-2 py-0.5 text-xs font-semibold",
+            isMale ? "bg-sky-500/10 text-sky-600" : "bg-rose-500/10 text-rose-600",
+          )}>
+            <span className="text-[13px] leading-none" aria-hidden>
+              {isMale ? "♂" : "♀"}
+            </span>
+            {isMale ? "M" : "F"}
+          </span>
+        );
+      }
       if (section === "employment" && column === "status") {
         const statusStr = typeof val === "string" ? val : undefined;
         return (
@@ -251,10 +353,84 @@ export function EmployeeTable({ employees, onDelete, selectable = false, selecte
     return "-";
   };
 
+  const startResize = (event: MouseEvent<HTMLSpanElement>, key: string) => {
+    if (!onColumnResize) return;
+    event.preventDefault();
+    event.stopPropagation();
+    const startX = event.clientX;
+    const startWidth = columnWidths?.[key] ?? (event.currentTarget.parentElement?.getBoundingClientRect().width ?? 160);
+    const handleMove = (e: MouseEvent) => {
+      const next = Math.max(120, Math.round(startWidth + e.clientX - startX));
+      onColumnResize(key, next);
+    };
+    const handleUp = () => {
+      window.removeEventListener("mousemove", handleMove);
+      window.removeEventListener("mouseup", handleUp);
+      document.body.style.cursor = "";
+      document.body.style.userSelect = "";
+    };
+    document.body.style.cursor = "col-resize";
+    document.body.style.userSelect = "none";
+    window.addEventListener("mousemove", handleMove);
+    window.addEventListener("mouseup", handleUp);
+  };
+
+  const getWidthStyle = (key: string) => {
+    const width = columnWidths?.[key];
+    if (!width) return undefined;
+    return { width, minWidth: width, maxWidth: width } as CSSProperties;
+  };
+
+  const columnWidth = useCallback((key: string) => columnWidths?.[key] ?? 160, [columnWidths]);
+
+  const pinnedLeftOffsets = useMemo(() => {
+    let offset = 0;
+    const map: Record<string, number> = {};
+    for (const key of columns) {
+      if (pinState?.[key] === "left") {
+        map[key] = offset;
+        offset += columnWidth(key);
+      }
+    }
+    return map;
+  }, [columns, pinState, columnWidth]);
+
+  const pinnedRightOffsets = useMemo(() => {
+    let offset = 0;
+    const map: Record<string, number> = {};
+    for (let i = columns.length - 1; i >= 0; i -= 1) {
+      const key = columns[i];
+      if (pinState?.[key] === "right") {
+        map[key] = offset;
+        offset += columnWidth(key);
+      }
+    }
+    return map;
+  }, [columns, pinState, columnWidth]);
+
+  const getPinnedStyle = (key: string) => {
+    const pin = pinState?.[key];
+    if (pin === "left") {
+      return { position: "sticky", left: pinnedLeftOffsets[key] ?? 0, zIndex: 2 } as CSSProperties;
+    }
+    if (pin === "right") {
+      return { position: "sticky", right: pinnedRightOffsets[key] ?? 0, zIndex: 2 } as CSSProperties;
+    }
+    return undefined;
+  };
+
+  const sensors = useSensors(useSensor(PointerSensor, { activationConstraint: { distance: 6 } }));
+  const handleDragEnd = (event: DragEndEvent) => {
+    if (!event.over || event.active.id === event.over.id) return;
+    onReorderColumn?.(String(event.active.id), String(event.over.id));
+  };
+
   return (
     <div className="rounded-2xl border border-border bg-card/95 shadow-lg overflow-hidden">
-      <Table className="[&_tbody_tr:last-child]:border-b-0">
-        <TableHeader>
+      <Table className="[&_tbody_tr:last-child]:border-b-0 table-fixed">
+        <DndContext sensors={sensors} collisionDetection={closestCenter} onDragEnd={handleDragEnd}>
+          <SortableContext items={columns} strategy={horizontalListSortingStrategy}>
+            <TableHeader>
           <TableRow className="bg-muted/60">
             {selectable && (
               <TableHead className="w-10 text-xs font-semibold uppercase tracking-wide text-muted-foreground">
@@ -264,14 +440,95 @@ export function EmployeeTable({ employees, onDelete, selectable = false, selecte
                 />
               </TableHead>
             )}
-            {columns.map((key) => (
-              <TableHead key={key} className="text-xs font-semibold uppercase tracking-wide text-muted-foreground">
-                {headerLabel(key)}
-              </TableHead>
-            ))}
+            {columns.map((key) => {
+              const sortDir = sortState?.key === key ? sortState.direction : null;
+              const pin = pinState?.[key];
+              const widthStyle = getWidthStyle(key);
+              const pinnedStyle = getPinnedStyle(key);
+              return (
+                <SortableHeaderCell
+                  key={key}
+                  id={key}
+                  className={cn(
+                    "relative text-xs font-semibold uppercase tracking-wide text-muted-foreground",
+                    resizable ? "pr-8" : "pr-6",
+                    pin ? "bg-muted/60" : undefined
+                  )}
+                  style={pinnedStyle ? { ...widthStyle, ...pinnedStyle } : widthStyle}
+                >
+                  {({ attributes, listeners }) => (
+                    <>
+                      <div className="flex items-center gap-1">
+                        <span
+                          className="-ml-1 inline-flex h-6 w-5 items-center justify-center rounded-sm text-muted-foreground/70 hover:text-muted-foreground cursor-grab"
+                          {...attributes}
+                          {...listeners}
+                        >
+                          <GripVertical className="h-3.5 w-3.5" />
+                        </span>
+                        <span className="truncate">{headerLabel(key)}</span>
+                        <DropdownMenu>
+                          <DropdownMenuTrigger asChild>
+                            <Button variant="ghost" size="icon" className="h-6 w-6 rounded-md">
+                              <ChevronDown className="h-3.5 w-3.5" />
+                            </Button>
+                          </DropdownMenuTrigger>
+                          <DropdownMenuContent align="start" className="w-52">
+                            <DropdownMenuItem onSelect={() => onSortChange?.(key, "asc")}>
+                              <ArrowUp className="mr-2 h-4 w-4" />
+                              Asc
+                            </DropdownMenuItem>
+                            <DropdownMenuItem onSelect={() => onSortChange?.(key, "desc")}>
+                              <ArrowDown className="mr-2 h-4 w-4" />
+                              Desc
+                            </DropdownMenuItem>
+                            {sortDir ? (
+                              <DropdownMenuItem onSelect={() => onSortChange?.(key, null)}>
+                                <ArrowUp className="mr-2 h-4 w-4" />
+                                Clear sort
+                              </DropdownMenuItem>
+                            ) : null}
+                            <DropdownMenuSeparator />
+                            {pin ? (
+                              <DropdownMenuItem onSelect={() => onPinChange?.(key, null)}>
+                                <PinOff className="mr-2 h-4 w-4" />
+                                Unpin
+                              </DropdownMenuItem>
+                            ) : null}
+                            {pin !== "left" ? (
+                              <DropdownMenuItem onSelect={() => onPinChange?.(key, "left")}>
+                                <Pin className="mr-2 h-4 w-4" />
+                                Pin to left
+                              </DropdownMenuItem>
+                            ) : null}
+                            {pin !== "right" ? (
+                              <DropdownMenuItem onSelect={() => onPinChange?.(key, "right")}>
+                                <Pin className="mr-2 h-4 w-4" />
+                                Pin to right
+                              </DropdownMenuItem>
+                            ) : null}
+                          </DropdownMenuContent>
+                        </DropdownMenu>
+                      </div>
+                      {resizable && (
+                        <span
+                          role="separator"
+                          onMouseDown={(event) => startResize(event, key)}
+                          className="absolute right-0 top-0 h-full w-2 cursor-col-resize select-none"
+                        >
+                          <span className="absolute right-0 top-1/2 h-6 w-px -translate-y-1/2 bg-border/80" />
+                        </span>
+                      )}
+                    </>
+                  )}
+                </SortableHeaderCell>
+              );
+            })}
             <TableHead className="text-right text-xs font-semibold uppercase tracking-wide text-muted-foreground">Actions</TableHead>
           </TableRow>
-        </TableHeader>
+            </TableHeader>
+          </SortableContext>
+        </DndContext>
         <TableBody>
           {employees.map((employee) => (
             <TableRow 
@@ -290,14 +547,27 @@ export function EmployeeTable({ employees, onDelete, selectable = false, selecte
                   />
                 </TableCell>
               )}
-              {columns.map((key) => (
-                <TableCell key={key} className={cn("py-3.5", key === "core.employee_id" ? "font-semibold text-primary" : "text-foreground") }>
-                  {key === "core.employee_id" ? employee.core.employee_id
-                    : key === "core.name" ? (
-                      renderNameCell(employee)
-                    ) : renderCell(employee, key)}
-                </TableCell>
-              ))}
+              {columns.map((key) => {
+                const widthStyle = getWidthStyle(key);
+                const pinnedStyle = getPinnedStyle(key);
+                return (
+                  <TableCell
+                    key={key}
+                    className={cn(
+                      "py-3.5",
+                      key === "core.employee_id" ? "font-semibold text-primary" : "text-foreground",
+                      key === "core.gender" ? "text-center" : undefined,
+                      pinState?.[key] ? "bg-card/95" : undefined
+                    )}
+                    style={pinnedStyle ? { ...widthStyle, ...pinnedStyle } : widthStyle}
+                  >
+                    {key === "core.employee_id" ? employee.core.employee_id
+                      : key === "core.name" ? (
+                        renderNameCell(employee)
+                      ) : renderCell(employee, key)}
+                  </TableCell>
+                );
+              })}
               <TableCell className="text-right" onClick={(event) => event.stopPropagation()}>
                 <div className="flex justify-end gap-2">
                   <Button variant="ghost" size="icon" className="rounded-lg hover:bg-muted/60" asChild>
