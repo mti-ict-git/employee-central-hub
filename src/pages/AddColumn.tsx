@@ -8,6 +8,16 @@ import { Badge } from "@/components/ui/badge";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger } from "@/components/ui/dropdown-menu";
+import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+} from "@/components/ui/alert-dialog";
 import { toast } from "@/hooks/use-toast";
 import { apiFetch } from "@/lib/api";
 import { MoreHorizontal } from "lucide-react";
@@ -43,6 +53,7 @@ export default function AddColumn() {
   const [loadingTables, setLoadingTables] = useState(false);
   const [query, setQuery] = useState("");
   const [deleting, setDeleting] = useState<string | null>(null);
+  const [confirmOpen, setConfirmOpen] = useState(false);
 
   const groupValue = group.trim();
   const columnValue = column.trim();
@@ -101,8 +112,7 @@ export default function AddColumn() {
     loadTables();
   }, []);
 
-  const handleSubmit = async (event: React.FormEvent<HTMLFormElement>) => {
-    event.preventDefault();
+  const submitColumn = async () => {
     if (!canSubmit) return;
     setSaving(true);
     try {
@@ -137,6 +147,12 @@ export default function AddColumn() {
     } finally {
       setSaving(false);
     }
+  };
+
+  const handleSubmit = async (event: React.FormEvent<HTMLFormElement>) => {
+    event.preventDefault();
+    if (!canSubmit) return;
+    setConfirmOpen(true);
   };
 
   const handleDelete = async (tableName: string, columnName?: string) => {
@@ -318,6 +334,33 @@ export default function AddColumn() {
                     {saving ? "Saving..." : "Add Column"}
                   </Button>
                 </div>
+                <AlertDialog open={confirmOpen} onOpenChange={setConfirmOpen}>
+                  <AlertDialogContent>
+                    <AlertDialogHeader>
+                      <AlertDialogTitle>Tambah column baru?</AlertDialogTitle>
+                      <AlertDialogDescription>
+                        {groupValue && normalizedColumn
+                          ? `Kolom ${groupValue}.${normalizedColumn} akan ditambahkan dan tersedia untuk permissions.`
+                          : "Kolom baru akan ditambahkan dan tersedia untuk permissions."}
+                      </AlertDialogDescription>
+                    </AlertDialogHeader>
+                    <AlertDialogFooter>
+                      <AlertDialogCancel>Batal</AlertDialogCancel>
+                      <AlertDialogAction asChild>
+                        <Button
+                          variant="destructive"
+                          disabled={saving || !canSubmit}
+                          onClick={async () => {
+                            setConfirmOpen(false);
+                            await submitColumn();
+                          }}
+                        >
+                          Tambah
+                        </Button>
+                      </AlertDialogAction>
+                    </AlertDialogFooter>
+                  </AlertDialogContent>
+                </AlertDialog>
               </form>
             </CardContent>
           </Card>
