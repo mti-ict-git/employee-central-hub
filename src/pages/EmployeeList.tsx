@@ -3,7 +3,7 @@ import { MainLayout } from "@/components/layout/MainLayout";
 import { EmployeeTable } from "@/components/employees/EmployeeTable";
 import { EmployeeFilters } from "@/components/employees/EmployeeFilters";
 import { Button } from "@/components/ui/button";
-import { Plus, Download, Upload, Columns } from "lucide-react";
+import { Plus, Download, Upload, Columns, AlertTriangle, CheckCircle2 } from "lucide-react";
 import { Link, useNavigate, useSearchParams } from "react-router-dom";
 import type { Employee, EmployeeCore, EmployeeContact, EmployeeEmployment, EmployeeBank, EmployeeInsurance, EmployeeOnboard, EmployeeTravel, EmployeeChecklist, EmployeeNotes, EmployeeType } from "@/types/employee";
 import { toast } from "@/hooks/use-toast";
@@ -494,7 +494,21 @@ const EmployeeList = () => {
         throw new Error(msg);
       }
       setRemoteEmployees((prev) => prev.filter((e) => e.core.employee_id !== employeeId));
-      toast({ title: "Deleted", description: `Employee ${employeeId} deleted` });
+      toast({
+        title: "Data Berhasil Dihapus",
+        description: (
+          <div className="flex items-start gap-3">
+            <div className="mt-0.5 flex h-9 w-9 items-center justify-center rounded-full bg-emerald-100 text-emerald-600">
+              <CheckCircle2 className="h-4 w-4" />
+            </div>
+            <div className="space-y-1">
+              <div className="text-sm">Karyawan {employeeId} berhasil dihapus.</div>
+              <div className="text-xs text-muted-foreground">Baru saja</div>
+            </div>
+          </div>
+        ),
+        className: "border-l-4 border-emerald-500/70 bg-background/95 shadow-xl",
+      });
     } catch (err: unknown) {
       toast({ title: "Error", description: err instanceof Error ? err.message : "Failed to delete", variant: "destructive" });
     }
@@ -568,7 +582,22 @@ const EmployeeList = () => {
     }
     setRemoteEmployees((prev) => prev.filter((e) => !selected.has(e.core.employee_id)));
     setSelected(new Set());
-    toast({ title: "Bulk Delete", description: `Deleted ${success}, failed ${failed}` });
+    const title = failed === 0 ? "Semua Data Terhapus" : "Hapus Selesai";
+    toast({
+      title,
+      description: (
+        <div className="flex items-start gap-3">
+          <div className="mt-0.5 flex h-9 w-9 items-center justify-center rounded-full bg-emerald-100 text-emerald-600">
+            <CheckCircle2 className="h-4 w-4" />
+          </div>
+          <div className="space-y-1">
+            <div className="text-sm">Berhasil hapus {success} data, gagal {failed}.</div>
+            <div className="text-xs text-muted-foreground">Baru saja</div>
+          </div>
+        </div>
+      ),
+      className: "border-l-4 border-emerald-500/70 bg-background/95 shadow-xl",
+    });
   };
   const handleClearFilters = () => {
     setSearch("");
@@ -576,6 +605,7 @@ const EmployeeList = () => {
     setStatusFilter("all");
     setPage(1);
   };
+
 
   const toggleColumn = async (col: string, on: boolean) => {
     setVisibleColumns((prev) => {
@@ -729,19 +759,38 @@ const EmployeeList = () => {
         </div>
       </div>
       <AlertDialog open={bulkDeleteOpen} onOpenChange={setBulkDeleteOpen}>
-        <AlertDialogContent>
-          <AlertDialogHeader>
-            <AlertDialogTitle>Hapus karyawan terpilih?</AlertDialogTitle>
-            <AlertDialogDescription>
-              {selected.size > 0
-                ? `Tindakan ini akan menghapus ${selected.size} karyawan dan tidak dapat dibatalkan.`
-                : "Tindakan ini tidak dapat dibatalkan."}
-            </AlertDialogDescription>
-          </AlertDialogHeader>
-          <AlertDialogFooter>
-            <AlertDialogCancel>Batal</AlertDialogCancel>
+        <AlertDialogContent className="sm:max-w-[560px] p-0">
+          <div className="flex items-center justify-between border-b border-border px-6 py-4">
+            <AlertDialogTitle className="text-base font-semibold text-foreground">Konfirmasi Penghapusan</AlertDialogTitle>
+            <div className="rounded-md bg-destructive/10 px-2 py-1 text-xs font-semibold text-destructive">
+              Danger
+            </div>
+          </div>
+          <div className="px-6 py-5">
+            <div className="flex items-start gap-4">
+              <div className="flex h-12 w-12 items-center justify-center rounded-lg bg-destructive/10 text-destructive">
+                <AlertTriangle className="h-6 w-6" />
+              </div>
+              <div className="space-y-2">
+                <AlertDialogHeader>
+                  <AlertDialogTitle className="text-xl font-semibold">Hapus karyawan terpilih?</AlertDialogTitle>
+                  <AlertDialogDescription className="text-sm text-muted-foreground">
+                    {selected.size > 0
+                      ? `Tindakan ini akan menghapus ${selected.size} karyawan dan tidak dapat dibatalkan.`
+                      : "Tindakan ini tidak dapat dibatalkan."}
+                  </AlertDialogDescription>
+                </AlertDialogHeader>
+                <div className="text-sm text-muted-foreground">
+                  Pastikan Anda benar-benar ingin menghapus. Data yang dihapus tidak bisa dipulihkan.
+                </div>
+              </div>
+            </div>
+          </div>
+          <AlertDialogFooter className="border-t border-border px-6 py-4">
+            <AlertDialogCancel className="h-9">Batal</AlertDialogCancel>
             <AlertDialogAction asChild>
               <Button
+                className="h-9"
                 variant="destructive"
                 onClick={async () => {
                   setBulkDeleteOpen(false);

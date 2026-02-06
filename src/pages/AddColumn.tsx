@@ -20,7 +20,7 @@ import {
 } from "@/components/ui/alert-dialog";
 import { toast } from "@/hooks/use-toast";
 import { apiFetch } from "@/lib/api";
-import { MoreHorizontal } from "lucide-react";
+import { AlertTriangle, CheckCircle2, Info, MoreHorizontal } from "lucide-react";
 
 type MappingRow = {
   excel?: { table?: string; schema?: string; column?: string; excelName?: string };
@@ -139,7 +139,21 @@ export default function AddColumn() {
         const msg = data?.error || `HTTP_${res.status}`;
         throw new Error(msg);
       }
-      toast({ title: "Column added", description: `${groupValue}.${normalizedColumn} is now available` });
+      toast({
+        title: "Column added",
+        description: (
+          <div className="flex items-start gap-3">
+            <div className="mt-0.5 flex h-9 w-9 items-center justify-center rounded-full bg-emerald-100 text-emerald-600">
+              <CheckCircle2 className="h-4 w-4" />
+            </div>
+            <div className="space-y-1">
+              <div className="text-sm">{groupValue}.{normalizedColumn} is now available</div>
+              <div className="text-xs text-muted-foreground">Baru saja</div>
+            </div>
+          </div>
+        ),
+        className: "border-l-4 border-emerald-500/70 bg-background/95 shadow-xl",
+      });
       setGroup("");
       setColumn("");
       setLabel("");
@@ -196,7 +210,20 @@ export default function AddColumn() {
       }
       toast({
         title: "Mapping deleted",
-        description: column ? `${groupLabel}.${column} dihapus` : `Group ${groupLabel} dihapus`,
+        description: (
+          <div className="flex items-start gap-3">
+            <div className="mt-0.5 flex h-9 w-9 items-center justify-center rounded-full bg-sky-100 text-sky-600">
+              <Info className="h-4 w-4" />
+            </div>
+            <div className="space-y-1">
+              <div className="text-sm">
+                {column ? `${groupLabel}.${column} dihapus` : `Group ${groupLabel} dihapus`}
+              </div>
+              <div className="text-xs text-muted-foreground">Baru saja</div>
+            </div>
+          </div>
+        ),
+        className: "border-l-4 border-sky-500/70 bg-background/95 shadow-xl",
       });
       await loadMappings();
     } catch (err: unknown) {
@@ -351,20 +378,40 @@ export default function AddColumn() {
                   </Button>
                 </div>
                 <AlertDialog open={confirmOpen} onOpenChange={setConfirmOpen}>
-                  <AlertDialogContent>
-                    <AlertDialogHeader>
-                      <AlertDialogTitle>Tambah column baru?</AlertDialogTitle>
-                      <AlertDialogDescription>
-                        {groupValue && normalizedColumn
-                          ? `Kolom ${groupValue}.${normalizedColumn} akan ditambahkan dan tersedia untuk permissions.`
-                          : "Kolom baru akan ditambahkan dan tersedia untuk permissions."}
-                      </AlertDialogDescription>
-                    </AlertDialogHeader>
-                    <AlertDialogFooter>
-                      <AlertDialogCancel>Batal</AlertDialogCancel>
+                  <AlertDialogContent className="sm:max-w-[560px] p-0">
+                    <div className="flex items-center justify-between border-b border-border px-6 py-4">
+                      <AlertDialogTitle className="text-base font-semibold text-foreground">
+                        Konfirmasi Penambahan
+                      </AlertDialogTitle>
+                      <div className="rounded-md bg-primary/10 px-2 py-1 text-xs font-semibold text-primary">
+                        Info
+                      </div>
+                    </div>
+                    <div className="px-6 py-5">
+                      <div className="flex items-start gap-4">
+                        <div className="flex h-12 w-12 items-center justify-center rounded-lg bg-primary/10 text-primary">
+                          <CheckCircle2 className="h-6 w-6" />
+                        </div>
+                        <div className="space-y-2">
+                          <AlertDialogHeader>
+                            <AlertDialogTitle className="text-xl font-semibold">Tambah column baru?</AlertDialogTitle>
+                            <AlertDialogDescription className="text-sm text-muted-foreground">
+                              {groupValue && normalizedColumn
+                                ? `Kolom ${groupValue}.${normalizedColumn} akan ditambahkan dan tersedia untuk permissions.`
+                                : "Kolom baru akan ditambahkan dan tersedia untuk permissions."}
+                            </AlertDialogDescription>
+                          </AlertDialogHeader>
+                          <div className="text-sm text-muted-foreground">
+                            Pastikan detail sudah benar sebelum menyimpan perubahan.
+                          </div>
+                        </div>
+                      </div>
+                    </div>
+                    <AlertDialogFooter className="border-t border-border px-6 py-4">
+                      <AlertDialogCancel className="h-9">Batal</AlertDialogCancel>
                       <AlertDialogAction asChild>
                         <Button
-                          variant="destructive"
+                          className="h-9"
                           disabled={saving || !canSubmit}
                           onClick={async () => {
                             setConfirmOpen(false);
@@ -387,23 +434,44 @@ export default function AddColumn() {
               if (!open) setDeleteTarget(null);
             }}
           >
-            <AlertDialogContent>
-              <AlertDialogHeader>
-                <AlertDialogTitle>
-                  {deleteTarget?.column ? "Hapus column?" : "Hapus group?"}
+            <AlertDialogContent className="sm:max-w-[560px] p-0">
+              <div className="flex items-center justify-between border-b border-border px-6 py-4">
+                <AlertDialogTitle className="text-base font-semibold text-foreground">
+                  Konfirmasi Penghapusan
                 </AlertDialogTitle>
-                <AlertDialogDescription>
-                  {deleteTarget?.column
-                    ? `Column ${deleteTarget.groupLabel}.${deleteTarget.column} akan dihapus dan tidak dapat dibatalkan.`
-                    : deleteTarget
-                      ? `Group ${deleteTarget.groupLabel} akan dihapus (${deleteTarget.groupCount} column) dan tidak dapat dibatalkan.`
-                      : "Tindakan ini tidak dapat dibatalkan."}
-                </AlertDialogDescription>
-              </AlertDialogHeader>
-              <AlertDialogFooter>
-                <AlertDialogCancel>Batal</AlertDialogCancel>
+                <div className="rounded-md bg-destructive/10 px-2 py-1 text-xs font-semibold text-destructive">
+                  Danger
+                </div>
+              </div>
+              <div className="px-6 py-5">
+                <div className="flex items-start gap-4">
+                  <div className="flex h-12 w-12 items-center justify-center rounded-lg bg-destructive/10 text-destructive">
+                    <AlertTriangle className="h-6 w-6" />
+                  </div>
+                  <div className="space-y-2">
+                    <AlertDialogHeader>
+                      <AlertDialogTitle className="text-xl font-semibold">
+                        {deleteTarget?.column ? "Hapus column?" : "Hapus group?"}
+                      </AlertDialogTitle>
+                      <AlertDialogDescription className="text-sm text-muted-foreground">
+                        {deleteTarget?.column
+                          ? `Column ${deleteTarget.groupLabel}.${deleteTarget.column} akan dihapus dan tidak dapat dibatalkan.`
+                          : deleteTarget
+                            ? `Group ${deleteTarget.groupLabel} akan dihapus (${deleteTarget.groupCount} column) dan tidak dapat dibatalkan.`
+                            : "Tindakan ini tidak dapat dibatalkan."}
+                      </AlertDialogDescription>
+                    </AlertDialogHeader>
+                    <div className="text-sm text-muted-foreground">
+                      Pastikan Anda benar-benar ingin menghapus. Data yang dihapus tidak bisa dipulihkan.
+                    </div>
+                  </div>
+                </div>
+              </div>
+              <AlertDialogFooter className="border-t border-border px-6 py-4">
+                <AlertDialogCancel className="h-9">Batal</AlertDialogCancel>
                 <AlertDialogAction asChild>
                   <Button
+                    className="h-9"
                     variant="destructive"
                     disabled={deleting !== null}
                     onClick={confirmDelete}

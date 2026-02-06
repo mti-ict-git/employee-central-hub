@@ -10,7 +10,7 @@ import {
   TableHeader,
   TableRow,
 } from "@/components/ui/table";
-import { Eye, Pencil, Trash } from "lucide-react";
+import { AlertTriangle, Eye, Pencil, Trash } from "lucide-react";
 import { Link } from "react-router-dom";
 import { cn } from "@/lib/utils";
 import { Checkbox } from "@/components/ui/checkbox";
@@ -333,19 +333,38 @@ export function EmployeeTable({ employees, onDelete, selectable = false, selecte
           if (!open) setDeleteTarget(null);
         }}
       >
-        <AlertDialogContent>
-          <AlertDialogHeader>
-            <AlertDialogTitle>Hapus karyawan?</AlertDialogTitle>
-            <AlertDialogDescription>
-              {deleteTarget?.core?.employee_id
-                ? `Tindakan ini akan menghapus karyawan ${deleteTarget.core.employee_id} dan tidak dapat dibatalkan.`
-                : "Tindakan ini tidak dapat dibatalkan."}
-            </AlertDialogDescription>
-          </AlertDialogHeader>
-          <AlertDialogFooter>
-            <AlertDialogCancel>Batal</AlertDialogCancel>
+        <AlertDialogContent className="sm:max-w-[560px] p-0">
+          <div className="flex items-center justify-between border-b border-border px-6 py-4">
+            <AlertDialogTitle className="text-base font-semibold text-foreground">Konfirmasi Penghapusan</AlertDialogTitle>
+            <div className="rounded-md bg-destructive/10 px-2 py-1 text-xs font-semibold text-destructive">
+              Danger
+            </div>
+          </div>
+          <div className="px-6 py-5">
+            <div className="flex items-start gap-4">
+              <div className="flex h-12 w-12 items-center justify-center rounded-lg bg-destructive/10 text-destructive">
+                <AlertTriangle className="h-6 w-6" />
+              </div>
+              <div className="space-y-2">
+                <AlertDialogHeader>
+                  <AlertDialogTitle className="text-xl font-semibold">Hapus karyawan?</AlertDialogTitle>
+                  <AlertDialogDescription className="text-sm text-muted-foreground">
+                    {deleteTarget?.core?.employee_id
+                      ? `Tindakan ini akan menghapus karyawan ${deleteTarget.core.employee_id} dan tidak dapat dibatalkan.`
+                      : "Tindakan ini tidak dapat dibatalkan."}
+                  </AlertDialogDescription>
+                </AlertDialogHeader>
+                <div className="text-sm text-muted-foreground">
+                  Pastikan Anda benar-benar ingin menghapus. Data yang dihapus tidak bisa dipulihkan.
+                </div>
+              </div>
+            </div>
+          </div>
+          <AlertDialogFooter className="border-t border-border px-6 py-4">
+            <AlertDialogCancel className="h-9">Batal</AlertDialogCancel>
             <AlertDialogAction asChild>
               <Button
+                className="h-9"
                 variant="destructive"
                 onClick={() => {
                   if (!deleteTarget || !onDelete) {
