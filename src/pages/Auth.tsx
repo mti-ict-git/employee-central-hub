@@ -73,31 +73,6 @@ const Auth = () => {
     setIsLoading(true);
     
     try {
-      // Development mock login
-      const mockUser = MOCK_USERS.find(u => u.username === username && u.password === password);
-      if (mockUser) {
-        const user = {
-          id: `dev-${mockUser.role}-001`,
-          username: mockUser.username,
-          displayName: mockUser.displayName,
-          email: `${mockUser.username}@dev.local`,
-          role: mockUser.role,
-          roles: [mockUser.role],
-        };
-        localStorage.setItem("auth_token", `dev-mock-token-${mockUser.role}`);
-        localStorage.setItem("auth_user", JSON.stringify(user));
-        localStorage.setItem("auth_last_activity", String(Date.now()));
-        console.info(`${user.displayName || user.username || "unknown"} is logged in with role ${user.role || "unknown"}`);
-        const roleInfo = ROLE_LABELS[mockUser.role];
-        toast({ 
-          title: "Login Successful", 
-          description: `Welcome, ${mockUser.displayName}! Role: ${roleInfo.label}` 
-        });
-        navigate("/");
-        return;
-      }
-
-      // Production: Active Directory login
       const res = await apiFetch(`/auth/login`, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
@@ -108,8 +83,9 @@ const Auth = () => {
         throw new Error(data?.error || "Login failed");
       }
       localStorage.setItem("auth_token", data.token);
-      // Map AD roles array to single role for display
-      const primaryRole = data.user.roles?.[0] || "user";
+      const primaryRole = Array.isArray(data.user.roles) && data.user.roles.length
+        ? data.user.roles[0]
+        : data.user.role || "user";
       const userWithRole = {
         ...data.user,
         role: primaryRole,
@@ -118,10 +94,9 @@ const Auth = () => {
       localStorage.setItem("auth_user", JSON.stringify(userWithRole));
       localStorage.setItem("auth_last_activity", String(Date.now()));
       console.info(`${userWithRole.displayName || userWithRole.username || "unknown"} is logged in with role ${userWithRole.role || "unknown"}`);
-      const roleInfo = ROLE_LABELS[primaryRole];
       toast({ 
         title: "Login Successful", 
-        description: `Welcome, ${data.user.displayName || data.user.username}!${roleInfo ? ` Role: ${roleInfo.label}` : ''}` 
+        description: `Welcome, ${data.user.displayName || data.user.username}! Role: ${primaryRole}` 
       });
       navigate("/");
     } catch (err: unknown) {
