@@ -11,6 +11,8 @@ import { useRBAC } from "@/hooks/useRBAC";
 import { apiFetch } from "@/lib/api";
 import { DropdownMenu, DropdownMenuCheckboxItem, DropdownMenuContent, DropdownMenuTrigger } from "@/components/ui/dropdown-menu";
 import { Input } from "@/components/ui/input";
+import { Pagination, PaginationContent, PaginationEllipsis, PaginationItem, PaginationLink, PaginationNext, PaginationPrevious } from "@/components/ui/pagination";
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { fetchColumnAccess } from "@/lib/rbac";
 
 type EmployeeListAPIItem = {
@@ -33,17 +35,16 @@ const EmployeeList = () => {
   const [typeFilter, setTypeFilter] = useState(searchParams.get('type') || 'all');
   const [statusFilter, setStatusFilter] = useState('all');
   const [remoteEmployees, setRemoteEmployees] = useState<Employee[]>([]);
-  const [offset, setOffset] = useState(0);
   const [serverTotal, setServerTotal] = useState<number | null>(null);
-  const [hasMore, setHasMore] = useState(false);
   const [loading, setLoading] = useState(false);
-  const [updating, setUpdating] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [selected, setSelected] = useState<Set<string>>(new Set());
   const { caps, typeAccess, ready: rbacReady } = useRBAC();
   const [visibleColumns, setVisibleColumns] = useState<string[]>(["core.employee_id","core.name","type","employment.department","employment.job_title","employment.status"]);
   const [colSearch, setColSearch] = useState("");
   const [allowedColumns, setAllowedColumns] = useState<Array<{ key: string; section: string; column: string; label: string }>>([]);
+  const [page, setPage] = useState(1);
+  const [pageSize, setPageSize] = useState(10);
 
   const preferredColumnOrder = useMemo(
     () => [
@@ -125,6 +126,31 @@ const EmployeeList = () => {
 
   const minTableWidth = useMemo(() => Math.max(1000, (visibleColumns?.length || 0) * 160 + 480), [visibleColumns]);
   const allowedKeySet = useMemo(() => new Set(allowedColumns.map((d) => d.key)), [allowedColumns]);
+  const totalPages = useMemo(() => {
+    if (!serverTotal || serverTotal <= 0) return 1;
+    return Math.max(1, Math.ceil(serverTotal / pageSize));
+  }, [serverTotal, pageSize]);
+  useEffect(() => {
+    if (page > totalPages) setPage(totalPages);
+  }, [page, totalPages]);
+  const pageItems = useMemo(() => {
+    const total = totalPages;
+    const current = page;
+    if (total <= 7) return Array.from({ length: total }, (_, i) => i + 1);
+    const items: Array<number | "ellipsis"> = [];
+    const push = (value: number | "ellipsis") => {
+      if (items[items.length - 1] === value) return;
+      items.push(value);
+    };
+    push(1);
+    if (current > 3) push("ellipsis");
+    const start = Math.max(2, current - 1);
+    const end = Math.min(total - 1, current + 1);
+    for (let i = start; i <= end; i++) push(i);
+    if (current < total - 2) push("ellipsis");
+    push(total);
+    return items;
+  }, [page, totalPages]);
   const topScrollRef = useRef<HTMLDivElement | null>(null);
   const bodyScrollRef = useRef<HTMLDivElement | null>(null);
 
@@ -159,17 +185,14 @@ const EmployeeList = () => {
     const run = async () => {
       try {
         setLoading(true);
-        setUpdating(false);
         setError(null);
         setSelected(new Set());
         setRemoteEmployees([]);
-        setOffset(0);
         setServerTotal(null);
-        setHasMore(false);
         const reqCols = visibleColumns.filter((c) => c !== "type").join(",");
         const params = new URLSearchParams();
-        params.set("limit", "500");
-        params.set("offset", "0");
+        params.set("limit", String(pageSize));
+        params.set("offset", String((page - 1) * pageSize));
         if (reqCols) params.set("columns", reqCols);
         const q = search.trim();
         if (q) params.set("q", q);
@@ -247,12 +270,9 @@ const EmployeeList = () => {
         const total = Number(data?.paging?.total ?? NaN);
         if (!isNaN(total)) {
           setServerTotal(total);
-          setHasMore(items.length < total);
         } else {
           setServerTotal(null);
-          setHasMore(false);
         }
-        setOffset(items.length);
       } catch (err: unknown) {
         const aborted =
           cancelled ||
@@ -270,7 +290,7 @@ const EmployeeList = () => {
       cancelled = true;
       ctrl.abort();
     };
-  }, [visibleColumns, search, typeFilter]);
+  }, [visibleColumns, search, typeFilter, page, pageSize]);
 
   useEffect(() => {
     const ctrl = new AbortController();
@@ -368,53 +388,19 @@ const EmployeeList = () => {
     return () => ctrl.abort();
   }, [allowedColumns, allowedKeySet, visibleColumns, orderColumns]);
 
-  const loadMore = async () => {
-    try {
-      if (!hasMore) return;
-      setUpdating(true);
-      const reqCols = visibleColumns.filter((c) => c !== "type").join(",");
-      const params = new URLSearchParams();
-      params.set("limit", "500");
-      params.set("offset", String(offset));
-      if (reqCols) params.set("columns", reqCols);
-      const q = search.trim();
-      if (q) params.set("q", q);
-      if (typeFilter !== "all") params.set("type", typeFilter);
-      const res = await apiFetch(`/employees?${params.toString()}`, { credentials: "include" });
-      const data = await res.json().catch(() => null);
-      if (!res.ok) throw new Error(data?.error || `HTTP_${res.status}`);
-      const items: Employee[] = (data?.items || []).map((e: EmployeeListAPIItem) => {
-        const employeeId = String(e.core?.employee_id ?? "");
-        const name = String(e.core?.name ?? "");
-        const gender = (e.core?.gender ?? "Male") as "Male" | "Female";
-        const core: EmployeeCore = { employee_id: employeeId, name, gender, ...((e.core || {}) as Partial<EmployeeCore>) };
-        const contact: EmployeeContact = { employee_id: employeeId, ...((e.contact || {}) as Partial<EmployeeContact>) };
-        const employment: EmployeeEmployment = { employee_id: employeeId, ...((e.employment || {}) as Partial<EmployeeEmployment>) };
-        const onboard: EmployeeOnboard = { employee_id: employeeId, ...((e.onboard || {}) as Partial<EmployeeOnboard>) };
-        const bank: EmployeeBank = { employee_id: employeeId, ...((e.bank || {}) as Partial<EmployeeBank>) };
-        const insurance: EmployeeInsurance = { employee_id: employeeId, ...((e.insurance || {}) as Partial<EmployeeInsurance>) };
-        const travel: EmployeeTravel = { employee_id: employeeId, ...((e.travel || {}) as Partial<EmployeeTravel>) };
-        const checklist: EmployeeChecklist = { employee_id: employeeId, ...((e.checklist || {}) as Partial<EmployeeChecklist>) };
-        const notes: EmployeeNotes = { employee_id: employeeId, ...((e.notes || {}) as Partial<EmployeeNotes>) };
-        const typeById = (() => {
-          const up = employeeId.toUpperCase();
-          if (up.startsWith("MTIBJ")) return "expat";
-          if (up.startsWith("MTI")) return "indonesia";
-          return undefined;
-        })();
-        const typeServer = e.type === "indonesia" ? "indonesia" : "expat";
-        return { core, contact, employment, onboard, bank, insurance, travel, checklist, notes, type: typeById || typeServer };
-      });
-      setRemoteEmployees((prev) => [...prev, ...items]);
-      const total = Number(data?.paging?.total ?? NaN);
-      const newOffset = offset + items.length;
-      setOffset(newOffset);
-      if (!isNaN(total)) setHasMore(newOffset < total);
-    } catch (e: unknown) {
-      toast({ title: "Error", description: e instanceof Error ? e.message : "Failed to load more", variant: "destructive" });
-    } finally {
-      setUpdating(false);
-    }
+  const handleSearchChange = (value: string) => {
+    setSearch(value);
+    setPage(1);
+  };
+
+  const handleTypeFilterChange = (value: string) => {
+    setTypeFilter(value);
+    setPage(1);
+  };
+
+  const handleStatusFilterChange = (value: string) => {
+    setStatusFilter(value);
+    setPage(1);
   };
 
   useEffect(() => {
@@ -579,6 +565,7 @@ const EmployeeList = () => {
     setSearch("");
     setTypeFilter("all");
     setStatusFilter("all");
+    setPage(1);
   };
 
   const toggleColumn = async (col: string, on: boolean) => {
@@ -733,11 +720,11 @@ const EmployeeList = () => {
       <div className="mb-6 animate-fade-in">
         <EmployeeFilters
           search={search}
-          onSearchChange={setSearch}
+          onSearchChange={handleSearchChange}
           typeFilter={typeFilter}
-          onTypeFilterChange={setTypeFilter}
+          onTypeFilterChange={handleTypeFilterChange}
           statusFilter={statusFilter}
-          onStatusFilterChange={setStatusFilter}
+          onStatusFilterChange={handleStatusFilterChange}
           onClearFilters={handleClearFilters}
         />
       </div>
@@ -780,9 +767,73 @@ const EmployeeList = () => {
             </Button>
           </div>
         )}
-        {hasMore && (
-          <div className="mt-4 flex justify-center">
-            <Button variant="outline" onClick={loadMore} disabled={updating}>Load More</Button>
+        {filteredEmployees.length > 0 && (
+          <div className="mt-6 flex flex-wrap items-center justify-between gap-3">
+            <div className="text-sm text-muted-foreground">
+              {serverTotal ? `Page ${page} of ${totalPages}` : `Page ${page}`}
+            </div>
+            <Pagination className="w-auto">
+              <PaginationContent>
+                <PaginationItem>
+                  <PaginationPrevious
+                    href="#"
+                    onClick={(event) => {
+                      event.preventDefault();
+                      if (page > 1) setPage(page - 1);
+                    }}
+                    className={page <= 1 ? "pointer-events-none opacity-50" : undefined}
+                  />
+                </PaginationItem>
+                {pageItems.map((item, index) => (
+                  <PaginationItem key={`${item}-${index}`}>
+                    {item === "ellipsis" ? (
+                      <PaginationEllipsis />
+                    ) : (
+                      <PaginationLink
+                        href="#"
+                        isActive={item === page}
+                        onClick={(event) => {
+                          event.preventDefault();
+                          setPage(item);
+                        }}
+                      >
+                        {item}
+                      </PaginationLink>
+                    )}
+                  </PaginationItem>
+                ))}
+                <PaginationItem>
+                  <PaginationNext
+                    href="#"
+                    onClick={(event) => {
+                      event.preventDefault();
+                      if (page < totalPages) setPage(page + 1);
+                    }}
+                    className={page >= totalPages ? "pointer-events-none opacity-50" : undefined}
+                  />
+                </PaginationItem>
+              </PaginationContent>
+            </Pagination>
+            <div className="flex items-center gap-2">
+              <span className="text-sm text-muted-foreground">Rows</span>
+              <Select
+                value={String(pageSize)}
+                onValueChange={(value) => {
+                  setPageSize(Number(value));
+                  setPage(1);
+                }}
+              >
+                <SelectTrigger className="h-9 w-24">
+                  <SelectValue />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="10">10</SelectItem>
+                  <SelectItem value="25">25</SelectItem>
+                  <SelectItem value="50">50</SelectItem>
+                  <SelectItem value="100">100</SelectItem>
+                </SelectContent>
+              </Select>
+            </div>
           </div>
         )}
       </div>
