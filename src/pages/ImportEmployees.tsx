@@ -70,17 +70,6 @@ const requiredFields = {
   expat: ["employee_id", "name", "gender", "nationality", "phone_number", "division", "department", "job_title", "join_date"],
 };
 
-const allowedDepartments = new Set([
-  "Human Resources",
-  "Acid Plant",
-  "Chloride Plant",
-  "Maintenance",
-  "Finance",
-  "Interface",
-  "Technical Service",
-  "OHS",
-]);
-
 const normalizeDate = (v: string | undefined): string | null => {
   if (!v) return null;
   const s = String(v).trim();
@@ -163,12 +152,6 @@ const validateRow = (row: Record<string, string>, type: "indonesia" | "expat"): 
     const g = Number(row.grade);
     if (!Number.isFinite(g) || g < 7 || g > 22) {
       errors.push("grade must be between 7 and 22");
-    }
-  }
-
-  if (row.department && row.department.trim() !== "") {
-    if (!allowedDepartments.has(row.department.trim())) {
-      errors.push(`department must be one of: ${Array.from(allowedDepartments).join(", ")}`);
     }
   }
 
