@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import { useNavigate } from "react-router-dom";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -32,6 +32,14 @@ const Auth = () => {
   const [isLoading, setIsLoading] = useState(false);
   const navigate = useNavigate();
   const { toast } = useToast();
+
+  useEffect(() => {
+    if (typeof window === "undefined") return;
+    const expired = sessionStorage.getItem("auth_session_expired");
+    if (!expired) return;
+    sessionStorage.removeItem("auth_session_expired");
+    toast({ title: "Session expired", description: "You have been logged out due to inactivity." });
+  }, [toast]);
 
   const toFriendlyAuthMessage = (raw: string, enteredUsername: string) => {
     const m = raw.toLowerCase();
@@ -96,6 +104,7 @@ const Auth = () => {
         };
         localStorage.setItem("auth_token", `dev-mock-token-${mockUser.role}`);
         localStorage.setItem("auth_user", JSON.stringify(user));
+        localStorage.setItem("auth_last_activity", String(Date.now()));
         console.info(`${user.displayName || user.username || "unknown"} is logged in with role ${user.role || "unknown"}`);
         const roleInfo = ROLE_LABELS[mockUser.role];
         toast({ 
@@ -125,6 +134,7 @@ const Auth = () => {
         roles: Array.isArray(data.user.roles) ? data.user.roles : [primaryRole],
       };
       localStorage.setItem("auth_user", JSON.stringify(userWithRole));
+      localStorage.setItem("auth_last_activity", String(Date.now()));
       console.info(`${userWithRole.displayName || userWithRole.username || "unknown"} is logged in with role ${userWithRole.role || "unknown"}`);
       const roleInfo = ROLE_LABELS[primaryRole];
       toast({ 

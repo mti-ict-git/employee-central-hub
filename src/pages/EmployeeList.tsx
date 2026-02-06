@@ -3,7 +3,7 @@ import { MainLayout } from "@/components/layout/MainLayout";
 import { EmployeeTable } from "@/components/employees/EmployeeTable";
 import { EmployeeFilters } from "@/components/employees/EmployeeFilters";
 import { Button } from "@/components/ui/button";
-import { Plus, Download, Upload, Columns, AlertTriangle, CheckCircle2 } from "lucide-react";
+import { Plus, Download, Upload, Columns, AlertTriangle, CheckCircle2, ChevronLeft, ChevronRight } from "lucide-react";
 import { Link, useNavigate, useSearchParams } from "react-router-dom";
 import type { Employee, EmployeeCore, EmployeeContact, EmployeeEmployment, EmployeeBank, EmployeeInsurance, EmployeeOnboard, EmployeeTravel, EmployeeChecklist, EmployeeNotes, EmployeeType } from "@/types/employee";
 import { toast } from "@/hooks/use-toast";
@@ -11,8 +11,10 @@ import { useRBAC } from "@/hooks/useRBAC";
 import { apiFetch } from "@/lib/api";
 import { DropdownMenu, DropdownMenuCheckboxItem, DropdownMenuContent, DropdownMenuTrigger } from "@/components/ui/dropdown-menu";
 import { Input } from "@/components/ui/input";
-import { Pagination, PaginationContent, PaginationEllipsis, PaginationItem, PaginationLink, PaginationNext, PaginationPrevious } from "@/components/ui/pagination";
+import { Pagination, PaginationContent, PaginationEllipsis, PaginationItem, PaginationLink } from "@/components/ui/pagination";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
+import { Skeleton } from "@/components/ui/skeleton";
+import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { fetchColumnAccess } from "@/lib/rbac";
 import {
   AlertDialog,
@@ -558,6 +560,32 @@ const EmployeeList = () => {
     });
   }, [filteredEmployees, sortState]);
 
+  const totalCount = serverTotal ?? Math.max((page - 1) * pageSize + sortedEmployees.length, sortedEmployees.length);
+  const rangeStart = totalCount === 0 ? 0 : (page - 1) * pageSize + 1;
+  const rangeEnd = totalCount === 0 ? 0 : Math.min(page * pageSize, totalCount);
+
+  const columnLabelMap = useMemo(() => {
+    const map: Record<string, string> = {};
+    for (const col of allowedColumns) {
+      map[col.key] = col.label;
+    }
+    return map;
+  }, [allowedColumns]);
+
+  const formatColumnLabel = useCallback((key: string) => {
+    const label = columnLabelMap[key];
+    if (label) return label;
+    const part = key.split(".").pop() ?? key;
+    return part.replace(/_/g, " ").replace(/\b\w/g, (char) => char.toUpperCase());
+  }, [columnLabelMap]);
+
+  const skeletonColumns = useMemo(
+    () => (displayedColumns.length
+      ? displayedColumns
+      : ["core.employee_id", "core.name", "type", "employment.department", "employment.job_title", "employment.status"]),
+    [displayedColumns]
+  );
+
   const handleDelete = async (employeeId: string) => {
     try {
       const res = await apiFetch(`/employees/${encodeURIComponent(employeeId)}`, {
@@ -920,144 +948,203 @@ const EmployeeList = () => {
         </AlertDialogContent>
       </AlertDialog>
 
-      {/* Filters */}
-      <div className="mb-6 animate-fade-in">
-        <EmployeeFilters
-          search={search}
-          onSearchChange={handleSearchChange}
-          typeFilter={typeFilter}
-          onTypeFilterChange={handleTypeFilterChange}
-          statusFilter={statusFilter}
-          onStatusFilterChange={handleStatusFilterChange}
-          onClearFilters={handleClearFilters}
-        />
-      </div>
-
-      {/* Table */}
-      <div className="animate-fade-in" style={{ animationDelay: '0.1s' }}>
+      <div className="rounded-xl border border-border bg-card shadow-card animate-fade-in">
+        <div className="border-b border-border px-4 py-4">
+          <EmployeeFilters
+            search={search}
+            onSearchChange={handleSearchChange}
+            typeFilter={typeFilter}
+            onTypeFilterChange={handleTypeFilterChange}
+            statusFilter={statusFilter}
+            onStatusFilterChange={handleStatusFilterChange}
+            onClearFilters={handleClearFilters}
+          />
+        </div>
+        <div style={{ animationDelay: '0.1s' }}>
           {loading && remoteEmployees.length === 0 ? (
-          <div className="rounded-xl border border-border bg-card p-12 text-center shadow-card">
-            <p className="text-muted-foreground">Loading employees...</p>
-          </div>
-        ) : error ? (
-          <div className="rounded-xl border border-border bg-card p-12 text-center shadow-card">
-            <p className="text-muted-foreground">Failed to load employees ({error}).</p>
-          </div>
-        ) : sortedEmployees.length > 0 ? (
-          <>
-            <div className="overflow-x-auto mb-2" ref={topScrollRef}>
-              <div style={{ width: minTableWidth }} />
-            </div>
-            <div className="overflow-x-auto" ref={bodyScrollRef}>
+            <div className="overflow-x-auto">
               <div style={{ minWidth: minTableWidth }}>
-                <EmployeeTable
-                  employees={sortedEmployees}
-                  onDelete={handleDelete}
-                  selectable
-                  selected={selected}
-                  onToggleSelect={toggleSelect}
-                  onToggleAll={toggleSelectAll}
-                  visibleColumns={displayedColumns}
-                  resizable
-                  columnWidths={columnWidths}
-                  onColumnResize={(key, width) => {
-                    setColumnWidths((prev) => ({ ...prev, [key]: width }));
-                  }}
-                  onRowClick={(employee) => navigate(`/employees/${employee.core.employee_id}`)}
-                  sortState={sortState}
-                  onSortChange={(key, direction) => {
-                    if (!direction) {
-                      setSortState(null);
-                      return;
-                    }
-                    setSortState({ key, direction });
-                  }}
-                  pinState={columnPins}
-                  onPinChange={pinColumn}
-                  onReorderColumn={reorderColumn}
-                />
+                <Table className="[&_tbody_tr:last-child]:border-b-0 table-fixed">
+                  <TableHeader>
+                    <TableRow className="bg-muted/50">
+                      <TableHead className="w-10">
+                        <Skeleton className="h-4 w-4 rounded-sm" />
+                      </TableHead>
+                      {skeletonColumns.map((key) => (
+                        <TableHead
+                          key={key}
+                          className="text-[11px] font-semibold uppercase tracking-[0.08em] text-muted-foreground/80"
+                        >
+                          {formatColumnLabel(key)}
+                        </TableHead>
+                      ))}
+                      <TableHead className="text-right text-[11px] font-semibold uppercase tracking-[0.08em] text-muted-foreground/80">
+                        Actions
+                      </TableHead>
+                    </TableRow>
+                  </TableHeader>
+                  <TableBody>
+                    {Array.from({ length: 8 }).map((_, rowIndex) => (
+                      <TableRow key={`skeleton-${rowIndex}`} className="border-border/60">
+                        <TableCell>
+                          <Skeleton className="h-4 w-4 rounded-sm" />
+                        </TableCell>
+                        {skeletonColumns.map((key, colIndex) => (
+                          <TableCell key={`${key}-${colIndex}`}>
+                            <Skeleton
+                              className={
+                                colIndex % 3 === 0
+                                  ? "h-4 w-24"
+                                  : colIndex % 3 === 1
+                                    ? "h-4 w-32"
+                                    : "h-4 w-28"
+                              }
+                            />
+                          </TableCell>
+                        ))}
+                        <TableCell className="text-right">
+                          <div className="flex justify-end gap-2">
+                            <Skeleton className="h-8 w-8 rounded-lg" />
+                            <Skeleton className="h-8 w-8 rounded-lg" />
+                            <Skeleton className="h-8 w-8 rounded-lg" />
+                          </div>
+                        </TableCell>
+                      </TableRow>
+                    ))}
+                  </TableBody>
+                </Table>
+                <div className="border-t border-border px-4 py-3">
+                  <div className="flex flex-wrap items-center justify-between gap-4">
+                    <Skeleton className="h-4 w-40" />
+                    <Skeleton className="h-4 w-48" />
+                  </div>
+                </div>
               </div>
             </div>
-          </>
-        ) : (
-          <div className="rounded-xl border border-border bg-card p-12 text-center shadow-card">
-            <p className="text-muted-foreground">No employees found matching your criteria.</p>
-            <Button variant="link" onClick={handleClearFilters}>
-              Clear filters
-            </Button>
-          </div>
-        )}
-        {sortedEmployees.length > 0 && (
-          <div className="mt-6 flex flex-wrap items-center justify-between gap-3">
-            <div className="flex items-center gap-3 text-sm text-muted-foreground">
-              <span>{serverTotal ? `Page ${page} of ${totalPages}` : `Page ${page}`}</span>
-              {page >= totalPages ? (
-                <span className="rounded-full bg-muted px-2 py-0.5 text-xs font-medium text-muted-foreground">
-                  No more pages
-                </span>
-              ) : null}
+          ) : error ? (
+            <div className="p-12 text-center">
+              <p className="text-muted-foreground">Failed to load employees ({error}).</p>
             </div>
-            <Pagination className="w-auto">
-              <PaginationContent>
-                <PaginationItem>
-                  <PaginationPrevious
-                    href="#"
-                    onClick={(event) => {
-                      event.preventDefault();
-                      if (page > 1) setPage(page - 1);
+          ) : sortedEmployees.length > 0 ? (
+            <>
+              <div className="overflow-x-auto mb-2" ref={topScrollRef}>
+                <div style={{ width: minTableWidth }} />
+              </div>
+              <div className="overflow-x-auto" ref={bodyScrollRef}>
+                <div style={{ minWidth: minTableWidth }}>
+                  <EmployeeTable
+                    employees={sortedEmployees}
+                    onDelete={handleDelete}
+                    selectable
+                    selected={selected}
+                    onToggleSelect={toggleSelect}
+                    onToggleAll={toggleSelectAll}
+                    visibleColumns={displayedColumns}
+                    resizable
+                    columnWidths={columnWidths}
+                    onColumnResize={(key, width) => {
+                      setColumnWidths((prev) => ({ ...prev, [key]: width }));
                     }}
-                    className={page <= 1 ? "pointer-events-none opacity-50" : undefined}
+                    onRowClick={(employee) => navigate(`/employees/${employee.core.employee_id}`)}
+                    sortState={sortState}
+                    onSortChange={(key, direction) => {
+                      if (!direction) {
+                        setSortState(null);
+                        return;
+                      }
+                      setSortState({ key, direction });
+                    }}
+                    pinState={columnPins}
+                    onPinChange={pinColumn}
+                    onReorderColumn={reorderColumn}
                   />
-                </PaginationItem>
-                {pageItems.map((item, index) => (
-                  <PaginationItem key={`${item}-${index}`}>
-                    {item === "ellipsis" ? (
-                      <PaginationEllipsis />
-                    ) : (
+                </div>
+              </div>
+            </>
+          ) : (
+            <div className="p-12 text-center">
+              <p className="text-muted-foreground">No employees found matching your criteria.</p>
+              <Button variant="link" onClick={handleClearFilters}>
+                Clear filters
+              </Button>
+            </div>
+          )}
+        </div>
+        {sortedEmployees.length > 0 && (
+          <div className="border-t border-border px-4 py-3">
+            <div className="flex flex-wrap items-center justify-between gap-4">
+              <div className="flex items-center gap-2 text-sm text-muted-foreground">
+                <span>Rows per page</span>
+                <Select
+                  value={String(pageSize)}
+                  onValueChange={(value) => {
+                    setPageSize(Number(value));
+                    setPage(1);
+                  }}
+                >
+                  <SelectTrigger className="h-8 w-20">
+                    <SelectValue />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="10">10</SelectItem>
+                    <SelectItem value="25">25</SelectItem>
+                    <SelectItem value="50">50</SelectItem>
+                    <SelectItem value="100">100</SelectItem>
+                  </SelectContent>
+                </Select>
+              </div>
+              <div className="flex flex-wrap items-center gap-3 text-sm text-muted-foreground">
+                <span>{rangeStart} - {rangeEnd} of {totalCount}</span>
+                <Pagination className="w-auto">
+                  <PaginationContent className="gap-1">
+                    <PaginationItem>
                       <PaginationLink
                         href="#"
-                        isActive={item === page}
+                        aria-label="Previous page"
+                        className={page <= 1 ? "h-8 w-8 pointer-events-none opacity-50" : "h-8 w-8"}
                         onClick={(event) => {
                           event.preventDefault();
-                          setPage(item);
+                          if (page > 1) setPage(page - 1);
                         }}
                       >
-                        {item}
+                        <ChevronLeft className="h-4 w-4" />
                       </PaginationLink>
-                    )}
-                  </PaginationItem>
-                ))}
-                <PaginationItem>
-                  <PaginationNext
-                    href="#"
-                    onClick={(event) => {
-                      event.preventDefault();
-                      if (page < totalPages) setPage(page + 1);
-                    }}
-                    className={page >= totalPages ? "pointer-events-none opacity-50" : undefined}
-                  />
-                </PaginationItem>
-              </PaginationContent>
-            </Pagination>
-            <div className="flex items-center gap-2">
-              <span className="text-sm text-muted-foreground">Rows</span>
-              <Select
-                value={String(pageSize)}
-                onValueChange={(value) => {
-                  setPageSize(Number(value));
-                  setPage(1);
-                }}
-              >
-                <SelectTrigger className="h-9 w-24">
-                  <SelectValue />
-                </SelectTrigger>
-                <SelectContent>
-                  <SelectItem value="10">10</SelectItem>
-                  <SelectItem value="25">25</SelectItem>
-                  <SelectItem value="50">50</SelectItem>
-                  <SelectItem value="100">100</SelectItem>
-                </SelectContent>
-              </Select>
+                    </PaginationItem>
+                    {pageItems.map((item, index) => (
+                      <PaginationItem key={`${item}-${index}`}>
+                        {item === "ellipsis" ? (
+                          <PaginationEllipsis className="h-8 w-8" />
+                        ) : (
+                          <PaginationLink
+                            href="#"
+                            isActive={item === page}
+                            className="h-8 w-8 text-xs"
+                            onClick={(event) => {
+                              event.preventDefault();
+                              setPage(item);
+                            }}
+                          >
+                            {item}
+                          </PaginationLink>
+                        )}
+                      </PaginationItem>
+                    ))}
+                    <PaginationItem>
+                      <PaginationLink
+                        href="#"
+                        aria-label="Next page"
+                        className={page >= totalPages ? "h-8 w-8 pointer-events-none opacity-50" : "h-8 w-8"}
+                        onClick={(event) => {
+                          event.preventDefault();
+                          if (page < totalPages) setPage(page + 1);
+                        }}
+                      >
+                        <ChevronRight className="h-4 w-4" />
+                      </PaginationLink>
+                    </PaginationItem>
+                  </PaginationContent>
+                </Pagination>
+              </div>
             </div>
           </div>
         )}

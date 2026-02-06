@@ -162,8 +162,14 @@ export function Sidebar({ collapsed = false, onToggleSidebar }: { collapsed?: bo
             return (
               <div key={item.name} className="space-y-1">
                 <div className={cn("flex items-center gap-3 px-3 py-2.5 text-[11px] font-semibold uppercase tracking-wider text-sidebar-foreground/60", collapsed ? "justify-center" : undefined)}>
-                  {item.icon && <item.icon className="h-4 w-4" />}
-                  <span className={cn(collapsed ? "hidden" : undefined)}>{item.name}</span>
+                  {collapsed ? (
+                    <span className="text-xs tracking-[0.35em] text-sidebar-foreground/40">•••</span>
+                  ) : (
+                    <>
+                      {item.icon && <item.icon className="h-4 w-4" />}
+                      <span>{item.name}</span>
+                    </>
+                  )}
                 </div>
                 {visibleChildren.map((child) => {
                   const isActive = location.pathname === child.href;

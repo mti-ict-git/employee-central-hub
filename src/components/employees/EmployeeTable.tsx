@@ -426,12 +426,12 @@ export function EmployeeTable({ employees, onDelete, selectable = false, selecte
   };
 
   return (
-    <div className="rounded-2xl border border-border bg-card/95 shadow-lg overflow-hidden">
+    <div className="overflow-hidden rounded-xl border border-border/60 bg-card/95">
       <Table className="[&_tbody_tr:last-child]:border-b-0 table-fixed">
         <DndContext sensors={sensors} collisionDetection={closestCenter} onDragEnd={handleDragEnd}>
           <SortableContext items={columns} strategy={horizontalListSortingStrategy}>
             <TableHeader>
-          <TableRow className="bg-muted/60">
+          <TableRow className="bg-muted/50">
             {selectable && (
               <TableHead className="w-10 text-xs font-semibold uppercase tracking-wide text-muted-foreground">
                 <Checkbox
@@ -450,9 +450,9 @@ export function EmployeeTable({ employees, onDelete, selectable = false, selecte
                   key={key}
                   id={key}
                   className={cn(
-                    "relative text-xs font-semibold uppercase tracking-wide text-muted-foreground",
+                    "relative text-[11px] font-semibold uppercase tracking-[0.08em] text-muted-foreground/80",
                     resizable ? "pr-8" : "pr-6",
-                    pin ? "bg-muted/60" : undefined
+                    pin ? "bg-muted/50" : undefined
                   )}
                   style={pinnedStyle ? { ...widthStyle, ...pinnedStyle } : widthStyle}
                 >
@@ -460,7 +460,7 @@ export function EmployeeTable({ employees, onDelete, selectable = false, selecte
                     <>
                       <div className="flex items-center gap-1">
                         <span
-                          className="-ml-1 inline-flex h-6 w-5 items-center justify-center rounded-sm text-muted-foreground/70 hover:text-muted-foreground cursor-grab"
+                          className="-ml-1 inline-flex h-6 w-5 items-center justify-center rounded-sm text-muted-foreground/70 hover:bg-muted/40 hover:text-muted-foreground cursor-grab"
                           {...attributes}
                           {...listeners}
                         >

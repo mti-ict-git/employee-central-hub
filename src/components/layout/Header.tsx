@@ -56,6 +56,7 @@ export function Header({ title, subtitle, onToggleSidebar, sidebarCollapsed }: H
   const handleLogout = () => {
     localStorage.removeItem("auth_token");
     localStorage.removeItem("auth_user");
+    localStorage.removeItem("auth_last_activity");
     toast({ title: "Logged out", description: "You have been logged out successfully." });
     navigate("/auth");
   };
