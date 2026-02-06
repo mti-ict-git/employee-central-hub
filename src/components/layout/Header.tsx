@@ -1,6 +1,6 @@
 import { useEffect, useState } from "react";
 import { useNavigate } from "react-router-dom";
-import { Bell, Search, User, Settings, LogOut, Shield, HelpCircle, Sun, Moon } from "lucide-react";
+import { Bell, Search, User, Settings, LogOut, Shield, HelpCircle, Sun, Moon, PanelLeft, PanelRight } from "lucide-react";
 import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
@@ -20,6 +20,8 @@ import { apiFetch } from "@/lib/api";
 interface HeaderProps {
   title: string;
   subtitle?: string;
+  onToggleSidebar?: () => void;
+  sidebarCollapsed?: boolean;
 }
 
 interface AuthUser {
@@ -38,7 +40,7 @@ const ROLE_LABELS: Record<string, { label: string; color: string }> = {
   dep_rep: { label: "Dept. Rep", color: "bg-purple-500" },
 };
 
-export function Header({ title, subtitle }: HeaderProps) {
+export function Header({ title, subtitle, onToggleSidebar, sidebarCollapsed }: HeaderProps) {
   const [user, setUser] = useState<AuthUser | null>(null);
   const navigate = useNavigate();
   const { toast } = useToast();
@@ -96,9 +98,23 @@ export function Header({ title, subtitle }: HeaderProps) {
 
   return (
     <header className="sticky top-0 z-40 flex h-16 items-center justify-between border-b border-border bg-background/95 px-6 backdrop-blur supports-[backdrop-filter]:bg-background/60">
-      <div>
-        <h1 className="font-display text-xl font-bold text-foreground">{title}</h1>
-        {subtitle && <p className="text-sm text-muted-foreground">{subtitle}</p>}
+      <div className="flex items-center gap-3">
+        {onToggleSidebar && (
+          <Button
+            variant="ghost"
+            size="icon"
+            type="button"
+            onClick={onToggleSidebar}
+            className="h-9 w-9"
+            aria-label="Toggle sidebar"
+          >
+            {sidebarCollapsed ? <PanelRight className="h-5 w-5" /> : <PanelLeft className="h-5 w-5" />}
+          </Button>
+        )}
+        <div>
+          <h1 className="font-display text-xl font-bold text-foreground">{title}</h1>
+          {subtitle && <p className="text-sm text-muted-foreground">{subtitle}</p>}
+        </div>
       </div>
 
       <div className="flex items-center gap-4">

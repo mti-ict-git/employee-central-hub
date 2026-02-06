@@ -48,7 +48,7 @@ const navigation: NavItem[] = [
   },
 ]; 
 
-export function Sidebar() {
+export function Sidebar({ collapsed = false }: { collapsed?: boolean }) {
   const location = useLocation();
   const [role, setRole] = useState<string | null>(null);
   const { caps } = useRBAC();
@@ -66,7 +66,11 @@ export function Sidebar() {
   }, []);
 
   return (
-    <aside className="fixed inset-y-0 left-0 z-50 w-64 bg-sidebar border-r border-sidebar-border">
+    <aside className={cn(
+      "fixed inset-y-0 left-0 z-50 w-64 bg-sidebar border-r border-sidebar-border transform transition-transform duration-200 ease-linear",
+      collapsed ? "-translate-x-full" : "translate-x-0",
+    )}
+    >
       <div className="flex h-full flex-col">
         {/* Logo */}
         <div className="flex h-16 items-center gap-3 border-b border-sidebar-border px-6">
