@@ -54,6 +54,13 @@ export default function AddColumn() {
   const [query, setQuery] = useState("");
   const [deleting, setDeleting] = useState<string | null>(null);
   const [confirmOpen, setConfirmOpen] = useState(false);
+  const [deleteOpen, setDeleteOpen] = useState(false);
+  const [deleteTarget, setDeleteTarget] = useState<{
+    table: string;
+    column?: string;
+    groupLabel: string;
+    groupCount: number;
+  } | null>(null);
 
   const groupValue = group.trim();
   const columnValue = column.trim();
@@ -161,11 +168,18 @@ export default function AddColumn() {
     if (!table) return;
     const groupCount = rows.filter((row) => resolveGroupKey(row).toLowerCase() === table.toLowerCase()).length;
     const groupLabel = formatGroupLabel(table);
-    const message = column
-      ? `Hapus column ${groupLabel}.${column}?`
-      : `Hapus semua column di group ${groupLabel}? (${groupCount} column)`;
-    const ok = window.confirm(message);
-    if (!ok) return;
+    setDeleteTarget({
+      table,
+      column: column || undefined,
+      groupLabel,
+      groupCount,
+    });
+    setDeleteOpen(true);
+  };
+
+  const confirmDelete = async () => {
+    if (!deleteTarget) return;
+    const { table, column, groupLabel } = deleteTarget;
     const key = column ? `${table}.${column}` : `${table}::*`;
     setDeleting(key);
     try {
@@ -193,6 +207,8 @@ export default function AddColumn() {
       });
     } finally {
       setDeleting(null);
+      setDeleteOpen(false);
+      setDeleteTarget(null);
     }
   };
 
@@ -364,6 +380,40 @@ export default function AddColumn() {
               </form>
             </CardContent>
           </Card>
+          <AlertDialog
+            open={deleteOpen}
+            onOpenChange={(open) => {
+              setDeleteOpen(open);
+              if (!open) setDeleteTarget(null);
+            }}
+          >
+            <AlertDialogContent>
+              <AlertDialogHeader>
+                <AlertDialogTitle>
+                  {deleteTarget?.column ? "Hapus column?" : "Hapus group?"}
+                </AlertDialogTitle>
+                <AlertDialogDescription>
+                  {deleteTarget?.column
+                    ? `Column ${deleteTarget.groupLabel}.${deleteTarget.column} akan dihapus dan tidak dapat dibatalkan.`
+                    : deleteTarget
+                      ? `Group ${deleteTarget.groupLabel} akan dihapus (${deleteTarget.groupCount} column) dan tidak dapat dibatalkan.`
+                      : "Tindakan ini tidak dapat dibatalkan."}
+                </AlertDialogDescription>
+              </AlertDialogHeader>
+              <AlertDialogFooter>
+                <AlertDialogCancel>Batal</AlertDialogCancel>
+                <AlertDialogAction asChild>
+                  <Button
+                    variant="destructive"
+                    disabled={deleting !== null}
+                    onClick={confirmDelete}
+                  >
+                    Hapus
+                  </Button>
+                </AlertDialogAction>
+              </AlertDialogFooter>
+            </AlertDialogContent>
+          </AlertDialog>
           <div className="space-y-6">
             <Card>
               <CardHeader>
