@@ -67,15 +67,15 @@ export function Sidebar({ collapsed = false }: { collapsed?: boolean }) {
 
   return (
     <aside className={cn(
-      "fixed inset-y-0 left-0 z-50 w-64 bg-sidebar border-r border-sidebar-border transform transition-transform duration-200 ease-linear",
+      "fixed inset-y-0 left-0 z-50 w-64 border-r border-sidebar-border bg-sidebar shadow-2xl transform transition-transform duration-200 ease-linear",
       collapsed ? "-translate-x-full" : "translate-x-0",
     )}
     >
       <div className="flex h-full flex-col">
         {/* Logo */}
-        <div className="flex h-16 items-center gap-3 border-b border-sidebar-border px-6">
-          <div className="flex h-9 w-9 items-center justify-center rounded-lg gradient-primary">
-            <Building2 className="h-5 w-5 text-primary-foreground" />
+        <div className="flex h-16 items-center gap-3 border-b border-sidebar-border/70 bg-sidebar/95 px-6">
+          <div className="flex h-9 w-9 items-center justify-center rounded-lg bg-primary/15 text-primary shadow-sm">
+            <Building2 className="h-5 w-5 text-primary" />
           </div>
           <div>
             <h1 className="font-display text-lg font-bold text-sidebar-foreground">HRIS</h1>
@@ -84,7 +84,7 @@ export function Sidebar({ collapsed = false }: { collapsed?: boolean }) {
         </div>
 
         {/* Navigation */}
-        <nav className="flex-1 space-y-1 px-3 py-4">
+        <nav className="flex-1 space-y-2 px-3 py-4">
           {navigation.map((item) => {
             // Simple link item
             if (!item.children && item.href) {
@@ -95,12 +95,16 @@ export function Sidebar({ collapsed = false }: { collapsed?: boolean }) {
                   key={item.name}
                   to={item.href}
                   className={cn(
-                    "flex items-center gap-3 rounded-lg px-3 py-2.5 text-sm font-medium transition-all duration-200",
+                    "group relative flex items-center gap-3 rounded-lg px-3 py-2.5 text-sm font-medium transition-all duration-200",
                     isActive
-                      ? "bg-primary text-primary-foreground"
-                      : "text-sidebar-foreground hover:bg-sidebar-accent hover:text-sidebar-foreground"
+                      ? "bg-primary/15 text-primary shadow-sm"
+                      : "text-sidebar-foreground hover:bg-sidebar-accent/70 hover:text-sidebar-foreground"
                   )}
                 >
+                  <span className={cn(
+                    "absolute left-0 top-1/2 h-6 w-1 -translate-y-1/2 rounded-r-full bg-primary transition-opacity",
+                    isActive ? "opacity-100" : "opacity-0 group-hover:opacity-70"
+                  )} />
                   {item.icon && <item.icon className="h-5 w-5" />}
                   {item.name}
                 </Link>
@@ -125,7 +129,7 @@ export function Sidebar({ collapsed = false }: { collapsed?: boolean }) {
 
             return (
               <div key={item.name} className="space-y-1">
-                <div className="flex items-center gap-3 px-3 py-2.5 text-xs font-semibold uppercase text-sidebar-foreground/70">
+                <div className="flex items-center gap-3 px-3 py-2.5 text-[11px] font-semibold uppercase tracking-wider text-sidebar-foreground/60">
                   {item.icon && <item.icon className="h-4 w-4" />}
                   {item.name}
                 </div>
@@ -136,12 +140,16 @@ export function Sidebar({ collapsed = false }: { collapsed?: boolean }) {
                       key={child.name}
                       to={child.href}
                       className={cn(
-                        "flex items-center gap-3 rounded-lg px-3 py-2.5 text-sm font-medium transition-all duration-200 ml-6",
+                        "group relative ml-6 flex items-center gap-3 rounded-lg px-3 py-2.5 text-sm font-medium transition-all duration-200",
                         isActive
-                          ? "bg-primary text-primary-foreground"
-                          : "text-sidebar-foreground hover:bg-sidebar-accent hover:text-sidebar-foreground"
+                          ? "bg-primary/15 text-primary shadow-sm"
+                          : "text-sidebar-foreground hover:bg-sidebar-accent/70 hover:text-sidebar-foreground"
                       )}
                     >
+                      <span className={cn(
+                        "absolute left-0 top-1/2 h-6 w-1 -translate-y-1/2 rounded-r-full bg-primary transition-opacity",
+                        isActive ? "opacity-100" : "opacity-0 group-hover:opacity-70"
+                      )} />
                       {child.icon && <child.icon className="h-4 w-4" />}
                       {child.name}
                     </Link>
@@ -153,9 +161,9 @@ export function Sidebar({ collapsed = false }: { collapsed?: boolean }) {
         </nav>
 
         {/* Footer */}
-        <div className="border-t border-sidebar-border p-4">
-          <div className="rounded-lg bg-sidebar-accent p-3">
-            <p className="text-xs font-medium text-sidebar-foreground">Version 1.0.0</p>
+        <div className="border-t border-sidebar-border/70 p-4">
+          <div className="rounded-lg border border-sidebar-border/70 bg-sidebar-accent/60 p-3">
+            <p className="text-xs font-semibold text-sidebar-foreground">Version 1.0.0</p>
             <p className="text-xs text-sidebar-foreground/70">© {new Date().getFullYear()} Merdeka Group</p>
           </div>
         </div>
