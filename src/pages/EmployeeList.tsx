@@ -14,6 +14,16 @@ import { Input } from "@/components/ui/input";
 import { Pagination, PaginationContent, PaginationEllipsis, PaginationItem, PaginationLink, PaginationNext, PaginationPrevious } from "@/components/ui/pagination";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { fetchColumnAccess } from "@/lib/rbac";
+import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+} from "@/components/ui/alert-dialog";
 
 type EmployeeListAPIItem = {
   core?: Partial<EmployeeCore>;
@@ -45,6 +55,7 @@ const EmployeeList = () => {
   const [allowedColumns, setAllowedColumns] = useState<Array<{ key: string; section: string; column: string; label: string }>>([]);
   const [page, setPage] = useState(1);
   const [pageSize, setPageSize] = useState(10);
+  const [bulkDeleteOpen, setBulkDeleteOpen] = useState(false);
 
   const preferredColumnOrder = useMemo(
     () => [
@@ -541,8 +552,6 @@ const EmployeeList = () => {
   const handleBulkDelete = async () => {
     const ids = Array.from(selected);
     if (!ids.length) return;
-    const ok = window.confirm(`Delete ${ids.length} selected employees?`);
-    if (!ok) return;
     let success = 0;
     let failed = 0;
     for (const id of ids) {
@@ -710,11 +719,41 @@ const EmployeeList = () => {
           <Button variant="outline" onClick={() => setSelected(new Set())}>
             Clear Selection
           </Button>
-          <Button variant="destructive" onClick={handleBulkDelete} disabled={selected.size === 0 || !caps?.canDeleteEmployees}>
+          <Button
+            variant="destructive"
+            onClick={() => setBulkDeleteOpen(true)}
+            disabled={selected.size === 0 || !caps?.canDeleteEmployees}
+          >
             Delete Selected ({selected.size})
           </Button>
         </div>
       </div>
+      <AlertDialog open={bulkDeleteOpen} onOpenChange={setBulkDeleteOpen}>
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>Hapus karyawan terpilih?</AlertDialogTitle>
+            <AlertDialogDescription>
+              {selected.size > 0
+                ? `Tindakan ini akan menghapus ${selected.size} karyawan dan tidak dapat dibatalkan.`
+                : "Tindakan ini tidak dapat dibatalkan."}
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel>Batal</AlertDialogCancel>
+            <AlertDialogAction asChild>
+              <Button
+                variant="destructive"
+                onClick={async () => {
+                  setBulkDeleteOpen(false);
+                  await handleBulkDelete();
+                }}
+              >
+                Hapus
+              </Button>
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
 
       {/* Filters */}
       <div className="mb-6 animate-fade-in">

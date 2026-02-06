@@ -1,3 +1,4 @@
+import { useState } from "react";
 import { Employee } from "@/types/employee";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
@@ -14,6 +15,16 @@ import { Link } from "react-router-dom";
 import { cn } from "@/lib/utils";
 import { Checkbox } from "@/components/ui/checkbox";
 import { useRBAC } from "@/hooks/useRBAC";
+import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+} from "@/components/ui/alert-dialog";
 
 interface EmployeeTableProps {
   employees: Employee[];
@@ -28,6 +39,7 @@ interface EmployeeTableProps {
 
 export function EmployeeTable({ employees, onDelete, selectable = false, selected, onToggleSelect, onToggleAll, visibleColumns, onRowClick }: EmployeeTableProps) {
   const { caps, typeAccess } = useRBAC();
+  const [deleteTarget, setDeleteTarget] = useState<Employee | null>(null);
   const columns = Array.isArray(visibleColumns) && visibleColumns.length
     ? visibleColumns
     : ["core.employee_id","core.name","type","employment.department","employment.job_title","employment.status"];
@@ -303,9 +315,7 @@ export function EmployeeTable({ employees, onDelete, selectable = false, selecte
                       variant="ghost"
                       size="icon"
                       onClick={() => {
-                        const ok = window.confirm(`Delete employee ${employee.core.employee_id}?`);
-                        if (!ok) return;
-                        onDelete(employee.core.employee_id);
+                        setDeleteTarget(employee);
                       }}
                     >
                       <Trash className="h-4 w-4" />
@@ -317,6 +327,41 @@ export function EmployeeTable({ employees, onDelete, selectable = false, selecte
           ))}
         </TableBody>
       </Table>
+      <AlertDialog
+        open={Boolean(deleteTarget)}
+        onOpenChange={(open) => {
+          if (!open) setDeleteTarget(null);
+        }}
+      >
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>Hapus karyawan?</AlertDialogTitle>
+            <AlertDialogDescription>
+              {deleteTarget?.core?.employee_id
+                ? `Tindakan ini akan menghapus karyawan ${deleteTarget.core.employee_id} dan tidak dapat dibatalkan.`
+                : "Tindakan ini tidak dapat dibatalkan."}
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel>Batal</AlertDialogCancel>
+            <AlertDialogAction asChild>
+              <Button
+                variant="destructive"
+                onClick={() => {
+                  if (!deleteTarget || !onDelete) {
+                    setDeleteTarget(null);
+                    return;
+                  }
+                  onDelete(deleteTarget.core.employee_id);
+                  setDeleteTarget(null);
+                }}
+              >
+                Hapus
+              </Button>
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
     </div>
   );
 }
