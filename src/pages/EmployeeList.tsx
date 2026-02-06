@@ -138,12 +138,14 @@ const EmployeeList = () => {
   const minTableWidth = useMemo(() => Math.max(1000, (visibleColumns?.length || 0) * 160 + 480), [visibleColumns]);
   const allowedKeySet = useMemo(() => new Set(allowedColumns.map((d) => d.key)), [allowedColumns]);
   const totalPages = useMemo(() => {
-    if (!serverTotal || serverTotal <= 0) return 1;
+    if (serverTotal === null || serverTotal <= 0) {
+      return Math.max(1, page + (remoteEmployees.length === pageSize ? 1 : 0));
+    }
     return Math.max(1, Math.ceil(serverTotal / pageSize));
-  }, [serverTotal, pageSize]);
+  }, [serverTotal, pageSize, page, remoteEmployees.length]);
   useEffect(() => {
-    if (page > totalPages) setPage(totalPages);
-  }, [page, totalPages]);
+    if (serverTotal !== null && page > totalPages) setPage(totalPages);
+  }, [page, totalPages, serverTotal]);
   const pageItems = useMemo(() => {
     const total = totalPages;
     const current = page;
@@ -857,8 +859,13 @@ const EmployeeList = () => {
         )}
         {filteredEmployees.length > 0 && (
           <div className="mt-6 flex flex-wrap items-center justify-between gap-3">
-            <div className="text-sm text-muted-foreground">
-              {serverTotal ? `Page ${page} of ${totalPages}` : `Page ${page}`}
+            <div className="flex items-center gap-3 text-sm text-muted-foreground">
+              <span>{serverTotal ? `Page ${page} of ${totalPages}` : `Page ${page}`}</span>
+              {page >= totalPages ? (
+                <span className="rounded-full bg-muted px-2 py-0.5 text-xs font-medium text-muted-foreground">
+                  No more pages
+                </span>
+              ) : null}
             </div>
             <Pagination className="w-auto">
               <PaginationContent>
