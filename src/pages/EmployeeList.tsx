@@ -525,7 +525,8 @@ const EmployeeList = () => {
     const cols = visibleColumns;
     const headers = cols.map((key) => {
       const found = allowedColumns.find((d) => d.key === key);
-      return found ? found.label : key;
+      const label = found ? found.label : key;
+      return label.replace(/\s*•\s*/g, " ").replace(/\s+/g, " ").trim();
     });
     const rows = filteredEmployees.map((e: Employee) => {
       return cols.map((key) => {
