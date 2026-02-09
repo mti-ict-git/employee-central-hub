@@ -320,14 +320,16 @@ export function EmployeeTable({ employees, onDelete, selectable = false, selecte
         const isFemale = genderRaw === "f" || genderRaw === "female" || genderRaw === "p" || genderRaw === "perempuan";
         if (!isMale && !isFemale) return val ? String(val) : "-";
         return (
-          <span className={cn(
-            "inline-flex items-center gap-1.5 rounded-full px-2 py-0.5 text-xs font-semibold",
-            isMale ? "bg-sky-500/10 text-sky-600" : "bg-rose-500/10 text-rose-600",
-          )}>
+          <span
+            className={cn(
+              "inline-flex items-center gap-1.5 rounded-full px-2.5 py-0.5 text-xs font-semibold",
+              isMale ? "bg-sky-500/10 text-sky-600" : "bg-rose-500/10 text-rose-600",
+            )}
+          >
             <span className="text-[13px] leading-none" aria-hidden>
               {isMale ? "♂" : "♀"}
             </span>
-            {isMale ? "M" : "F"}
+            {isMale ? "Male" : "Female"}
           </span>
         );
       }
@@ -466,7 +468,7 @@ export function EmployeeTable({ employees, onDelete, selectable = false, selecte
                         >
                           <GripVertical className="h-3.5 w-3.5" />
                         </span>
-                        <span className="truncate">{headerLabel(key)}</span>
+                        <span className="whitespace-normal break-words">{headerLabel(key)}</span>
                         <DropdownMenu>
                           <DropdownMenuTrigger asChild>
                             <Button variant="ghost" size="icon" className="h-6 w-6 rounded-md">

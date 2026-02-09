@@ -430,11 +430,8 @@ const EmployeeList = () => {
   useEffect(() => {
     if (!allowedColumns.length) return;
     const filtered = visibleColumns.filter((col) => col === "type" || allowedKeySet.has(col));
-    const hasType = filtered.includes("type");
-    const fallbackBase = ["core.employee_id","core.name"];
-    const ordered = orderColumns(filtered.filter((col) => col !== "type"));
-    const nextBase = ordered.length ? ordered : orderColumns(fallbackBase);
-    const next = hasType ? nextBase.concat("type") : nextBase;
+    const fallback = ["core.employee_id","core.name","type"];
+    const next = filtered.length ? filtered : fallback;
     const same = next.length === visibleColumns.length && next.every((val, idx) => val === visibleColumns[idx]);
     if (same) return;
     setVisibleColumns(next);
@@ -453,7 +450,7 @@ const EmployeeList = () => {
     };
     run();
     return () => ctrl.abort();
-  }, [allowedColumns, allowedKeySet, visibleColumns, orderColumns]);
+  }, [allowedColumns, allowedKeySet, visibleColumns]);
 
   const handleSearchChange = (value: string) => {
     setSearch(value);
