@@ -109,7 +109,7 @@ export default function Anniversaries() {
   const history = filtered.filter((e) => new Date(e.date) < new Date());
 
   return (
-    <MainLayout>
+    <MainLayout title="Anniversaries">
       <div className="space-y-6">
         <div>
           <h1 className="text-2xl font-bold tracking-tight text-foreground">Anniversaries</h1>
