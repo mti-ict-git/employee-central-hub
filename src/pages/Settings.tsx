@@ -11,7 +11,8 @@ import { Avatar, AvatarFallback } from "@/components/ui/avatar";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { useToast } from "@/hooks/use-toast";
-import { User, Bell, Shield, Palette, Globe, Save, KeyRound } from "lucide-react";
+import { User, Bell, Shield, Palette, Globe, Save, KeyRound, Cake, Briefcase, X, Plus } from "lucide-react";
+import { Slider } from "@/components/ui/slider";
 import { apiFetch } from "@/lib/api";
 import { useTheme } from "next-themes";
 
@@ -82,6 +83,12 @@ const Settings = () => {
   const [emailNotifications, setEmailNotifications] = useState(true);
   const [pushNotifications, setPushNotifications] = useState(true);
   const [weeklyDigest, setWeeklyDigest] = useState(false);
+  const [birthdayEnabled, setBirthdayEnabled] = useState(true);
+  const [workAnniversaryEnabled, setWorkAnniversaryEnabled] = useState(true);
+  const [advanceReminder, setAdvanceReminder] = useState(7);
+  const [onDayReminder, setOnDayReminder] = useState(true);
+  const [hrEmails, setHrEmails] = useState<string[]>(["hr-team@merdekagroup.com"]);
+  const [newHrEmail, setNewHrEmail] = useState("");
   const [language, setLanguage] = useState("en");
   const [timezone, setTimezone] = useState("Asia/Jakarta");
   const [themePref, setThemePref] = useState<ThemePref>("system");
@@ -140,6 +147,27 @@ const Settings = () => {
     });
   };
 
+  const handleSaveAnniversaries = () => {
+    toast({
+      title: "Anniversary Settings Updated",
+      description: "Your anniversary notification preferences have been saved.",
+    });
+  };
+
+  const addHrEmail = () => {
+    const email = newHrEmail.trim().toLowerCase();
+    if (!email || !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email)) {
+      toast({ title: "Invalid email", description: "Please enter a valid email address.", variant: "destructive" });
+      return;
+    }
+    if (hrEmails.includes(email)) {
+      toast({ title: "Duplicate", description: "This email is already added.", variant: "destructive" });
+      return;
+    }
+    setHrEmails((prev) => [...prev, email]);
+    setNewHrEmail("");
+  };
+
   const handleSavePreferences = async () => {
     try {
       setSavingPrefs(true);
@@ -186,7 +214,7 @@ const Settings = () => {
     <MainLayout title="Settings" subtitle="Manage your account settings and preferences">
       <div className="max-w-4xl mx-auto">
         <Tabs defaultValue="profile" className="space-y-6">
-          <TabsList className="grid w-full grid-cols-4 lg:w-auto lg:inline-grid">
+          <TabsList className="grid w-full grid-cols-5 lg:w-auto lg:inline-grid">
             <TabsTrigger value="profile" className="flex items-center gap-2">
               <User className="h-4 w-4" />
               <span className="hidden sm:inline">Profile</span>
@@ -194,6 +222,10 @@ const Settings = () => {
             <TabsTrigger value="notifications" className="flex items-center gap-2">
               <Bell className="h-4 w-4" />
               <span className="hidden sm:inline">Notifications</span>
+            </TabsTrigger>
+            <TabsTrigger value="anniversaries" className="flex items-center gap-2">
+              <Cake className="h-4 w-4" />
+              <span className="hidden sm:inline">Anniversaries</span>
             </TabsTrigger>
             <TabsTrigger value="security" className="flex items-center gap-2">
               <Shield className="h-4 w-4" />
@@ -338,6 +370,133 @@ const Settings = () => {
                   <Button onClick={handleSaveNotifications} className="flex items-center gap-2">
                     <Save className="h-4 w-4" />
                     Save Preferences
+                  </Button>
+                </div>
+              </CardContent>
+            </Card>
+          </TabsContent>
+
+          {/* Anniversaries Tab */}
+          <TabsContent value="anniversaries">
+            <Card>
+              <CardHeader>
+                <CardTitle>Anniversary Notifications</CardTitle>
+                <CardDescription>
+                  Configure which anniversary types trigger email notifications and when they are sent.
+                </CardDescription>
+              </CardHeader>
+              <CardContent className="space-y-6">
+                {/* Notification types */}
+                <div className="space-y-4">
+                  <Label className="text-base font-semibold">Notification Types</Label>
+
+                  <div className="flex items-center justify-between rounded-lg border p-4">
+                    <div className="flex items-center gap-3">
+                      <div className="flex h-9 w-9 items-center justify-center rounded-lg bg-rose-100 text-rose-600 dark:bg-rose-900/30 dark:text-rose-400">
+                        <Cake className="h-5 w-5" />
+                      </div>
+                      <div className="space-y-0.5">
+                        <Label htmlFor="birthday-toggle" className="text-base">Birthday Notifications</Label>
+                        <p className="text-sm text-muted-foreground">Send greetings on employee birthdays</p>
+                      </div>
+                    </div>
+                    <Switch id="birthday-toggle" checked={birthdayEnabled} onCheckedChange={setBirthdayEnabled} />
+                  </div>
+
+                  <div className="flex items-center justify-between rounded-lg border p-4">
+                    <div className="flex items-center gap-3">
+                      <div className="flex h-9 w-9 items-center justify-center rounded-lg bg-blue-100 text-blue-600 dark:bg-blue-900/30 dark:text-blue-400">
+                        <Briefcase className="h-5 w-5" />
+                      </div>
+                      <div className="space-y-0.5">
+                        <Label htmlFor="work-toggle" className="text-base">Work Anniversary Notifications</Label>
+                        <p className="text-sm text-muted-foreground">Celebrate employee work milestones</p>
+                      </div>
+                    </div>
+                    <Switch id="work-toggle" checked={workAnniversaryEnabled} onCheckedChange={setWorkAnniversaryEnabled} />
+                  </div>
+                </div>
+
+                <Separator />
+
+                {/* Timing */}
+                <div className="space-y-4">
+                  <Label className="text-base font-semibold">Reminder Timing</Label>
+
+                  <div className="flex items-center justify-between rounded-lg border p-4">
+                    <div className="space-y-0.5">
+                      <Label htmlFor="on-day" className="text-base">On the day</Label>
+                      <p className="text-sm text-muted-foreground">Send notification on the anniversary date</p>
+                    </div>
+                    <Switch id="on-day" checked={onDayReminder} onCheckedChange={setOnDayReminder} />
+                  </div>
+
+                  <div className="rounded-lg border p-4 space-y-3">
+                    <div className="flex items-center justify-between">
+                      <div className="space-y-0.5">
+                        <Label className="text-base">Advance Reminder</Label>
+                        <p className="text-sm text-muted-foreground">
+                          Send a heads-up <span className="font-semibold text-foreground">{advanceReminder} day{advanceReminder !== 1 ? "s" : ""}</span> before
+                        </p>
+                      </div>
+                    </div>
+                    <Slider
+                      value={[advanceReminder]}
+                      onValueChange={([v]) => setAdvanceReminder(v)}
+                      min={1}
+                      max={14}
+                      step={1}
+                      className="w-full"
+                    />
+                    <div className="flex justify-between text-xs text-muted-foreground">
+                      <span>1 day</span>
+                      <span>14 days</span>
+                    </div>
+                  </div>
+                </div>
+
+                <Separator />
+
+                {/* HR Recipients */}
+                <div className="space-y-4">
+                  <div>
+                    <Label className="text-base font-semibold">HR Team Recipients</Label>
+                    <p className="mt-0.5 text-sm text-muted-foreground">Email addresses that receive all anniversary notifications</p>
+                  </div>
+
+                  <div className="flex flex-wrap gap-2">
+                    {hrEmails.map((email) => (
+                      <Badge key={email} variant="secondary" className="gap-1.5 py-1 pl-3 pr-1.5 text-sm">
+                        {email}
+                        <button
+                          type="button"
+                          onClick={() => setHrEmails((prev) => prev.filter((e) => e !== email))}
+                          className="rounded-full p-0.5 hover:bg-muted-foreground/20 transition-colors"
+                        >
+                          <X className="h-3 w-3" />
+                        </button>
+                      </Badge>
+                    ))}
+                  </div>
+
+                  <div className="flex gap-2">
+                    <Input
+                      placeholder="Add HR email address"
+                      value={newHrEmail}
+                      onChange={(e) => setNewHrEmail(e.target.value)}
+                      onKeyDown={(e) => e.key === "Enter" && (e.preventDefault(), addHrEmail())}
+                      className="max-w-sm"
+                    />
+                    <Button variant="outline" size="icon" onClick={addHrEmail} type="button">
+                      <Plus className="h-4 w-4" />
+                    </Button>
+                  </div>
+                </div>
+
+                <div className="flex justify-end">
+                  <Button onClick={handleSaveAnniversaries} className="flex items-center gap-2">
+                    <Save className="h-4 w-4" />
+                    Save Anniversary Settings
                   </Button>
                 </div>
               </CardContent>
