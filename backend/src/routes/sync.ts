@@ -1,5 +1,7 @@
 import { Router } from "express";
 import sql from "mssql";
+import path from "node:path";
+import { promises as fs } from "node:fs";
 import { authMiddleware, requireRole } from "../middleware/auth";
 import { CONFIG } from "../config";
 
@@ -30,7 +32,16 @@ type SharePointConfig = {
   site_url: string;
   library_drive_id: string;
   file_path: string;
+  share_url: string;
   poll_minutes: number;
+};
+
+type SharePointAuthCache = {
+  access_token: string;
+  refresh_token: string;
+  token_type: string;
+  expires_at: number;
+  scope: string;
 };
 
 function readSharePointConfig(value: unknown): SharePointConfig | null {
@@ -51,7 +62,134 @@ function readSharePointConfig(value: unknown): SharePointConfig | null {
     site_url: String(value.site_url || "").trim(),
     library_drive_id: String(value.library_drive_id || "").trim(),
     file_path: String(value.file_path || "").trim(),
+    share_url: String(value.share_url || "").trim(),
     poll_minutes: Number.isFinite(Number(value.poll_minutes)) ? Math.max(1, Math.min(1440, Math.floor(Number(value.poll_minutes)))) : 15,
+  };
+}
+
+function extractSitePathFromUrl(siteUrl: string): { hostname: string; sitePath: string } | null {
+  try {
+    const u = new URL(siteUrl);
+    const host = String(u.hostname || "").trim();
+    if (!host) return null;
+    const p = String(u.pathname || "").trim();
+    if (!p) return null;
+    const marker = p.toLowerCase().indexOf("/sites/");
+    const teamMarker = p.toLowerCase().indexOf("/teams/");
+    const idx = marker >= 0 ? marker : teamMarker;
+    if (idx < 0) return null;
+    const root = p.slice(idx);
+    const segs = root.split("/").filter(Boolean);
+    if (segs.length < 2) return null;
+    const sitePath = `/${segs[0]}/${segs[1]}`;
+    return { hostname: host, sitePath };
+  } catch {
+    return null;
+  }
+}
+
+function encodeShareUrlForGraph(shareUrl: string): string {
+  const base64 = Buffer.from(shareUrl, "utf-8").toString("base64");
+  const base64Url = base64.replace(/\+/g, "-").replace(/\//g, "_").replace(/=+$/g, "");
+  return `u!${base64Url}`;
+}
+
+function sanitizeFileName(fileName: string): string {
+  return fileName.replace(/[^a-zA-Z0-9._-]/g, "_");
+}
+
+function readSharePointAuthCache(value: unknown): SharePointAuthCache | null {
+  if (!isRecord(value)) return null;
+  const accessToken = String(value.access_token || "").trim();
+  const refreshToken = String(value.refresh_token || "").trim();
+  const tokenType = String(value.token_type || "Bearer").trim();
+  const scope = String(value.scope || "").trim();
+  const expiresAt = Math.floor(Number(value.expires_at || 0));
+  if (!accessToken) return null;
+  if (!Number.isFinite(expiresAt) || expiresAt <= 0) return null;
+  return {
+    access_token: accessToken,
+    refresh_token: refreshToken,
+    token_type: tokenType || "Bearer",
+    expires_at: expiresAt,
+    scope,
+  };
+}
+
+function buildAuthCacheFromTokenPayload(payload: Record<string, unknown>, fallbackRefreshToken: string): SharePointAuthCache | null {
+  const accessToken = String(payload.access_token || "").trim();
+  if (!accessToken) return null;
+  const refreshToken = String(payload.refresh_token || fallbackRefreshToken || "").trim();
+  const tokenType = String(payload.token_type || "Bearer").trim() || "Bearer";
+  const scope = String(payload.scope || "").trim();
+  const expiresInSec = Math.max(60, Math.floor(Number(payload.expires_in || 3600)));
+  const expiresAt = Date.now() + (expiresInSec * 1000);
+  return {
+    access_token: accessToken,
+    refresh_token: refreshToken,
+    token_type: tokenType,
+    expires_at: expiresAt,
+    scope,
+  };
+}
+
+function isAuthCacheUsable(cache: SharePointAuthCache | null): cache is SharePointAuthCache {
+  if (!cache) return false;
+  return cache.expires_at > (Date.now() + 60_000);
+}
+
+async function readAuthCacheFromDb(pool: sql.ConnectionPool): Promise<SharePointAuthCache | null> {
+  const r = await new sql.Request(pool).query(`SELECT TOP 1 sharepoint_auth FROM dbo.sync_config WHERE id=1`);
+  const row = (r.recordset || [])[0] as { sharepoint_auth?: string } | undefined;
+  return readSharePointAuthCache(parseJsonRecord(row?.sharepoint_auth));
+}
+
+async function saveAuthCacheToDb(pool: sql.ConnectionPool, cache: SharePointAuthCache): Promise<void> {
+  const req = new sql.Request(pool);
+  req.input("sharepointAuth", sql.NVarChar(sql.MAX), JSON.stringify(cache));
+  await req.query(`
+    UPDATE dbo.sync_config
+    SET sharepoint_auth=@sharepointAuth, updated_at=SYSDATETIME()
+    WHERE id=1
+  `);
+}
+
+async function requestTokenByDeviceCode(tenantId: string, clientId: string, deviceCode: string): Promise<{ ok: boolean; payload: Record<string, unknown>; status: number }> {
+  const tokenEndpoint = `https://login.microsoftonline.com/${encodeURIComponent(tenantId)}/oauth2/v2.0/token`;
+  const tokenRes = await fetch(tokenEndpoint, {
+    method: "POST",
+    headers: { "Content-Type": "application/x-www-form-urlencoded" },
+    body: new URLSearchParams({
+      client_id: clientId,
+      grant_type: "urn:ietf:params:oauth:grant-type:device_code",
+      device_code: deviceCode,
+    }),
+  });
+  const tokenPayload = (await tokenRes.json().catch(() => ({}))) as unknown;
+  return {
+    ok: tokenRes.ok && isRecord(tokenPayload),
+    payload: isRecord(tokenPayload) ? tokenPayload : {},
+    status: tokenRes.status,
+  };
+}
+
+async function requestTokenByRefreshToken(tenantId: string, clientId: string, refreshToken: string): Promise<{ ok: boolean; payload: Record<string, unknown>; status: number }> {
+  const tokenEndpoint = `https://login.microsoftonline.com/${encodeURIComponent(tenantId)}/oauth2/v2.0/token`;
+  const tokenRes = await fetch(tokenEndpoint, {
+    method: "POST",
+    headers: { "Content-Type": "application/x-www-form-urlencoded" },
+    body: new URLSearchParams({
+      client_id: clientId,
+      grant_type: "refresh_token",
+      refresh_token: refreshToken,
+      scope: "Files.Read offline_access",
+    }),
+  });
+  const tokenPayload = (await tokenRes.json().catch(() => ({}))) as unknown;
+  return {
+    ok: tokenRes.ok && isRecord(tokenPayload),
+    payload: isRecord(tokenPayload) ? tokenPayload : {},
+    status: tokenRes.status,
   };
 }
 
@@ -92,6 +230,7 @@ async function ensureSyncSchema(pool: sql.ConnectionPool) {
         schedule NVARCHAR(100) NULL,
         mapping NVARCHAR(MAX) NULL,
         sharepoint NVARCHAR(MAX) NULL,
+        sharepoint_auth NVARCHAR(MAX) NULL,
         updated_at DATETIME2 NOT NULL CONSTRAINT DF_sync_config_updated_at DEFAULT SYSDATETIME()
       );
     IF NOT EXISTS (SELECT 1 FROM dbo.sync_config WHERE id=1)
@@ -107,6 +246,8 @@ async function ensureSyncSchema(pool: sql.ConnectionPool) {
       );
     IF COL_LENGTH('dbo.sync_config', 'sharepoint') IS NULL
       ALTER TABLE dbo.sync_config ADD sharepoint NVARCHAR(MAX) NULL;
+    IF COL_LENGTH('dbo.sync_config', 'sharepoint_auth') IS NULL
+      ALTER TABLE dbo.sync_config ADD sharepoint_auth NVARCHAR(MAX) NULL;
   `);
 }
 
@@ -253,6 +394,264 @@ syncRouter.post("/sharepoint/device-code", async (req, res) => {
     });
   } catch (err: unknown) {
     const message = err instanceof Error ? err.message : "FAILED_TO_REQUEST_DEVICE_CODE";
+    return res.status(500).json({ error: message });
+  } finally {
+    await pool.close();
+  }
+});
+
+syncRouter.post("/sharepoint/auth-status", async (req, res) => {
+  const pool = getDestPool();
+  try {
+    await pool.connect();
+    await ensureSyncSchema(pool);
+    const body = isRecord(req.body) ? req.body : {};
+    const rawDeviceCode = String(body.device_code || "").trim();
+    const bodySharepoint = isRecord(body.sharepoint) ? body.sharepoint : null;
+    let sp = readSharePointConfig(bodySharepoint);
+    if (!sp) {
+      const configRes = await new sql.Request(pool).query(`SELECT TOP 1 sharepoint FROM dbo.sync_config WHERE id=1`);
+      const row = (configRes.recordset || [])[0] as { sharepoint?: string } | undefined;
+      const parsed = parseJsonRecord(row?.sharepoint) || null;
+      sp = readSharePointConfig(parsed);
+    }
+    const fail = (message: string, authStatus = "failed") => {
+      return res.json({
+        auth_status: authStatus,
+        connection_status: "not_connected",
+        state: "FAILED",
+        message,
+      });
+    };
+
+    if (!sp) return fail("SharePoint configuration is invalid. Save Tenant ID and Client ID first.", "config_invalid");
+    if (!rawDeviceCode) return fail("Device code is missing. Generate a new device code.", "device_code_missing");
+
+    const tokenResult = await requestTokenByDeviceCode(sp.tenant_id, sp.client_id, rawDeviceCode);
+    if (!tokenResult.ok) {
+      const err = String(tokenResult.payload.error || "").trim();
+      const errDesc = String(tokenResult.payload.error_description || "").trim();
+      if (err === "authorization_pending") {
+        return res.json({
+          auth_status: "authorization_pending",
+          connection_status: "not_connected",
+          state: "PENDING",
+          message: errDesc || "Authorization is still pending. Complete verification in browser first.",
+        });
+      }
+      if (err === "slow_down") {
+        return res.json({
+          auth_status: "slow_down",
+          connection_status: "not_connected",
+          state: "PENDING",
+          message: errDesc || "Polling too frequently. Wait a few seconds and try again.",
+        });
+      }
+      if (err === "expired_token" || err === "authorization_declined" || err === "bad_verification_code") {
+        return res.json({
+          auth_status: err,
+          connection_status: "not_connected",
+          state: "FAILED",
+          message: errDesc || "Device authorization failed. Generate a new code.",
+        });
+      }
+      const authStatus = err || "token_exchange_failed";
+      return fail(errDesc || err || `Failed to exchange device code (HTTP_${tokenResult.status}).`, authStatus);
+    }
+
+    const tokenCache = buildAuthCacheFromTokenPayload(tokenResult.payload, "");
+    if (tokenCache) {
+      await saveAuthCacheToDb(pool, tokenCache);
+    }
+
+    const accessToken = tokenCache?.access_token || String(tokenResult.payload.access_token || "").trim();
+    if (!accessToken) {
+      return res.status(502).json({ error: "ACCESS_TOKEN_MISSING" });
+    }
+
+    const siteMeta = extractSitePathFromUrl(sp.site_url);
+    if (!siteMeta) {
+      return fail("SharePoint Site URL is invalid. Use format https://<tenant>.sharepoint.com/sites/<site-name>", "site_url_invalid");
+    }
+
+    const siteRes = await fetch(`https://graph.microsoft.com/v1.0/sites/${siteMeta.hostname}:${siteMeta.sitePath}`, {
+      headers: { Authorization: `Bearer ${accessToken}` },
+    });
+    const sitePayload = (await siteRes.json().catch(() => null)) as unknown;
+    if (!siteRes.ok || !isRecord(sitePayload)) {
+      const graphErr = isRecord(sitePayload) && isRecord(sitePayload.error) && typeof sitePayload.error.message === "string"
+        ? String(sitePayload.error.message)
+        : "";
+      return fail(`Authorized, but failed to resolve SharePoint site.${graphErr ? ` ${graphErr}` : ""}`, "site_resolve_failed");
+    }
+    const siteId = String(sitePayload.id || "").trim();
+    if (!siteId) {
+      return fail("Authorized, but site id is missing from Graph response.", "site_id_missing");
+    }
+
+    let driveId = String(sp.library_drive_id || "").trim();
+    if (!driveId) {
+      const driveRes = await fetch(`https://graph.microsoft.com/v1.0/sites/${encodeURIComponent(siteId)}/drive`, {
+        headers: { Authorization: `Bearer ${accessToken}` },
+      });
+      const drivePayload = (await driveRes.json().catch(() => null)) as unknown;
+      if (!driveRes.ok || !isRecord(drivePayload)) {
+        const graphErr = isRecord(drivePayload) && isRecord(drivePayload.error) && typeof drivePayload.error.message === "string"
+          ? String(drivePayload.error.message)
+          : "";
+        return fail(`Authorized, but failed to resolve default document library.${graphErr ? ` ${graphErr}` : ""}`, "drive_resolve_failed");
+      }
+      driveId = String(drivePayload.id || "").trim();
+    }
+    if (!driveId) {
+      return fail("Authorized, but drive id is missing from Graph response.", "drive_id_missing");
+    }
+
+    const filePath = String(sp.file_path || "").trim();
+    if (filePath) {
+      const normalizedPath = filePath.startsWith("/") ? filePath : `/${filePath}`;
+      const fileRes = await fetch(`https://graph.microsoft.com/v1.0/drives/${encodeURIComponent(driveId)}/root:${normalizedPath}`, {
+        headers: { Authorization: `Bearer ${accessToken}` },
+      });
+      if (!fileRes.ok) {
+        const filePayload = (await fileRes.json().catch(() => null)) as unknown;
+        const graphErr = isRecord(filePayload) && isRecord(filePayload.error) && typeof filePayload.error.message === "string"
+          ? String(filePayload.error.message)
+          : "";
+        return fail(`Authorized, but failed to access configured file path.${graphErr ? ` ${graphErr}` : ""}`, "file_access_failed");
+      }
+    }
+
+    return res.json({
+      auth_status: "authorized",
+      connection_status: "connected",
+      state: "CONNECTED",
+      message: "SharePoint connection established.",
+      site_id: siteId,
+      drive_id: driveId,
+    });
+  } catch (err: unknown) {
+    const message = err instanceof Error ? err.message : "FAILED_TO_CHECK_AUTH_STATUS";
+    return res.status(500).json({ error: message });
+  } finally {
+    await pool.close();
+  }
+});
+
+syncRouter.post("/sharepoint/download-file", async (req, res) => {
+  const pool = getDestPool();
+  try {
+    await pool.connect();
+    await ensureSyncSchema(pool);
+    const body = isRecord(req.body) ? req.body : {};
+    const rawDeviceCode = String(body.device_code || "").trim();
+    const shareUrl = String(body.share_url || "").trim();
+    const bodySharepoint = isRecord(body.sharepoint) ? body.sharepoint : null;
+    let sp = readSharePointConfig(bodySharepoint);
+    if (!sp) {
+      const configRes = await new sql.Request(pool).query(`SELECT TOP 1 sharepoint FROM dbo.sync_config WHERE id=1`);
+      const row = (configRes.recordset || [])[0] as { sharepoint?: string } | undefined;
+      const parsed = parseJsonRecord(row?.sharepoint) || null;
+      sp = readSharePointConfig(parsed);
+    }
+    if (!sp) return res.status(400).json({ error: "SHAREPOINT_CONFIG_INVALID" });
+    if (!rawDeviceCode) return res.status(400).json({ error: "DEVICE_CODE_REQUIRED" });
+    const effectiveShareUrl = shareUrl || String(sp.share_url || "").trim();
+    if (!effectiveShareUrl) return res.status(400).json({ error: "SHARE_URL_REQUIRED" });
+
+    let authCache = await readAuthCacheFromDb(pool);
+    let accessToken = isAuthCacheUsable(authCache) ? authCache.access_token : "";
+
+    if (!accessToken && authCache?.refresh_token) {
+      const refreshResult = await requestTokenByRefreshToken(sp.tenant_id, sp.client_id, authCache.refresh_token);
+      if (refreshResult.ok) {
+        const refreshed = buildAuthCacheFromTokenPayload(refreshResult.payload, authCache.refresh_token);
+        if (refreshed) {
+          authCache = refreshed;
+          accessToken = refreshed.access_token;
+          await saveAuthCacheToDb(pool, refreshed);
+        }
+      }
+    }
+
+    if (!accessToken) {
+      const tokenResult = await requestTokenByDeviceCode(sp.tenant_id, sp.client_id, rawDeviceCode);
+      if (!tokenResult.ok) {
+        const err = String(tokenResult.payload.error || "").trim();
+        const errDesc = String(tokenResult.payload.error_description || "").trim();
+        if (err === "authorization_pending") {
+          return res.json({ state: "PENDING", message: errDesc || "Authorization is pending. Complete verification first." });
+        }
+        if (err === "slow_down") {
+          return res.json({ state: "PENDING", message: errDesc || "Please wait a few seconds before trying again." });
+        }
+        if (err === "authorization_code_already_redeemed" || err === "invalid_grant") {
+          return res.json({
+            state: "PENDING",
+            message: "Device code already consumed. Click Check Connection once or generate a new code to refresh auth cache.",
+          });
+        }
+        return res.status(502).json({ error: err || "FAILED_TO_EXCHANGE_DEVICE_CODE", details: errDesc || `HTTP_${tokenResult.status}` });
+      }
+      const tokenCache = buildAuthCacheFromTokenPayload(tokenResult.payload, authCache?.refresh_token || "");
+      if (tokenCache) {
+        authCache = tokenCache;
+        accessToken = tokenCache.access_token;
+        await saveAuthCacheToDb(pool, tokenCache);
+      } else {
+        accessToken = String(tokenResult.payload.access_token || "").trim();
+      }
+    }
+
+    if (!accessToken) return res.status(502).json({ error: "ACCESS_TOKEN_MISSING" });
+
+    const shareId = encodeShareUrlForGraph(effectiveShareUrl);
+    const itemRes = await fetch(`https://graph.microsoft.com/v1.0/shares/${encodeURIComponent(shareId)}/driveItem`, {
+      headers: { Authorization: `Bearer ${accessToken}` },
+    });
+    const itemPayload = (await itemRes.json().catch(() => null)) as unknown;
+    if (!itemRes.ok || !isRecord(itemPayload)) {
+      const graphErr = isRecord(itemPayload) && isRecord(itemPayload.error) && typeof itemPayload.error.message === "string"
+        ? String(itemPayload.error.message)
+        : "";
+      return res.status(502).json({ error: "FAILED_TO_RESOLVE_SHARE_LINK", details: graphErr || `HTTP_${itemRes.status}` });
+    }
+    const itemId = String(itemPayload.id || "").trim();
+    const itemName = sanitizeFileName(String(itemPayload.name || "sharepoint-file.xlsx").trim() || "sharepoint-file.xlsx");
+    const downloadUrl = String(itemPayload["@microsoft.graph.downloadUrl"] || "").trim();
+
+    let bytes: Uint8Array;
+    if (downloadUrl) {
+      const fileRes = await fetch(downloadUrl);
+      if (!fileRes.ok) return res.status(502).json({ error: "FAILED_TO_DOWNLOAD_FILE", details: `HTTP_${fileRes.status}` });
+      const arr = await fileRes.arrayBuffer();
+      bytes = new Uint8Array(arr);
+    } else if (itemId) {
+      const fallbackRes = await fetch(`https://graph.microsoft.com/v1.0/shares/${encodeURIComponent(shareId)}/driveItem/content`, {
+        headers: { Authorization: `Bearer ${accessToken}` },
+      });
+      if (!fallbackRes.ok) return res.status(502).json({ error: "FAILED_TO_DOWNLOAD_FILE", details: `HTTP_${fallbackRes.status}` });
+      const arr = await fallbackRes.arrayBuffer();
+      bytes = new Uint8Array(arr);
+    } else {
+      return res.status(502).json({ error: "SHARE_ITEM_ID_MISSING" });
+    }
+
+    const dir = path.resolve(process.cwd(), "storage", "sharepoint-review");
+    await fs.mkdir(dir, { recursive: true });
+    const stamped = `${new Date().toISOString().replace(/[:.]/g, "-")}-${itemName}`;
+    const absolutePath = path.join(dir, stamped);
+    await fs.writeFile(absolutePath, bytes);
+
+    return res.json({
+      state: "DOWNLOADED",
+      message: "File downloaded and stored for review.",
+      file_name: itemName,
+      bytes: bytes.byteLength,
+      local_path: absolutePath,
+    });
+  } catch (err: unknown) {
+    const message = err instanceof Error ? err.message : "FAILED_TO_DOWNLOAD_SHAREPOINT_FILE";
     return res.status(500).json({ error: message });
   } finally {
     await pool.close();

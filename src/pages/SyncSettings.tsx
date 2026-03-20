@@ -10,7 +10,7 @@ import { Badge } from "@/components/ui/badge";
 import { Separator } from "@/components/ui/separator";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
-import { ClipboardCopy, Loader2, RefreshCcw, Share2 } from "lucide-react";
+import { ClipboardCopy, Download, Loader2, RefreshCcw, Share2 } from "lucide-react";
 
 type SyncRunStats = {
   inserted?: number;
@@ -41,6 +41,7 @@ type SharePointSyncConfig = {
   site_url: string;
   library_drive_id: string;
   file_path: string;
+  share_url: string;
   poll_minutes: number;
 };
 
@@ -53,6 +54,17 @@ type DeviceCodePayload = {
   message: string;
   scope: string;
 };
+
+type SharePointConnectionState = "IDLE" | "PENDING" | "ESTABLISHED" | "FAILED";
+
+type SharePointDownloadResult = {
+  file_name: string;
+  local_path: string;
+  bytes: number;
+  message: string;
+};
+
+const SHAREPOINT_SHARE_URL_FALLBACK_KEY = "sync_sharepoint_share_url";
 
 const clampInt = (v: unknown, min: number, max: number, fallback: number) => {
   const n = Math.floor(Number(v));
@@ -127,10 +139,18 @@ export default function SyncSettings() {
   const [sharepointSiteUrl, setSharepointSiteUrl] = useState("");
   const [sharepointDriveId, setSharepointDriveId] = useState("");
   const [sharepointFilePath, setSharepointFilePath] = useState("");
+  const [sharepointShareUrl, setSharepointShareUrl] = useState("");
   const [sharepointPollMinutes, setSharepointPollMinutes] = useState(15);
   const [requestingDeviceCode, setRequestingDeviceCode] = useState(false);
   const [deviceCodePayload, setDeviceCodePayload] = useState<DeviceCodePayload | null>(null);
   const [savingSharepoint, setSavingSharepoint] = useState(false);
+  const [checkingConnection, setCheckingConnection] = useState(false);
+  const [listeningAuth, setListeningAuth] = useState(false);
+  const [sharepointConnectionState, setSharepointConnectionState] = useState<SharePointConnectionState>("IDLE");
+  const [sharepointConnectionMessage, setSharepointConnectionMessage] = useState("");
+  const [downloadingSharepoint, setDownloadingSharepoint] = useState(false);
+  const [downloadResult, setDownloadResult] = useState<SharePointDownloadResult | null>(null);
+  const [showAdvancedPathFields, setShowAdvancedPathFields] = useState(false);
 
   useEffect(() => {
     if (!running) return;
@@ -225,7 +245,18 @@ export default function SyncSettings() {
           setSharepointSiteUrl(String(record.site_url || ""));
           setSharepointDriveId(String(record.library_drive_id || ""));
           setSharepointFilePath(String(record.file_path || ""));
+          const dbShareUrl = String(record.share_url || "").trim();
+          if (dbShareUrl) {
+            setSharepointShareUrl(dbShareUrl);
+            localStorage.setItem(SHAREPOINT_SHARE_URL_FALLBACK_KEY, dbShareUrl);
+          } else {
+            const fallbackShareUrl = localStorage.getItem(SHAREPOINT_SHARE_URL_FALLBACK_KEY) || "";
+            if (fallbackShareUrl.trim()) setSharepointShareUrl(fallbackShareUrl.trim());
+          }
           setSharepointPollMinutes(clampInt(record.poll_minutes, 1, 1440, 15));
+        } else {
+          const fallbackShareUrl = localStorage.getItem(SHAREPOINT_SHARE_URL_FALLBACK_KEY) || "";
+          if (fallbackShareUrl.trim()) setSharepointShareUrl(fallbackShareUrl.trim());
         }
       }
       const s = await apiFetch(`/sync/status`, { credentials: "include" });
@@ -251,6 +282,7 @@ export default function SyncSettings() {
         site_url: sharepointSiteUrl.trim(),
         library_drive_id: sharepointDriveId.trim(),
         file_path: sharepointFilePath.trim(),
+        share_url: sharepointShareUrl.trim(),
         poll_minutes: clampInt(sharepointPollMinutes, 1, 1440, 15),
       };
       const r = await apiFetch(`/sync/config`, {
@@ -269,18 +301,30 @@ export default function SyncSettings() {
     }
   };
 
+  const buildSharepointConfig = useCallback((): SharePointSyncConfig => ({
+    enabled: sharepointEnabled,
+    auth_flow: "device_code",
+    delegated_permission: "Files.Read",
+    tenant_id: sharepointTenantId.trim(),
+    client_id: sharepointClientId.trim(),
+    site_url: sharepointSiteUrl.trim(),
+    library_drive_id: sharepointDriveId.trim(),
+    file_path: sharepointFilePath.trim(),
+    share_url: sharepointShareUrl.trim(),
+    poll_minutes: clampInt(sharepointPollMinutes, 1, 1440, 15),
+  }), [
+    sharepointEnabled,
+    sharepointTenantId,
+    sharepointClientId,
+    sharepointSiteUrl,
+    sharepointDriveId,
+    sharepointFilePath,
+    sharepointShareUrl,
+    sharepointPollMinutes,
+  ]);
+
   const saveSharepointSettings = async () => {
-    const sharepointConfig: SharePointSyncConfig = {
-      enabled: sharepointEnabled,
-      auth_flow: "device_code",
-      delegated_permission: "Files.Read",
-      tenant_id: sharepointTenantId.trim(),
-      client_id: sharepointClientId.trim(),
-      site_url: sharepointSiteUrl.trim(),
-      library_drive_id: sharepointDriveId.trim(),
-      file_path: sharepointFilePath.trim(),
-      poll_minutes: clampInt(sharepointPollMinutes, 1, 1440, 15),
-    };
+    const sharepointConfig = buildSharepointConfig();
     if (!sharepointConfig.tenant_id || !sharepointConfig.client_id) {
       toast({
         title: "Missing required fields",
@@ -291,12 +335,26 @@ export default function SyncSettings() {
     }
     try {
       setSavingSharepoint(true);
-      const r = await apiFetch(`/sync/config/sharepoint`, {
-        method: "PUT",
-        credentials: "include",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ sharepoint: sharepointConfig }),
-      });
+      if (sharepointConfig.share_url) {
+        localStorage.setItem(SHAREPOINT_SHARE_URL_FALLBACK_KEY, sharepointConfig.share_url);
+      }
+      const requestBody = JSON.stringify({ sharepoint: sharepointConfig });
+      const trySaveSharepoint = async () => {
+        const primary = await apiFetch(`/sync/config/sharepoint`, {
+          method: "PUT",
+          credentials: "include",
+          headers: { "Content-Type": "application/json" },
+          body: requestBody,
+        });
+        if (primary.status !== 404 && primary.status !== 405) return primary;
+        return apiFetch(`/sync/config`, {
+          method: "PUT",
+          credentials: "include",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ enabled, schedule, sharepoint: sharepointConfig }),
+        });
+      };
+      const r = await trySaveSharepoint();
       const body = (await r.json().catch(() => null)) as unknown;
       if (!r.ok) {
         const msg = body && typeof body === "object" && !Array.isArray(body) && "error" in body && typeof (body as { error?: unknown }).error === "string"
@@ -304,8 +362,27 @@ export default function SyncSettings() {
           : `HTTP_${r.status}`;
         throw new Error(msg);
       }
+      if (body && typeof body === "object" && !Array.isArray(body) && "sharepoint" in body) {
+        const rawSaved = (body as { sharepoint?: unknown }).sharepoint;
+        if (rawSaved && typeof rawSaved === "object" && !Array.isArray(rawSaved)) {
+          const saved = rawSaved as Record<string, unknown>;
+          setSharepointEnabled(saved.enabled === true);
+          setSharepointTenantId(String(saved.tenant_id || sharepointConfig.tenant_id));
+          setSharepointClientId(String(saved.client_id || sharepointConfig.client_id));
+          setSharepointSiteUrl(String(saved.site_url || sharepointConfig.site_url));
+          setSharepointDriveId(String(saved.library_drive_id || sharepointConfig.library_drive_id));
+          setSharepointFilePath(String(saved.file_path || sharepointConfig.file_path));
+          const nextShareUrl = String(saved.share_url || sharepointConfig.share_url).trim();
+          setSharepointShareUrl(nextShareUrl);
+          if (nextShareUrl) localStorage.setItem(SHAREPOINT_SHARE_URL_FALLBACK_KEY, nextShareUrl);
+          setSharepointPollMinutes(clampInt(saved.poll_minutes, 1, 1440, sharepointConfig.poll_minutes));
+        } else {
+          setSharepointShareUrl(sharepointConfig.share_url);
+        }
+      } else {
+        setSharepointShareUrl(sharepointConfig.share_url);
+      }
       toast({ title: "Saved", description: "SharePoint Sync configuration saved." });
-      await load();
     } catch (e: unknown) {
       toast({
         title: "Error",
@@ -318,17 +395,7 @@ export default function SyncSettings() {
   };
 
   const requestSharePointDeviceCode = async () => {
-    const sharepointConfig: SharePointSyncConfig = {
-      enabled: sharepointEnabled,
-      auth_flow: "device_code",
-      delegated_permission: "Files.Read",
-      tenant_id: sharepointTenantId.trim(),
-      client_id: sharepointClientId.trim(),
-      site_url: sharepointSiteUrl.trim(),
-      library_drive_id: sharepointDriveId.trim(),
-      file_path: sharepointFilePath.trim(),
-      poll_minutes: clampInt(sharepointPollMinutes, 1, 1440, 15),
-    };
+    const sharepointConfig = buildSharepointConfig();
     if (!sharepointConfig.tenant_id || !sharepointConfig.client_id) {
       toast({
         title: "Missing SharePoint auth fields",
@@ -363,6 +430,8 @@ export default function SyncSettings() {
         scope: String(payload.scope || "Files.Read offline_access"),
       };
       setDeviceCodePayload(nextPayload);
+      setSharepointConnectionState("PENDING");
+      setSharepointConnectionMessage("Device code created. Complete sign-in, then test connection.");
       toast({ title: "Device code generated", description: "Use the code below to authorize this app in Microsoft login page." });
     } catch (e: unknown) {
       toast({
@@ -372,6 +441,155 @@ export default function SyncSettings() {
       });
     } finally {
       setRequestingDeviceCode(false);
+    }
+  };
+
+  const checkSharePointConnection = useCallback(async (silent = false) => {
+    if (!deviceCodePayload?.device_code) {
+      if (!silent) {
+        toast({
+          title: "No device code",
+          description: "Generate device code first.",
+          variant: "destructive",
+        });
+      }
+      return;
+    }
+    try {
+      setCheckingConnection(true);
+      const r = await apiFetch(`/sync/sharepoint/auth-status`, {
+        method: "POST",
+        credentials: "include",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          device_code: deviceCodePayload.device_code,
+          sharepoint: buildSharepointConfig(),
+        }),
+      });
+      const body = (await r.json().catch(() => null)) as unknown;
+      if (!r.ok || !body || typeof body !== "object" || Array.isArray(body)) {
+        const msg = body && typeof body === "object" && "message" in body && typeof (body as { message?: unknown }).message === "string"
+          ? String((body as { message?: unknown }).message)
+          : body && typeof body === "object" && "error" in body && typeof (body as { error?: unknown }).error === "string"
+            ? String((body as { error?: unknown }).error)
+            : `HTTP_${r.status}`;
+        throw new Error(msg);
+      }
+      const data = body as Record<string, unknown>;
+      const stateRaw = String(data.state || "PENDING").toUpperCase();
+      const message = String(data.message || "");
+      if (stateRaw === "CONNECTED") {
+        setSharepointConnectionState("ESTABLISHED");
+        setSharepointConnectionMessage(message || "Connection established.");
+        setListeningAuth(false);
+        if (!silent) toast({ title: "Connected", description: "SharePoint authentication established." });
+        return;
+      }
+      if (stateRaw === "FAILED") {
+        setSharepointConnectionState("FAILED");
+        setSharepointConnectionMessage(message || "Connection failed.");
+        setListeningAuth(false);
+        if (!silent) toast({ title: "Connection Failed", description: message || "Unable to connect to SharePoint.", variant: "destructive" });
+        return;
+      }
+      setSharepointConnectionState("PENDING");
+      setSharepointConnectionMessage(message || "Authorization pending. Complete sign-in then retry.");
+      if (!silent) toast({ title: "Pending", description: message || "Authorization still pending." });
+    } catch (e: unknown) {
+      setSharepointConnectionState("FAILED");
+      setSharepointConnectionMessage(e instanceof Error ? e.message : "FAILED_TO_CHECK_CONNECTION");
+      setListeningAuth(false);
+      if (!silent) {
+        toast({
+          title: "Connection Check Error",
+          description: e instanceof Error ? e.message : "FAILED_TO_CHECK_CONNECTION",
+          variant: "destructive",
+        });
+      }
+    } finally {
+      setCheckingConnection(false);
+    }
+  }, [
+    deviceCodePayload?.device_code,
+    buildSharepointConfig,
+  ]);
+
+  useEffect(() => {
+    if (!listeningAuth || !deviceCodePayload?.device_code) return;
+    const wait = Math.max(3000, clampInt(deviceCodePayload.interval, 1, 30, 5) * 1000);
+    const id = window.setInterval(() => {
+      checkSharePointConnection(true).catch(() => {});
+    }, wait);
+    return () => window.clearInterval(id);
+  }, [listeningAuth, deviceCodePayload?.device_code, deviceCodePayload?.interval, checkSharePointConnection]);
+
+  const downloadSharePointFileForReview = async () => {
+    if (!deviceCodePayload?.device_code) {
+      toast({
+        title: "No device code",
+        description: "Generate device code and complete sign-in first.",
+        variant: "destructive",
+      });
+      return;
+    }
+    const sharepointConfig = buildSharepointConfig();
+    if (!sharepointConfig.share_url) {
+      toast({
+        title: "Missing Share URL",
+        description: "Paste your actual SharePoint shared file URL first.",
+        variant: "destructive",
+      });
+      return;
+    }
+    try {
+      setDownloadingSharepoint(true);
+      const r = await apiFetch(`/sync/sharepoint/download-file`, {
+        method: "POST",
+        credentials: "include",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          device_code: deviceCodePayload.device_code,
+          share_url: sharepointConfig.share_url,
+          sharepoint: sharepointConfig,
+        }),
+      });
+      const body = (await r.json().catch(() => null)) as unknown;
+      if (!r.ok || !body || typeof body !== "object" || Array.isArray(body)) {
+        const msg = body && typeof body === "object" && "details" in body && typeof (body as { details?: unknown }).details === "string"
+          ? String((body as { details?: unknown }).details)
+          : body && typeof body === "object" && "error" in body && typeof (body as { error?: unknown }).error === "string"
+            ? String((body as { error?: unknown }).error)
+            : `HTTP_${r.status}`;
+        throw new Error(msg);
+      }
+      const data = body as Record<string, unknown>;
+      const state = String(data.state || "").toUpperCase();
+      if (state === "PENDING") {
+        setSharepointConnectionState("PENDING");
+        setSharepointConnectionMessage(String(data.message || "Authorization pending."));
+        toast({ title: "Pending", description: String(data.message || "Complete verification first.") });
+        return;
+      }
+      const result: SharePointDownloadResult = {
+        file_name: String(data.file_name || ""),
+        local_path: String(data.local_path || ""),
+        bytes: clampInt(data.bytes, 0, Number.MAX_SAFE_INTEGER, 0),
+        message: String(data.message || "File downloaded."),
+      };
+      setDownloadResult(result);
+      setSharepointConnectionState("ESTABLISHED");
+      setSharepointConnectionMessage("CONNECTED: authentication established and file downloaded.");
+      toast({ title: "Connected", description: "File downloaded and stored for review." });
+    } catch (e: unknown) {
+      setSharepointConnectionState("FAILED");
+      setSharepointConnectionMessage(e instanceof Error ? e.message : "FAILED_TO_DOWNLOAD_FILE");
+      toast({
+        title: "Download Failed",
+        description: e instanceof Error ? e.message : "FAILED_TO_DOWNLOAD_FILE",
+        variant: "destructive",
+      });
+    } finally {
+      setDownloadingSharepoint(false);
     }
   };
 
@@ -783,29 +1001,11 @@ export default function SyncSettings() {
                 />
               </div>
               <div className="space-y-2 md:col-span-2">
-                <div className="text-sm font-medium">SharePoint Site URL</div>
+                <div className="text-sm font-medium">Shared File URL (Actual link)</div>
                 <Input
-                  placeholder="https://contoso.sharepoint.com/sites/YourSite"
-                  value={sharepointSiteUrl}
-                  onChange={(e) => setSharepointSiteUrl(e.target.value)}
-                  disabled={loading || running}
-                />
-              </div>
-              <div className="space-y-2">
-                <div className="text-sm font-medium">Document Library Drive ID</div>
-                <Input
-                  placeholder="Optional: leave empty to resolve dynamically"
-                  value={sharepointDriveId}
-                  onChange={(e) => setSharepointDriveId(e.target.value)}
-                  disabled={loading || running}
-                />
-              </div>
-              <div className="space-y-2">
-                <div className="text-sm font-medium">File Path</div>
-                <Input
-                  placeholder="/Shared Documents/import/employee.xlsx"
-                  value={sharepointFilePath}
-                  onChange={(e) => setSharepointFilePath(e.target.value)}
+                  placeholder="https://<tenant>.sharepoint.com/:x:/r/sites/<site>/_layouts/15/doc2.aspx?..."
+                  value={sharepointShareUrl}
+                  onChange={(e) => setSharepointShareUrl(e.target.value)}
                   disabled={loading || running}
                 />
               </div>
@@ -823,8 +1023,51 @@ export default function SyncSettings() {
             </div>
 
             <div className="rounded-md border border-muted p-3 text-xs text-muted-foreground">
-              Required Azure App settings: allow public client flows, delegated Microsoft Graph permission Files.Read, and user/admin consent for your tenant.
+              For simple download/review flow, only Tenant ID, Client ID, and Shared File URL are required. Site URL/Drive ID/File Path are advanced options for path-based checks.
             </div>
+
+            <div className="flex items-center gap-2">
+              <Button
+                type="button"
+                variant="ghost"
+                onClick={() => setShowAdvancedPathFields((v) => !v)}
+                disabled={loading || running}
+              >
+                {showAdvancedPathFields ? "Hide Advanced Path Fields" : "Show Advanced Path Fields"}
+              </Button>
+            </div>
+
+            {showAdvancedPathFields && (
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-3 rounded-md border p-3">
+                <div className="space-y-2 md:col-span-2">
+                  <div className="text-sm font-medium">SharePoint Site URL (Advanced)</div>
+                  <Input
+                    placeholder="https://contoso.sharepoint.com/sites/YourSite"
+                    value={sharepointSiteUrl}
+                    onChange={(e) => setSharepointSiteUrl(e.target.value)}
+                    disabled={loading || running}
+                  />
+                </div>
+                <div className="space-y-2">
+                  <div className="text-sm font-medium">Document Library Drive ID (Advanced)</div>
+                  <Input
+                    placeholder="Optional: leave empty to resolve dynamically"
+                    value={sharepointDriveId}
+                    onChange={(e) => setSharepointDriveId(e.target.value)}
+                    disabled={loading || running}
+                  />
+                </div>
+                <div className="space-y-2">
+                  <div className="text-sm font-medium">File Path (Advanced)</div>
+                  <Input
+                    placeholder="/Shared Documents/import/employee.xlsx"
+                    value={sharepointFilePath}
+                    onChange={(e) => setSharepointFilePath(e.target.value)}
+                    disabled={loading || running}
+                  />
+                </div>
+              </div>
+            )}
 
             <div className="flex flex-wrap items-center gap-3">
               <Button type="button" variant="outline" onClick={saveSharepointSettings} disabled={loading || running || requestingDeviceCode || savingSharepoint}>
@@ -834,6 +1077,25 @@ export default function SyncSettings() {
               <Button type="button" onClick={requestSharePointDeviceCode} disabled={loading || running || requestingDeviceCode}>
                 {requestingDeviceCode ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : null}
                 {requestingDeviceCode ? "Requesting..." : "Generate Device Code"}
+              </Button>
+              <Button
+                type="button"
+                variant="secondary"
+                onClick={() => {
+                  checkSharePointConnection(false).catch(() => {});
+                }}
+                disabled={loading || running || requestingDeviceCode || checkingConnection || !deviceCodePayload?.device_code}
+              >
+                {checkingConnection ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : null}
+                {checkingConnection ? "Checking..." : "Check Connection"}
+              </Button>
+              <Button
+                type="button"
+                variant={listeningAuth ? "destructive" : "outline"}
+                onClick={() => setListeningAuth((v) => !v)}
+                disabled={loading || running || requestingDeviceCode || !deviceCodePayload?.device_code}
+              >
+                {listeningAuth ? "Stop Listener" : "Start Listener"}
               </Button>
               <Button
                 type="button"
@@ -847,7 +1109,35 @@ export default function SyncSettings() {
               >
                 Open Microsoft Verification Page
               </Button>
+              <Button
+                type="button"
+                variant="default"
+                onClick={() => {
+                  downloadSharePointFileForReview().catch(() => {});
+                }}
+                disabled={loading || running || requestingDeviceCode || downloadingSharepoint || !deviceCodePayload?.device_code}
+              >
+                {downloadingSharepoint ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : <Download className="mr-2 h-4 w-4" />}
+                {downloadingSharepoint ? "Downloading..." : "Download File For Review"}
+              </Button>
             </div>
+
+            <div className="rounded-md border p-3 text-sm">
+              <div className="font-medium">Connection Status: {sharepointConnectionState}</div>
+              <div className="text-xs text-muted-foreground mt-1">
+                {sharepointConnectionMessage || "No connection check executed yet."}
+              </div>
+            </div>
+
+            {downloadResult && (
+              <div className="rounded-md border p-3 text-sm space-y-1">
+                <div className="font-medium">Downloaded File</div>
+                <div className="text-xs text-muted-foreground">Name: {downloadResult.file_name}</div>
+                <div className="text-xs text-muted-foreground">Size: {downloadResult.bytes} bytes</div>
+                <div className="text-xs text-muted-foreground">Stored at: {downloadResult.local_path}</div>
+                <div className="text-xs text-muted-foreground">{downloadResult.message}</div>
+              </div>
+            )}
 
             {deviceCodePayload && (
               <div className="space-y-3 rounded-md border p-3">

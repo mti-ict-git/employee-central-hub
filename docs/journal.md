@@ -337,3 +337,50 @@ Wednesday, December 17, 2025 4:24:46 PM - Secured env handling: added .env to .g
 - Added dedicated SharePoint config endpoints (`GET/PUT /api/sync/config/sharepoint`) to isolate SharePoint persistence from general sync settings (`backend/src/routes/sync.ts`).
 - Updated SharePoint Save button to use the dedicated endpoint with loading state and forced reload after save (`src/pages/SyncSettings.tsx`).
 - Ran `npm run lint`, `npx tsc --noEmit`, and `npm --prefix backend run typecheck` — passed (warnings only).
+
+## 2026-03-20 21:01:01 WITA — SharePoint Save Backward-Compatibility Fallback
+
+- Added frontend fallback: if `PUT /api/sync/config/sharepoint` is unavailable (404/405), save automatically falls back to `PUT /api/sync/config` with SharePoint payload (`src/pages/SyncSettings.tsx`).
+- This prevents save failures when backend route version lags behind frontend deployment.
+- Ran `npm run lint` and `npx tsc --noEmit` — passed (warnings only).
+
+## 2026-03-20 21:07:28 WITA — SharePoint Auth Listener + Connection Tester
+
+- Added `POST /api/sync/sharepoint/auth-status` to exchange device code and verify Graph/SharePoint access, returning state (`PENDING`, `CONNECTED`, `FAILED`) (`backend/src/routes/sync.ts`).
+- Added UI controls for **Check Connection** and **Start Listener/Stop Listener** with live status text (`ESTABLISHED` when connected) in Data Sync (`src/pages/SyncSettings.tsx`).
+- Added file-access verification against configured site/drive/path after successful token exchange to confirm document load connectivity (`backend/src/routes/sync.ts`).
+- Ran `npm run lint`, `npx tsc --noEmit`, and `npm --prefix backend run typecheck` — passed (warnings only).
+
+## 2026-03-20 21:17:49 WITA — Auth Status Error Normalization
+
+- Normalized SharePoint auth-status API responses so expected auth/config issues return structured state (`PENDING`/`FAILED`) instead of HTTP 400/502 where possible (`backend/src/routes/sync.ts`).
+- Improved failure details from Microsoft Graph/Azure responses so UI shows actionable error text (invalid client, site resolve failed, file access failed, etc.) (`backend/src/routes/sync.ts`).
+- Updated frontend connection checker to surface backend `message` details and stabilize callback/listener dependencies (`src/pages/SyncSettings.tsx`).
+- Ran `npm run lint`, `npx tsc --noEmit`, and `npm --prefix backend run typecheck` — passed (warnings only).
+
+## 2026-03-20 21:47:18 WITA — Simplified Share-Link Download for Review
+
+- Added support for storing `share_url` in SharePoint sync config so the real shared file link can be saved and reused (`src/pages/SyncSettings.tsx`, `backend/src/routes/sync.ts`).
+- Added `POST /api/sync/sharepoint/download-file` to exchange device code, resolve Graph share link, download file bytes, and save the file locally under `storage/sharepoint-review` for review (`backend/src/routes/sync.ts`).
+- Added UI fields/actions: **Shared File URL (Actual link)** and **Download File For Review**, including downloaded file metadata and local saved path display (`src/pages/SyncSettings.tsx`).
+- Ran `npm run lint`, `npx tsc --noEmit`, and `npm --prefix backend run typecheck` — passed (warnings only).
+
+## 2026-03-20 21:54:09 WITA — Share URL Persistence + Simpler UI
+
+- Prevented share URL from being cleared after save by applying returned payload defensively and preserving current value when backend response omits `share_url` (`src/pages/SyncSettings.tsx`).
+- Simplified SharePoint form: moved Site URL / Drive ID / File Path under optional advanced section, leaving main flow focused on Tenant ID + Client ID + Shared File URL (`src/pages/SyncSettings.tsx`).
+- Ran `npm run lint`, `npx tsc --noEmit`, and `npm --prefix backend run typecheck` — passed (warnings only).
+
+## 2026-03-20 21:57:26 WITA — Persist Share URL with Frontend Fallback
+
+- Added local fallback persistence for SharePoint shared URL using `localStorage` key `sync_sharepoint_share_url` to avoid losing the field when backend response/version omits `share_url` (`src/pages/SyncSettings.tsx`).
+- Load now hydrates shared URL from database first, then local fallback if database value is empty (`src/pages/SyncSettings.tsx`).
+- Ran `npm run lint` and `npx tsc --noEmit` — passed (warnings only).
+
+## 2026-03-20 22:02:51 WITA — Fix Device Code Already Redeemed on Download
+
+- Added backend token cache column `sharepoint_auth` in `dbo.sync_config` to store access/refresh token and expiry for SharePoint sync (`backend/src/routes/sync.ts`).
+- `auth-status` now saves token cache after successful device-code exchange so follow-up actions do not redeem the same device code again (`backend/src/routes/sync.ts`).
+- `download-file` now uses cached valid token first, then refresh-token flow, and only falls back to device-code exchange when needed (`backend/src/routes/sync.ts`).
+- Added explicit handling for already-redeemed device code (`AADSTS54005`/invalid_grant) to return a clear pending message instead of hard failure (`backend/src/routes/sync.ts`).
+- Ran `npm run lint`, `npx tsc --noEmit`, and `npm --prefix backend run typecheck` — passed (warnings only).
