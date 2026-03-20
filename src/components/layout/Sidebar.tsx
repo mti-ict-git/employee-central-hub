@@ -13,7 +13,9 @@ import {
   ShieldCheck,
   Activity,
   RefreshCcw,
-  PanelRight
+  PanelRight,
+  ChevronDown,
+  ChevronRight
 } from "lucide-react";
 import { Link, useLocation } from "react-router-dom";
 import { useEffect, useState, type ComponentType } from "react";
@@ -60,6 +62,7 @@ export function Sidebar({ collapsed = false, onToggleSidebar }: { collapsed?: bo
   const location = useLocation();
   const [role, setRole] = useState<string | null>(null);
   const { caps } = useRBAC();
+  const [openGroups, setOpenGroups] = useState<Record<string, boolean>>({});
 
   useEffect(() => {
     try {
@@ -72,6 +75,45 @@ export function Sidebar({ collapsed = false, onToggleSidebar }: { collapsed?: bo
       // ignore
     }
   }, []);
+
+  useEffect(() => {
+    const stored: Record<string, boolean> = {};
+    for (const item of navigation) {
+      if (!item.children || !item.children.length) continue;
+      const key = `nav_group_open:${item.name}`;
+      const raw = localStorage.getItem(key);
+      if (raw === "true" || raw === "false") {
+        stored[item.name] = raw === "true";
+      }
+    }
+    setOpenGroups(stored);
+  }, []);
+
+  useEffect(() => {
+    const path = location.pathname;
+    setOpenGroups((prev) => {
+      let changed = false;
+      const next = { ...prev };
+      for (const item of navigation) {
+        if (!item.children || !item.children.length) continue;
+        const isInGroup = item.children.some((c) => c.href === path || (path.startsWith(`${c.href}/`) && c.href !== "/"));
+        if (isInGroup && next[item.name] !== true) {
+          next[item.name] = true;
+          changed = true;
+        }
+      }
+      return changed ? next : prev;
+    });
+  }, [location.pathname]);
+
+  const toggleGroup = (name: string) => {
+    setOpenGroups((prev) => {
+      const nextOpen = !(prev[name] ?? true);
+      const next = { ...prev, [name]: nextOpen };
+      localStorage.setItem(`nav_group_open:${name}`, String(nextOpen));
+      return next;
+    });
+  };
 
   return (
     <aside className={cn(
@@ -121,7 +163,7 @@ export function Sidebar({ collapsed = false, onToggleSidebar }: { collapsed?: bo
             if (!item.children && item.href) {
               const isActive = location.pathname === item.href;
               if (item.name === 'Reports' && caps && !caps.canAccessReport) return null;
-              return (
+              const linkEl = (
                 <Link
                   key={item.name}
                   to={item.href}
@@ -141,6 +183,17 @@ export function Sidebar({ collapsed = false, onToggleSidebar }: { collapsed?: bo
                   <span className={cn(collapsed ? "hidden" : undefined)}>{item.name}</span>
                 </Link>
               );
+              if (!collapsed) return linkEl;
+              return (
+                <TooltipProvider key={item.name}>
+                  <Tooltip>
+                    <TooltipTrigger asChild>{linkEl}</TooltipTrigger>
+                    <TooltipContent side="right" align="center">
+                      {item.name}
+                    </TooltipContent>
+                  </Tooltip>
+                </TooltipProvider>
+              );
             }
 
             // Grouped section
@@ -159,41 +212,82 @@ export function Sidebar({ collapsed = false, onToggleSidebar }: { collapsed?: bo
 
             if (visibleChildren.length === 0) return null;
 
+            const isOpen = openGroups[item.name] ?? true;
+            const hasActiveChild = visibleChildren.some((c) => location.pathname === c.href || (location.pathname.startsWith(`${c.href}/`) && c.href !== "/"));
+
             return (
               <div key={item.name} className="space-y-1">
-                <div className={cn("flex items-center gap-3 px-3 py-2.5 text-[11px] font-semibold uppercase tracking-wider text-sidebar-foreground/60", collapsed ? "justify-center" : undefined)}>
-                  {collapsed ? (
-                    <span className="text-xs tracking-[0.35em] text-sidebar-foreground/40">•••</span>
-                  ) : (
-                    <>
-                      {item.icon && <item.icon className="h-4 w-4" />}
-                      <span>{item.name}</span>
-                    </>
-                  )}
-                </div>
-                {visibleChildren.map((child) => {
-                  const isActive = location.pathname === child.href;
-                  return (
-                    <Link
-                      key={child.name}
-                      to={child.href}
-                      className={cn(
-                        "group relative ml-6 flex items-center gap-3 rounded-lg px-3 py-2.5 text-sm font-medium transition-all duration-200",
-                        collapsed ? "ml-0 justify-center" : undefined,
-                        isActive
-                          ? "bg-primary/15 text-primary shadow-sm"
-                          : "text-sidebar-foreground hover:bg-sidebar-accent/70 hover:text-sidebar-foreground"
-                      )}
-                    >
-                      <span className={cn(
-                        "absolute left-0 top-1/2 h-6 w-1 -translate-y-1/2 rounded-r-full bg-primary transition-opacity",
-                        isActive ? "opacity-100" : "opacity-0 group-hover:opacity-70"
-                      )} />
-                      {child.icon && <child.icon className="h-4 w-4" />}
-                      <span className={cn(collapsed ? "hidden" : undefined)}>{child.name}</span>
-                    </Link>
-                  );
-                })}
+                <TooltipProvider>
+                  <Tooltip>
+                    <TooltipTrigger asChild>
+                      <button
+                        type="button"
+                        onClick={() => {
+                          if (collapsed && onToggleSidebar) {
+                            onToggleSidebar();
+                            return;
+                          }
+                          toggleGroup(item.name);
+                        }}
+                        aria-label={collapsed ? `Expand ${item.name}` : `Toggle ${item.name}`}
+                        aria-expanded={collapsed ? undefined : isOpen}
+                        className={cn(
+                          "flex w-full items-center gap-3 rounded-lg px-3 py-2.5 text-[11px] font-semibold uppercase tracking-wider transition-colors",
+                          "text-sidebar-foreground/60 hover:bg-sidebar-accent/40 hover:text-sidebar-foreground/80",
+                          collapsed ? "justify-center" : undefined,
+                        )}
+                      >
+                        {collapsed ? (
+                          <span className="text-xs tracking-[0.35em] text-sidebar-foreground/40">•••</span>
+                        ) : (
+                          <div className="flex w-full items-center justify-between gap-3">
+                            <div className="flex items-center gap-3">
+                              {item.icon && <item.icon className="h-4 w-4" />}
+                              <span>{item.name}</span>
+                            </div>
+                            {isOpen ? (
+                              <ChevronDown className="h-4 w-4 text-sidebar-foreground/50" />
+                            ) : (
+                              <ChevronRight className="h-4 w-4 text-sidebar-foreground/50" />
+                            )}
+                          </div>
+                        )}
+                      </button>
+                    </TooltipTrigger>
+                    {collapsed && (
+                      <TooltipContent side="right" align="center">
+                        {item.name}
+                      </TooltipContent>
+                    )}
+                  </Tooltip>
+                </TooltipProvider>
+                {(!collapsed && (isOpen || hasActiveChild)) && (
+                  <div className={cn("space-y-1", collapsed ? undefined : "pt-0.5")}>
+                    {visibleChildren.map((child) => {
+                      const isActive = location.pathname === child.href;
+                      return (
+                        <Link
+                          key={child.name}
+                          to={child.href}
+                          className={cn(
+                            "group relative ml-6 flex items-center gap-3 rounded-lg px-3 py-2.5 text-sm font-medium transition-all duration-200",
+                            collapsed ? "ml-0 justify-center" : undefined,
+                            isActive
+                              ? "bg-primary/15 text-primary shadow-sm"
+                              : "text-sidebar-foreground hover:bg-sidebar-accent/70 hover:text-sidebar-foreground"
+                          )}
+                        >
+                          <span className={cn(
+                            "absolute left-0 top-1/2 h-6 w-1 -translate-y-1/2 rounded-r-full bg-primary transition-opacity",
+                            isActive ? "opacity-100" : "opacity-0 group-hover:opacity-70"
+                          )} />
+                          {child.icon && <child.icon className="h-4 w-4" />}
+                          <span className={cn(collapsed ? "hidden" : undefined)}>{child.name}</span>
+                        </Link>
+                      );
+                    })}
+                  </div>
+                )}
               </div>
             );
           })}

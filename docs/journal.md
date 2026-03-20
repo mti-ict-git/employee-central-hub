@@ -295,3 +295,9 @@ Wednesday, December 17, 2025 4:24:46 PM - Secured env handling: added .env to .g
 - Added Color Palette selection under Settings → Preferences and persisted it as `palette` (`src/pages/Settings.tsx`).
 - Applied saved palette globally on app start and added palette CSS tokens (`src/App.tsx`, `src/index.css`).
 - Ran `npm run lint` and `npx tsc --noEmit` — passed (warnings only).
+
+## 2026-03-20 19:59:27 WITA — Collapsible Sidebar Menus
+
+- Made Employee Management and Settings groups expandable/collapsible from the sidebar (`src/components/layout/Sidebar.tsx`).
+- Added tooltips for collapsed sidebar items to keep navigation usable (`src/components/layout/Sidebar.tsx`).
+- Ran `npm run lint` and `npx tsc --noEmit` — passed (warnings only).
