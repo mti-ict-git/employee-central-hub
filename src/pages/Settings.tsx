@@ -11,7 +11,8 @@ import { Avatar, AvatarFallback } from "@/components/ui/avatar";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { useToast } from "@/hooks/use-toast";
-import { User, Bell, Shield, Palette, Globe, Save, KeyRound } from "lucide-react";
+import { User, Bell, Shield, Palette, Globe, Save, KeyRound, Cake, Briefcase, X, Plus } from "lucide-react";
+import { Slider } from "@/components/ui/slider";
 import { apiFetch } from "@/lib/api";
 import { useTheme } from "next-themes";
 
