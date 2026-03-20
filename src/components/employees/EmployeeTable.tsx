@@ -19,7 +19,6 @@ import {
   useSensors,
   type DraggableAttributes,
   type DragEndEvent,
-  type SyntheticListenerMap,
 } from "@dnd-kit/core";
 import { SortableContext, horizontalListSortingStrategy, useSortable } from "@dnd-kit/sortable";
 import { CSS } from "@dnd-kit/utilities";
