@@ -250,6 +250,14 @@ const App = () => {
               }
             />
             <Route
+              path="/employees/anniversaries/email-preview"
+              element={
+                <RequireAuth>
+                  <EmailTemplatePreview />
+                </RequireAuth>
+              }
+            />
+            <Route
               path="/employees/:id"
               element={
                 <RequireAuth>
