@@ -83,6 +83,12 @@ const Settings = () => {
   const [emailNotifications, setEmailNotifications] = useState(true);
   const [pushNotifications, setPushNotifications] = useState(true);
   const [weeklyDigest, setWeeklyDigest] = useState(false);
+  const [birthdayEnabled, setBirthdayEnabled] = useState(true);
+  const [workAnniversaryEnabled, setWorkAnniversaryEnabled] = useState(true);
+  const [advanceReminder, setAdvanceReminder] = useState(7);
+  const [onDayReminder, setOnDayReminder] = useState(true);
+  const [hrEmails, setHrEmails] = useState<string[]>(["hr-team@merdekagroup.com"]);
+  const [newHrEmail, setNewHrEmail] = useState("");
   const [language, setLanguage] = useState("en");
   const [timezone, setTimezone] = useState("Asia/Jakarta");
   const [themePref, setThemePref] = useState<ThemePref>("system");
