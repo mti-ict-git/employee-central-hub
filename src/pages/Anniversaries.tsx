@@ -112,11 +112,20 @@ export default function Anniversaries() {
   return (
     <MainLayout title="Anniversaries">
       <div className="space-y-6">
-        <div>
-          <h1 className="text-2xl font-bold tracking-tight text-foreground">Anniversaries</h1>
-          <p className="mt-1 text-sm text-muted-foreground">
-            Track employee birthdays and work anniversaries.
-          </p>
+        <div className="flex flex-wrap items-center justify-between gap-4">
+          <div>
+            <h1 className="text-2xl font-bold tracking-tight text-foreground">Anniversaries</h1>
+            <p className="mt-1 text-sm text-muted-foreground">
+              Track employee birthdays and work anniversaries.
+            </p>
+          </div>
+          <Link
+            to="/employees/anniversaries/email-preview"
+            className="inline-flex items-center gap-2 rounded-lg border border-border bg-card px-4 py-2 text-sm font-medium text-foreground shadow-sm transition-colors hover:bg-accent"
+          >
+            <Mail className="h-4 w-4" />
+            Email Templates
+          </Link>
         </div>
 
         {/* Filters */}
