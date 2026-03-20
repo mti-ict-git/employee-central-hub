@@ -376,6 +376,133 @@ const Settings = () => {
             </Card>
           </TabsContent>
 
+          {/* Anniversaries Tab */}
+          <TabsContent value="anniversaries">
+            <Card>
+              <CardHeader>
+                <CardTitle>Anniversary Notifications</CardTitle>
+                <CardDescription>
+                  Configure which anniversary types trigger email notifications and when they are sent.
+                </CardDescription>
+              </CardHeader>
+              <CardContent className="space-y-6">
+                {/* Notification types */}
+                <div className="space-y-4">
+                  <Label className="text-base font-semibold">Notification Types</Label>
+
+                  <div className="flex items-center justify-between rounded-lg border p-4">
+                    <div className="flex items-center gap-3">
+                      <div className="flex h-9 w-9 items-center justify-center rounded-lg bg-rose-100 text-rose-600 dark:bg-rose-900/30 dark:text-rose-400">
+                        <Cake className="h-5 w-5" />
+                      </div>
+                      <div className="space-y-0.5">
+                        <Label htmlFor="birthday-toggle" className="text-base">Birthday Notifications</Label>
+                        <p className="text-sm text-muted-foreground">Send greetings on employee birthdays</p>
+                      </div>
+                    </div>
+                    <Switch id="birthday-toggle" checked={birthdayEnabled} onCheckedChange={setBirthdayEnabled} />
+                  </div>
+
+                  <div className="flex items-center justify-between rounded-lg border p-4">
+                    <div className="flex items-center gap-3">
+                      <div className="flex h-9 w-9 items-center justify-center rounded-lg bg-blue-100 text-blue-600 dark:bg-blue-900/30 dark:text-blue-400">
+                        <Briefcase className="h-5 w-5" />
+                      </div>
+                      <div className="space-y-0.5">
+                        <Label htmlFor="work-toggle" className="text-base">Work Anniversary Notifications</Label>
+                        <p className="text-sm text-muted-foreground">Celebrate employee work milestones</p>
+                      </div>
+                    </div>
+                    <Switch id="work-toggle" checked={workAnniversaryEnabled} onCheckedChange={setWorkAnniversaryEnabled} />
+                  </div>
+                </div>
+
+                <Separator />
+
+                {/* Timing */}
+                <div className="space-y-4">
+                  <Label className="text-base font-semibold">Reminder Timing</Label>
+
+                  <div className="flex items-center justify-between rounded-lg border p-4">
+                    <div className="space-y-0.5">
+                      <Label htmlFor="on-day" className="text-base">On the day</Label>
+                      <p className="text-sm text-muted-foreground">Send notification on the anniversary date</p>
+                    </div>
+                    <Switch id="on-day" checked={onDayReminder} onCheckedChange={setOnDayReminder} />
+                  </div>
+
+                  <div className="rounded-lg border p-4 space-y-3">
+                    <div className="flex items-center justify-between">
+                      <div className="space-y-0.5">
+                        <Label className="text-base">Advance Reminder</Label>
+                        <p className="text-sm text-muted-foreground">
+                          Send a heads-up <span className="font-semibold text-foreground">{advanceReminder} day{advanceReminder !== 1 ? "s" : ""}</span> before
+                        </p>
+                      </div>
+                    </div>
+                    <Slider
+                      value={[advanceReminder]}
+                      onValueChange={([v]) => setAdvanceReminder(v)}
+                      min={1}
+                      max={14}
+                      step={1}
+                      className="w-full"
+                    />
+                    <div className="flex justify-between text-xs text-muted-foreground">
+                      <span>1 day</span>
+                      <span>14 days</span>
+                    </div>
+                  </div>
+                </div>
+
+                <Separator />
+
+                {/* HR Recipients */}
+                <div className="space-y-4">
+                  <div>
+                    <Label className="text-base font-semibold">HR Team Recipients</Label>
+                    <p className="mt-0.5 text-sm text-muted-foreground">Email addresses that receive all anniversary notifications</p>
+                  </div>
+
+                  <div className="flex flex-wrap gap-2">
+                    {hrEmails.map((email) => (
+                      <Badge key={email} variant="secondary" className="gap-1.5 py-1 pl-3 pr-1.5 text-sm">
+                        {email}
+                        <button
+                          type="button"
+                          onClick={() => setHrEmails((prev) => prev.filter((e) => e !== email))}
+                          className="rounded-full p-0.5 hover:bg-muted-foreground/20 transition-colors"
+                        >
+                          <X className="h-3 w-3" />
+                        </button>
+                      </Badge>
+                    ))}
+                  </div>
+
+                  <div className="flex gap-2">
+                    <Input
+                      placeholder="Add HR email address"
+                      value={newHrEmail}
+                      onChange={(e) => setNewHrEmail(e.target.value)}
+                      onKeyDown={(e) => e.key === "Enter" && (e.preventDefault(), addHrEmail())}
+                      className="max-w-sm"
+                    />
+                    <Button variant="outline" size="icon" onClick={addHrEmail} type="button">
+                      <Plus className="h-4 w-4" />
+                    </Button>
+                  </div>
+                </div>
+
+                <div className="flex justify-end">
+                  <Button onClick={handleSaveAnniversaries} className="flex items-center gap-2">
+                    <Save className="h-4 w-4" />
+                    Save Anniversary Settings
+                  </Button>
+                </div>
+              </CardContent>
+            </Card>
+          </TabsContent>
+
           {/* Security Tab */}
           <TabsContent value="security">
             <Card>
