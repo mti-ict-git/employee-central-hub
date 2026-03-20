@@ -19,7 +19,6 @@ import {
   useSensors,
   type DraggableAttributes,
   type DragEndEvent,
-  type SyntheticListenerMap,
 } from "@dnd-kit/core";
 import { SortableContext, horizontalListSortingStrategy, useSortable } from "@dnd-kit/sortable";
 import { CSS } from "@dnd-kit/utilities";
@@ -68,7 +67,7 @@ type SortableHeaderCellProps = {
   id: string;
   className?: string;
   style?: CSSProperties;
-  children: (props: { attributes: DraggableAttributes; listeners: SyntheticListenerMap | undefined; isDragging: boolean }) => ReactNode;
+  children: (props: { attributes: DraggableAttributes; listeners: Record<string, Function> | undefined; isDragging: boolean }) => ReactNode;
 };
 
 const SortableHeaderCell = ({ id, className, style, children }: SortableHeaderCellProps) => {
@@ -361,7 +360,7 @@ export function EmployeeTable({ employees, onDelete, selectable = false, selecte
     event.stopPropagation();
     const startX = event.clientX;
     const startWidth = columnWidths?.[key] ?? (event.currentTarget.parentElement?.getBoundingClientRect().width ?? 160);
-    const handleMove = (e: MouseEvent) => {
+    const handleMove = (e: globalThis.MouseEvent) => {
       const next = Math.max(120, Math.round(startWidth + e.clientX - startX));
       onColumnResize(key, next);
     };
