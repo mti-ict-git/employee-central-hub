@@ -360,7 +360,7 @@ export function EmployeeTable({ employees, onDelete, selectable = false, selecte
     event.stopPropagation();
     const startX = event.clientX;
     const startWidth = columnWidths?.[key] ?? (event.currentTarget.parentElement?.getBoundingClientRect().width ?? 160);
-    const handleMove = (e: MouseEvent) => {
+    const handleMove = (e: globalThis.MouseEvent) => {
       const next = Math.max(120, Math.round(startWidth + e.clientX - startX));
       onColumnResize(key, next);
     };

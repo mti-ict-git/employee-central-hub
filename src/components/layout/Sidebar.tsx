@@ -42,6 +42,7 @@ const navigation: NavItem[] = [
       { name: 'Employee List', href: '/employees', icon: Users },
       { name: 'Add Employee', href: '/employees/new', icon: UserPlus },
       { name: 'Import Data', href: '/employees/import', icon: Upload },
+      { name: 'Anniversaries', href: '/employees/anniversaries', icon: Cake },
     ],
   },
   { name: 'Reports', href: '/reports', icon: FileText },

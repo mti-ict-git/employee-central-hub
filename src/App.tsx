@@ -241,6 +241,14 @@ const App = () => {
               }
             />
             <Route
+              path="/employees/anniversaries"
+              element={
+                <RequireAuth>
+                  <Anniversaries />
+                </RequireAuth>
+              }
+            />
+            <Route
               path="/employees/:id"
               element={
                 <RequireAuth>
