@@ -168,7 +168,7 @@ export function Sidebar({ collapsed = false, onToggleSidebar }: { collapsed?: bo
                   key={item.name}
                   to={item.href}
                   className={cn(
-                    "group relative flex items-center gap-3 rounded-lg px-3 py-2.5 text-sm font-medium transition-all duration-200",
+                    "group relative flex min-h-12 items-center gap-3 rounded-lg px-3 py-2.5 text-sm font-medium leading-6 transition-all duration-200",
                     collapsed ? "justify-center" : undefined,
                     isActive
                       ? "bg-primary/15 text-primary shadow-sm"
@@ -180,7 +180,7 @@ export function Sidebar({ collapsed = false, onToggleSidebar }: { collapsed?: bo
                     isActive ? "opacity-100" : "opacity-0 group-hover:opacity-70"
                   )} />
                   {item.icon && <item.icon className="h-5 w-5" />}
-                  <span className={cn(collapsed ? "hidden" : undefined)}>{item.name}</span>
+                  <span className={cn("whitespace-nowrap", collapsed ? "hidden" : undefined)}>{item.name}</span>
                 </Link>
               );
               if (!collapsed) return linkEl;
@@ -232,23 +232,23 @@ export function Sidebar({ collapsed = false, onToggleSidebar }: { collapsed?: bo
                         aria-label={collapsed ? `Expand ${item.name}` : `Toggle ${item.name}`}
                         aria-expanded={collapsed ? undefined : isOpen}
                         className={cn(
-                          "flex w-full items-center gap-3 rounded-lg px-3 py-2.5 text-[11px] font-semibold uppercase tracking-wider transition-colors",
+                          "flex min-h-12 w-full items-center gap-3 rounded-lg px-3 py-2.5 text-left text-sm font-medium leading-6 transition-colors",
                           "text-sidebar-foreground/60 hover:bg-sidebar-accent/40 hover:text-sidebar-foreground/80",
                           collapsed ? "justify-center" : undefined,
                         )}
                       >
                         {collapsed ? (
-                          <span className="text-xs tracking-[0.35em] text-sidebar-foreground/40">•••</span>
+                          <span className="text-xs text-sidebar-foreground/40">•••</span>
                         ) : (
                           <div className="flex w-full items-center justify-between gap-3">
-                            <div className="flex items-center gap-3">
-                              {item.icon && <item.icon className="h-4 w-4" />}
-                              <span>{item.name}</span>
+                            <div className="flex min-w-0 items-center gap-3">
+                              {item.icon && <item.icon className="h-5 w-5" />}
+                              <span className="truncate whitespace-nowrap text-sm font-medium">{item.name}</span>
                             </div>
                             {isOpen ? (
-                              <ChevronDown className="h-4 w-4 text-sidebar-foreground/50" />
+                              <ChevronDown className="h-5 w-5 shrink-0 text-sidebar-foreground/50" />
                             ) : (
-                              <ChevronRight className="h-4 w-4 text-sidebar-foreground/50" />
+                              <ChevronRight className="h-5 w-5 shrink-0 text-sidebar-foreground/50" />
                             )}
                           </div>
                         )}
@@ -270,7 +270,7 @@ export function Sidebar({ collapsed = false, onToggleSidebar }: { collapsed?: bo
                           key={child.name}
                           to={child.href}
                           className={cn(
-                            "group relative ml-6 flex items-center gap-3 rounded-lg px-3 py-2.5 text-sm font-medium transition-all duration-200",
+                            "group relative ml-6 flex min-h-11 items-center gap-3 rounded-lg px-3 py-2.5 text-sm font-medium leading-6 transition-all duration-200",
                             collapsed ? "ml-0 justify-center" : undefined,
                             isActive
                               ? "bg-primary/15 text-primary shadow-sm"
@@ -282,7 +282,7 @@ export function Sidebar({ collapsed = false, onToggleSidebar }: { collapsed?: bo
                             isActive ? "opacity-100" : "opacity-0 group-hover:opacity-70"
                           )} />
                           {child.icon && <child.icon className="h-4 w-4" />}
-                          <span className={cn(collapsed ? "hidden" : undefined)}>{child.name}</span>
+                          <span className={cn("whitespace-nowrap", collapsed ? "hidden" : undefined)}>{child.name}</span>
                         </Link>
                       );
                     })}

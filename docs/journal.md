@@ -301,3 +301,15 @@ Wednesday, December 17, 2025 4:24:46 PM - Secured env handling: added .env to .g
 - Made Employee Management and Settings groups expandable/collapsible from the sidebar (`src/components/layout/Sidebar.tsx`).
 - Added tooltips for collapsed sidebar items to keep navigation usable (`src/components/layout/Sidebar.tsx`).
 - Ran `npm run lint` and `npx tsc --noEmit` — passed (warnings only).
+
+## 2026-03-20 20:06:08 WITA — Sidebar Uniform Font & Alignment
+
+- Unified all nav items (group headers and child links) to use `text-sm` for consistent font sizing across the sidebar.
+- Aligned group header text inside the flex container using a consistent `text-sm font-medium` class; the uppercase label styling was moved to an inner `<span>` so it doesn't affect the parent button's vertical alignment.
+- Ran `npm run lint` and `npx tsc --noEmit` — passed (warnings only).
+
+## 2026-03-20 20:08:27 WITA — Sidebar Alignment Refinement
+
+- Standardized row heights and line-heights for top-level links, group headers, and child items (`src/components/layout/Sidebar.tsx`).
+- Unified icon sizing and prevented group title wrapping to keep icon/text/chevron alignment consistent.
+- Ran `npm run lint` and `npx tsc --noEmit` — passed (warnings only).
