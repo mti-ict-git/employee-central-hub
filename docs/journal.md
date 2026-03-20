@@ -313,3 +313,27 @@ Wednesday, December 17, 2025 4:24:46 PM - Secured env handling: added .env to .g
 - Standardized row heights and line-heights for top-level links, group headers, and child items (`src/components/layout/Sidebar.tsx`).
 - Unified icon sizing and prevented group title wrapping to keep icon/text/chevron alignment consistent.
 - Ran `npm run lint` and `npx tsc --noEmit` — passed (warnings only).
+
+## 2026-03-20 20:39:58 WITA — SharePoint Sync Settings (Graph Device Code)
+
+- Added SharePoint Sync configuration UI under Settings → Data Sync with fields for tenant/client/site/file and polling settings (`src/pages/SyncSettings.tsx`).
+- Extended sync configuration API to persist `sharepoint` JSON in `dbo.sync_config` and return it from `GET /api/sync/config` (`backend/src/routes/sync.ts`).
+- Added migration-safe schema handling for `sync_config.sharepoint` column creation when missing (`backend/src/routes/sync.ts`).
+- Ran `npm run lint` and `npx tsc --noEmit` — passed (warnings only).
+
+## 2026-03-20 20:50:29 WITA — SharePoint Device Code Generation Endpoint
+
+- Added `POST /api/sync/sharepoint/device-code` to request Microsoft login device code using configured tenant/client and delegated `Files.Read` scope (`backend/src/routes/sync.ts`).
+- Updated Data Sync UI to generate and display `user_code`, verification URL, expiry, and copy action so the system provides the code directly (`src/pages/SyncSettings.tsx`).
+- Ran `npm run lint`, `npx tsc --noEmit`, and `npm --prefix backend run typecheck` — passed (warnings only).
+
+## 2026-03-20 20:53:39 WITA — SharePoint Sync Save Button
+
+- Added an explicit **Save SharePoint Settings** button in SharePoint Sync section to persist config before generating device code (`src/pages/SyncSettings.tsx`).
+- Ran `npm run lint` and `npx tsc --noEmit` — passed (warnings only).
+
+## 2026-03-20 20:56:23 WITA — SharePoint Save Reliability Fix
+
+- Added dedicated SharePoint config endpoints (`GET/PUT /api/sync/config/sharepoint`) to isolate SharePoint persistence from general sync settings (`backend/src/routes/sync.ts`).
+- Updated SharePoint Save button to use the dedicated endpoint with loading state and forced reload after save (`src/pages/SyncSettings.tsx`).
+- Ran `npm run lint`, `npx tsc --noEmit`, and `npm --prefix backend run typecheck` — passed (warnings only).

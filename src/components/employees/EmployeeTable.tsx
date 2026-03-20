@@ -67,7 +67,7 @@ type SortableHeaderCellProps = {
   id: string;
   className?: string;
   style?: CSSProperties;
-  children: (props: { attributes: DraggableAttributes; listeners: Record<string, Function> | undefined; isDragging: boolean }) => ReactNode;
+  children: (props: { attributes: DraggableAttributes; listeners: Record<string, (...args: unknown[]) => void> | undefined; isDragging: boolean }) => ReactNode;
 };
 
 const SortableHeaderCell = ({ id, className, style, children }: SortableHeaderCellProps) => {

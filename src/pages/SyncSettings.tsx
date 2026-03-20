@@ -10,7 +10,7 @@ import { Badge } from "@/components/ui/badge";
 import { Separator } from "@/components/ui/separator";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
-import { ClipboardCopy, Loader2, RefreshCcw } from "lucide-react";
+import { ClipboardCopy, Loader2, RefreshCcw, Share2 } from "lucide-react";
 
 type SyncRunStats = {
   inserted?: number;
@@ -31,6 +31,28 @@ type SyncStatus = {
 };
 
 type ScheduleMode = "none" | "hourly" | "daily" | "weekly" | "monthly" | "custom";
+
+type SharePointSyncConfig = {
+  enabled: boolean;
+  auth_flow: "device_code";
+  delegated_permission: "Files.Read";
+  tenant_id: string;
+  client_id: string;
+  site_url: string;
+  library_drive_id: string;
+  file_path: string;
+  poll_minutes: number;
+};
+
+type DeviceCodePayload = {
+  device_code: string;
+  user_code: string;
+  verification_uri: string;
+  expires_in: number;
+  interval: number;
+  message: string;
+  scope: string;
+};
 
 const clampInt = (v: unknown, min: number, max: number, fallback: number) => {
   const n = Math.floor(Number(v));
@@ -99,6 +121,16 @@ export default function SyncSettings() {
   const [scheduleHour, setScheduleHour] = useState(2);
   const [scheduleDayOfWeek, setScheduleDayOfWeek] = useState(1);
   const [scheduleDayOfMonth, setScheduleDayOfMonth] = useState(1);
+  const [sharepointEnabled, setSharepointEnabled] = useState(false);
+  const [sharepointTenantId, setSharepointTenantId] = useState("");
+  const [sharepointClientId, setSharepointClientId] = useState("");
+  const [sharepointSiteUrl, setSharepointSiteUrl] = useState("");
+  const [sharepointDriveId, setSharepointDriveId] = useState("");
+  const [sharepointFilePath, setSharepointFilePath] = useState("");
+  const [sharepointPollMinutes, setSharepointPollMinutes] = useState(15);
+  const [requestingDeviceCode, setRequestingDeviceCode] = useState(false);
+  const [deviceCodePayload, setDeviceCodePayload] = useState<DeviceCodePayload | null>(null);
+  const [savingSharepoint, setSavingSharepoint] = useState(false);
 
   useEffect(() => {
     if (!running) return;
@@ -184,6 +216,17 @@ export default function SyncSettings() {
         if (parsed.hour !== undefined) setScheduleHour(parsed.hour);
         if (parsed.dayOfWeek !== undefined) setScheduleDayOfWeek(parsed.dayOfWeek);
         if (parsed.dayOfMonth !== undefined) setScheduleDayOfMonth(parsed.dayOfMonth);
+        const sp = cfg.sharepoint;
+        if (sp && typeof sp === "object" && !Array.isArray(sp)) {
+          const record = sp as Record<string, unknown>;
+          setSharepointEnabled(!!record.enabled);
+          setSharepointTenantId(String(record.tenant_id || ""));
+          setSharepointClientId(String(record.client_id || ""));
+          setSharepointSiteUrl(String(record.site_url || ""));
+          setSharepointDriveId(String(record.library_drive_id || ""));
+          setSharepointFilePath(String(record.file_path || ""));
+          setSharepointPollMinutes(clampInt(record.poll_minutes, 1, 1440, 15));
+        }
       }
       const s = await apiFetch(`/sync/status`, { credentials: "include" });
       const st = await s.json().catch(() => null);
@@ -199,11 +242,22 @@ export default function SyncSettings() {
 
   const save = async () => {
     try {
+      const sharepointConfig: SharePointSyncConfig = {
+        enabled: sharepointEnabled,
+        auth_flow: "device_code",
+        delegated_permission: "Files.Read",
+        tenant_id: sharepointTenantId.trim(),
+        client_id: sharepointClientId.trim(),
+        site_url: sharepointSiteUrl.trim(),
+        library_drive_id: sharepointDriveId.trim(),
+        file_path: sharepointFilePath.trim(),
+        poll_minutes: clampInt(sharepointPollMinutes, 1, 1440, 15),
+      };
       const r = await apiFetch(`/sync/config`, {
         method: "PUT",
         credentials: "include",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ enabled, schedule }),
+        body: JSON.stringify({ enabled, schedule, sharepoint: sharepointConfig }),
       });
       if (!r.ok) {
         const d = await r.json().catch(() => null);
@@ -212,6 +266,112 @@ export default function SyncSettings() {
       toast({ title: "Saved", description: "Sync configuration updated" });
     } catch (e: unknown) {
       toast({ title: "Error", description: e instanceof Error ? e.message : "Failed to save", variant: "destructive" });
+    }
+  };
+
+  const saveSharepointSettings = async () => {
+    const sharepointConfig: SharePointSyncConfig = {
+      enabled: sharepointEnabled,
+      auth_flow: "device_code",
+      delegated_permission: "Files.Read",
+      tenant_id: sharepointTenantId.trim(),
+      client_id: sharepointClientId.trim(),
+      site_url: sharepointSiteUrl.trim(),
+      library_drive_id: sharepointDriveId.trim(),
+      file_path: sharepointFilePath.trim(),
+      poll_minutes: clampInt(sharepointPollMinutes, 1, 1440, 15),
+    };
+    if (!sharepointConfig.tenant_id || !sharepointConfig.client_id) {
+      toast({
+        title: "Missing required fields",
+        description: "Tenant ID and Client ID are required to save SharePoint configuration.",
+        variant: "destructive",
+      });
+      return;
+    }
+    try {
+      setSavingSharepoint(true);
+      const r = await apiFetch(`/sync/config/sharepoint`, {
+        method: "PUT",
+        credentials: "include",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ sharepoint: sharepointConfig }),
+      });
+      const body = (await r.json().catch(() => null)) as unknown;
+      if (!r.ok) {
+        const msg = body && typeof body === "object" && !Array.isArray(body) && "error" in body && typeof (body as { error?: unknown }).error === "string"
+          ? String((body as { error?: unknown }).error)
+          : `HTTP_${r.status}`;
+        throw new Error(msg);
+      }
+      toast({ title: "Saved", description: "SharePoint Sync configuration saved." });
+      await load();
+    } catch (e: unknown) {
+      toast({
+        title: "Error",
+        description: e instanceof Error ? e.message : "FAILED_TO_SAVE_SHAREPOINT_CONFIG",
+        variant: "destructive",
+      });
+    } finally {
+      setSavingSharepoint(false);
+    }
+  };
+
+  const requestSharePointDeviceCode = async () => {
+    const sharepointConfig: SharePointSyncConfig = {
+      enabled: sharepointEnabled,
+      auth_flow: "device_code",
+      delegated_permission: "Files.Read",
+      tenant_id: sharepointTenantId.trim(),
+      client_id: sharepointClientId.trim(),
+      site_url: sharepointSiteUrl.trim(),
+      library_drive_id: sharepointDriveId.trim(),
+      file_path: sharepointFilePath.trim(),
+      poll_minutes: clampInt(sharepointPollMinutes, 1, 1440, 15),
+    };
+    if (!sharepointConfig.tenant_id || !sharepointConfig.client_id) {
+      toast({
+        title: "Missing SharePoint auth fields",
+        description: "Please fill Tenant ID and Client ID first.",
+        variant: "destructive",
+      });
+      return;
+    }
+    try {
+      setRequestingDeviceCode(true);
+      const r = await apiFetch(`/sync/sharepoint/device-code`, {
+        method: "POST",
+        credentials: "include",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ sharepoint: sharepointConfig }),
+      });
+      const d = (await r.json().catch(() => null)) as unknown;
+      if (!r.ok || !d || typeof d !== "object" || Array.isArray(d)) {
+        const msg = d && typeof d === "object" && "error" in d && typeof (d as { error?: unknown }).error === "string"
+          ? String((d as { error?: unknown }).error)
+          : `HTTP_${r.status}`;
+        throw new Error(msg);
+      }
+      const payload = d as Record<string, unknown>;
+      const nextPayload: DeviceCodePayload = {
+        device_code: String(payload.device_code || ""),
+        user_code: String(payload.user_code || ""),
+        verification_uri: String(payload.verification_uri || ""),
+        expires_in: clampInt(payload.expires_in, 0, 86400, 0),
+        interval: clampInt(payload.interval, 1, 30, 5),
+        message: String(payload.message || ""),
+        scope: String(payload.scope || "Files.Read offline_access"),
+      };
+      setDeviceCodePayload(nextPayload);
+      toast({ title: "Device code generated", description: "Use the code below to authorize this app in Microsoft login page." });
+    } catch (e: unknown) {
+      toast({
+        title: "Failed to generate device code",
+        description: e instanceof Error ? e.message : "FAILED_TO_REQUEST_DEVICE_CODE",
+        variant: "destructive",
+      });
+    } finally {
+      setRequestingDeviceCode(false);
     }
   };
 
@@ -269,7 +429,8 @@ export default function SyncSettings() {
 
   return (
     <MainLayout title="Data Sync" subtitle="Configure and run one-way sync from EmployeeWorkflow to MTIMasterEmployeeDB">
-      <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+      <div className="space-y-6">
+        <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
         <Card>
           <CardHeader>
             <CardTitle>Configuration</CardTitle>
@@ -569,6 +730,160 @@ export default function SyncSettings() {
                     </div>
                   </div>
                 )}
+              </div>
+            )}
+          </CardContent>
+        </Card>
+        </div>
+
+        <Card>
+          <CardHeader>
+            <CardTitle className="flex items-center gap-2">
+              <Share2 className="h-4 w-4" />
+              SharePoint Sync
+            </CardTitle>
+            <CardDescription>
+              Configure Microsoft Graph device-code authentication using delegated Files.Read for SharePoint file sync.
+            </CardDescription>
+          </CardHeader>
+          <CardContent className="space-y-4">
+            <div className="flex items-center justify-between rounded-md border p-3">
+              <div className="space-y-0.5">
+                <div className="text-sm font-medium">Enable SharePoint Sync</div>
+                <div className="text-xs text-muted-foreground">When enabled, file polling from SharePoint can be executed by sync workers.</div>
+              </div>
+              <Switch checked={sharepointEnabled} onCheckedChange={setSharepointEnabled} disabled={loading || running} />
+            </div>
+
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
+              <div className="space-y-2">
+                <div className="text-sm font-medium">Auth Flow</div>
+                <Input value="device_code" readOnly disabled />
+              </div>
+              <div className="space-y-2">
+                <div className="text-sm font-medium">Permission</div>
+                <Input value="Files.Read (Delegated)" readOnly disabled />
+              </div>
+              <div className="space-y-2">
+                <div className="text-sm font-medium">Azure Tenant ID</div>
+                <Input
+                  placeholder="xxxxxxxx-xxxx-xxxx-xxxx-xxxxxxxxxxxx"
+                  value={sharepointTenantId}
+                  onChange={(e) => setSharepointTenantId(e.target.value)}
+                  disabled={loading || running}
+                />
+              </div>
+              <div className="space-y-2">
+                <div className="text-sm font-medium">Azure Client ID (Public Client App)</div>
+                <Input
+                  placeholder="xxxxxxxx-xxxx-xxxx-xxxx-xxxxxxxxxxxx"
+                  value={sharepointClientId}
+                  onChange={(e) => setSharepointClientId(e.target.value)}
+                  disabled={loading || running}
+                />
+              </div>
+              <div className="space-y-2 md:col-span-2">
+                <div className="text-sm font-medium">SharePoint Site URL</div>
+                <Input
+                  placeholder="https://contoso.sharepoint.com/sites/YourSite"
+                  value={sharepointSiteUrl}
+                  onChange={(e) => setSharepointSiteUrl(e.target.value)}
+                  disabled={loading || running}
+                />
+              </div>
+              <div className="space-y-2">
+                <div className="text-sm font-medium">Document Library Drive ID</div>
+                <Input
+                  placeholder="Optional: leave empty to resolve dynamically"
+                  value={sharepointDriveId}
+                  onChange={(e) => setSharepointDriveId(e.target.value)}
+                  disabled={loading || running}
+                />
+              </div>
+              <div className="space-y-2">
+                <div className="text-sm font-medium">File Path</div>
+                <Input
+                  placeholder="/Shared Documents/import/employee.xlsx"
+                  value={sharepointFilePath}
+                  onChange={(e) => setSharepointFilePath(e.target.value)}
+                  disabled={loading || running}
+                />
+              </div>
+              <div className="space-y-2">
+                <div className="text-sm font-medium">Polling Interval (minutes)</div>
+                <Input
+                  type="number"
+                  min={1}
+                  max={1440}
+                  value={sharepointPollMinutes}
+                  onChange={(e) => setSharepointPollMinutes(clampInt(e.target.value, 1, 1440, 15))}
+                  disabled={loading || running}
+                />
+              </div>
+            </div>
+
+            <div className="rounded-md border border-muted p-3 text-xs text-muted-foreground">
+              Required Azure App settings: allow public client flows, delegated Microsoft Graph permission Files.Read, and user/admin consent for your tenant.
+            </div>
+
+            <div className="flex flex-wrap items-center gap-3">
+              <Button type="button" variant="outline" onClick={saveSharepointSettings} disabled={loading || running || requestingDeviceCode || savingSharepoint}>
+                {savingSharepoint ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : null}
+                {savingSharepoint ? "Saving..." : "Save SharePoint Settings"}
+              </Button>
+              <Button type="button" onClick={requestSharePointDeviceCode} disabled={loading || running || requestingDeviceCode}>
+                {requestingDeviceCode ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : null}
+                {requestingDeviceCode ? "Requesting..." : "Generate Device Code"}
+              </Button>
+              <Button
+                type="button"
+                variant="outline"
+                disabled={!deviceCodePayload?.verification_uri}
+                onClick={() => {
+                  const url = deviceCodePayload?.verification_uri;
+                  if (!url) return;
+                  window.open(url, "_blank", "noopener,noreferrer");
+                }}
+              >
+                Open Microsoft Verification Page
+              </Button>
+            </div>
+
+            {deviceCodePayload && (
+              <div className="space-y-3 rounded-md border p-3">
+                <div className="text-sm font-medium">Authorization Code</div>
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
+                  <div className="space-y-1">
+                    <div className="text-xs text-muted-foreground">User Code</div>
+                    <div className="flex items-center gap-2">
+                      <Input value={deviceCodePayload.user_code} readOnly className="font-mono" />
+                      <Button
+                        type="button"
+                        size="icon"
+                        variant="outline"
+                        onClick={async () => {
+                          await navigator.clipboard.writeText(deviceCodePayload.user_code);
+                          toast({ title: "Copied", description: "User code copied to clipboard." });
+                        }}
+                      >
+                        <ClipboardCopy className="h-4 w-4" />
+                      </Button>
+                    </div>
+                  </div>
+                  <div className="space-y-1">
+                    <div className="text-xs text-muted-foreground">Verification URL</div>
+                    <Input value={deviceCodePayload.verification_uri} readOnly />
+                  </div>
+                  <div className="space-y-1">
+                    <div className="text-xs text-muted-foreground">Expires In (seconds)</div>
+                    <Input value={String(deviceCodePayload.expires_in)} readOnly />
+                  </div>
+                  <div className="space-y-1">
+                    <div className="text-xs text-muted-foreground">Polling Interval (seconds)</div>
+                    <Input value={String(deviceCodePayload.interval)} readOnly />
+                  </div>
+                </div>
+                <div className="text-xs text-muted-foreground whitespace-pre-wrap">{deviceCodePayload.message}</div>
               </div>
             )}
           </CardContent>

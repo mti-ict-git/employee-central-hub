@@ -7,6 +7,54 @@ export const syncRouter = Router();
 syncRouter.use(authMiddleware);
 syncRouter.use(requireRole(["admin","superadmin"]));
 
+function isRecord(value: unknown): value is Record<string, unknown> {
+  return typeof value === "object" && value !== null && !Array.isArray(value);
+}
+
+function parseJsonRecord(value: unknown): Record<string, unknown> | null {
+  if (typeof value !== "string") return null;
+  try {
+    const parsed: unknown = JSON.parse(value);
+    return isRecord(parsed) ? parsed : null;
+  } catch {
+    return null;
+  }
+}
+
+type SharePointConfig = {
+  enabled: boolean;
+  auth_flow: "device_code";
+  delegated_permission: "Files.Read";
+  tenant_id: string;
+  client_id: string;
+  site_url: string;
+  library_drive_id: string;
+  file_path: string;
+  poll_minutes: number;
+};
+
+function readSharePointConfig(value: unknown): SharePointConfig | null {
+  if (!isRecord(value)) return null;
+  const tenant_id = String(value.tenant_id || "").trim();
+  const client_id = String(value.client_id || "").trim();
+  const authFlow = String(value.auth_flow || "").trim().toLowerCase();
+  const delegatedPermission = String(value.delegated_permission || "").trim().toLowerCase();
+  if (!tenant_id || !client_id) return null;
+  if (authFlow !== "device_code") return null;
+  if (delegatedPermission !== "files.read") return null;
+  return {
+    enabled: !!value.enabled,
+    auth_flow: "device_code",
+    delegated_permission: "Files.Read",
+    tenant_id,
+    client_id,
+    site_url: String(value.site_url || "").trim(),
+    library_drive_id: String(value.library_drive_id || "").trim(),
+    file_path: String(value.file_path || "").trim(),
+    poll_minutes: Number.isFinite(Number(value.poll_minutes)) ? Math.max(1, Math.min(1440, Math.floor(Number(value.poll_minutes)))) : 15,
+  };
+}
+
 function getDestPool() {
   return new sql.ConnectionPool({
     server: CONFIG.DB.SERVER,
@@ -43,6 +91,7 @@ async function ensureSyncSchema(pool: sql.ConnectionPool) {
         enabled BIT NOT NULL CONSTRAINT DF_sync_config_enabled DEFAULT 0,
         schedule NVARCHAR(100) NULL,
         mapping NVARCHAR(MAX) NULL,
+        sharepoint NVARCHAR(MAX) NULL,
         updated_at DATETIME2 NOT NULL CONSTRAINT DF_sync_config_updated_at DEFAULT SYSDATETIME()
       );
     IF NOT EXISTS (SELECT 1 FROM dbo.sync_config WHERE id=1)
@@ -56,6 +105,8 @@ async function ensureSyncSchema(pool: sql.ConnectionPool) {
         stats NVARCHAR(MAX) NULL,
         error NVARCHAR(MAX) NULL
       );
+    IF COL_LENGTH('dbo.sync_config', 'sharepoint') IS NULL
+      ALTER TABLE dbo.sync_config ADD sharepoint NVARCHAR(MAX) NULL;
   `);
 }
 
@@ -64,12 +115,13 @@ syncRouter.get("/config", async (_req, res) => {
   try {
     await pool.connect();
     await ensureSyncSchema(pool);
-    const r = await new sql.Request(pool).query(`SELECT TOP 1 enabled, schedule, mapping, updated_at FROM dbo.sync_config WHERE id=1`);
-    const row = (r.recordset || [])[0] as { enabled?: boolean; schedule?: string; mapping?: string; updated_at?: Date } | undefined;
+    const r = await new sql.Request(pool).query(`SELECT TOP 1 enabled, schedule, mapping, sharepoint, updated_at FROM dbo.sync_config WHERE id=1`);
+    const row = (r.recordset || [])[0] as { enabled?: boolean; schedule?: string; mapping?: string; sharepoint?: string; updated_at?: Date } | undefined;
     return res.json({
       enabled: !!row?.enabled,
       schedule: row?.schedule || "",
-      mapping: row?.mapping ? JSON.parse(String(row.mapping)) : null,
+      mapping: parseJsonRecord(row?.mapping) || null,
+      sharepoint: parseJsonRecord(row?.sharepoint) || null,
       updated_at: row?.updated_at || null,
     });
   } catch (err: unknown) {
@@ -86,6 +138,7 @@ syncRouter.put("/config", async (req, res) => {
   const enabled = body.enabled === undefined ? false : !!body.enabled;
   const schedule = String(body.schedule || "");
   const mapping = body.mapping ? JSON.stringify(body.mapping) : null;
+  const sharepoint = body.sharepoint ? JSON.stringify(body.sharepoint) : null;
   try {
     await pool.connect();
     await ensureSyncSchema(pool);
@@ -93,14 +146,113 @@ syncRouter.put("/config", async (req, res) => {
     request.input("enabled", sql.Bit, enabled ? 1 : 0);
     request.input("schedule", sql.NVarChar(100), schedule || null);
     request.input("mapping", sql.NVarChar(sql.MAX), mapping);
+    request.input("sharepoint", sql.NVarChar(sql.MAX), sharepoint);
     await request.query(`
       UPDATE dbo.sync_config 
-      SET enabled=@enabled, schedule=@schedule, mapping=@mapping, updated_at=SYSDATETIME()
+      SET enabled=@enabled, schedule=@schedule, mapping=@mapping, sharepoint=@sharepoint, updated_at=SYSDATETIME()
       WHERE id=1
     `);
     return res.json({ ok: true });
   } catch (err: unknown) {
     const message = err instanceof Error ? err.message : "FAILED_TO_SAVE_SYNC_CONFIG";
+    return res.status(500).json({ error: message });
+  } finally {
+    await pool.close();
+  }
+});
+
+syncRouter.get("/config/sharepoint", async (_req, res) => {
+  const pool = getDestPool();
+  try {
+    await pool.connect();
+    await ensureSyncSchema(pool);
+    const r = await new sql.Request(pool).query(`SELECT TOP 1 sharepoint, updated_at FROM dbo.sync_config WHERE id=1`);
+    const row = (r.recordset || [])[0] as { sharepoint?: string; updated_at?: Date } | undefined;
+    const sharepoint = parseJsonRecord(row?.sharepoint) || null;
+    return res.json({ sharepoint, updated_at: row?.updated_at || null });
+  } catch (err: unknown) {
+    const message = err instanceof Error ? err.message : "FAILED_TO_READ_SHAREPOINT_CONFIG";
+    return res.status(500).json({ error: message });
+  } finally {
+    await pool.close();
+  }
+});
+
+syncRouter.put("/config/sharepoint", async (req, res) => {
+  const pool = getDestPool();
+  const input = isRecord(req.body) && isRecord(req.body.sharepoint) ? req.body.sharepoint : req.body;
+  const parsed = readSharePointConfig(input);
+  if (!parsed) return res.status(400).json({ error: "SHAREPOINT_CONFIG_INVALID" });
+  try {
+    await pool.connect();
+    await ensureSyncSchema(pool);
+    const request = new sql.Request(pool);
+    request.input("sharepoint", sql.NVarChar(sql.MAX), JSON.stringify(parsed));
+    await request.query(`
+      UPDATE dbo.sync_config
+      SET sharepoint=@sharepoint, updated_at=SYSDATETIME()
+      WHERE id=1
+    `);
+    const updated = await new sql.Request(pool).query(`SELECT TOP 1 sharepoint, updated_at FROM dbo.sync_config WHERE id=1`);
+    const row = (updated.recordset || [])[0] as { sharepoint?: string; updated_at?: Date } | undefined;
+    return res.json({
+      ok: true,
+      sharepoint: parseJsonRecord(row?.sharepoint) || null,
+      updated_at: row?.updated_at || null,
+    });
+  } catch (err: unknown) {
+    const message = err instanceof Error ? err.message : "FAILED_TO_SAVE_SHAREPOINT_CONFIG";
+    return res.status(500).json({ error: message });
+  } finally {
+    await pool.close();
+  }
+});
+
+syncRouter.post("/sharepoint/device-code", async (req, res) => {
+  const pool = getDestPool();
+  try {
+    await pool.connect();
+    await ensureSyncSchema(pool);
+    const bodySharepoint = isRecord(req.body) && isRecord(req.body.sharepoint) ? req.body.sharepoint : null;
+    let sp = readSharePointConfig(bodySharepoint);
+    if (!sp) {
+      const configRes = await new sql.Request(pool).query(`SELECT TOP 1 sharepoint FROM dbo.sync_config WHERE id=1`);
+      const row = (configRes.recordset || [])[0] as { sharepoint?: string } | undefined;
+      const parsed = parseJsonRecord(row?.sharepoint) || null;
+      sp = readSharePointConfig(parsed);
+    }
+    if (!sp) return res.status(400).json({ error: "SHAREPOINT_CONFIG_INVALID" });
+
+    const tenant = encodeURIComponent(sp.tenant_id);
+    const endpoint = `https://login.microsoftonline.com/${tenant}/oauth2/v2.0/devicecode`;
+    const body = new URLSearchParams({
+      client_id: sp.client_id,
+      scope: "Files.Read offline_access",
+    });
+    const authRes = await fetch(endpoint, {
+      method: "POST",
+      headers: { "Content-Type": "application/x-www-form-urlencoded" },
+      body,
+    });
+    const payload = (await authRes.json().catch(() => null)) as unknown;
+    if (!authRes.ok || !isRecord(payload)) {
+      const err = isRecord(payload) && typeof payload.error_description === "string"
+        ? payload.error_description
+        : `HTTP_${authRes.status}`;
+      return res.status(502).json({ error: "FAILED_TO_REQUEST_DEVICE_CODE", details: err });
+    }
+
+    return res.json({
+      device_code: String(payload.device_code || ""),
+      user_code: String(payload.user_code || ""),
+      verification_uri: String(payload.verification_uri || ""),
+      expires_in: Number(payload.expires_in || 0),
+      interval: Number(payload.interval || 5),
+      message: String(payload.message || ""),
+      scope: String(payload.scope || "Files.Read offline_access"),
+    });
+  } catch (err: unknown) {
+    const message = err instanceof Error ? err.message : "FAILED_TO_REQUEST_DEVICE_CODE";
     return res.status(500).json({ error: message });
   } finally {
     await pool.close();
