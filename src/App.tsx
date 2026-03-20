@@ -12,6 +12,7 @@ import EditEmployee from "./pages/EditEmployee";
 import AddEmployee from "./pages/AddEmployee";
 import ImportEmployees from "./pages/ImportEmployees";
 import Anniversaries from "./pages/Anniversaries";
+import EmailTemplatePreview from "./pages/EmailTemplatePreview";
 import Settings from "./pages/Settings";
 import UserManagement from "./pages/UserManagement";
 import AdminPermissions from "./pages/AdminPermissions";
@@ -245,6 +246,14 @@ const App = () => {
               element={
                 <RequireAuth>
                   <Anniversaries />
+                </RequireAuth>
+              }
+            />
+            <Route
+              path="/employees/anniversaries/email-preview"
+              element={
+                <RequireAuth>
+                  <EmailTemplatePreview />
                 </RequireAuth>
               }
             />
