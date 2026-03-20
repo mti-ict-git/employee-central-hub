@@ -147,6 +147,27 @@ const Settings = () => {
     });
   };
 
+  const handleSaveAnniversaries = () => {
+    toast({
+      title: "Anniversary Settings Updated",
+      description: "Your anniversary notification preferences have been saved.",
+    });
+  };
+
+  const addHrEmail = () => {
+    const email = newHrEmail.trim().toLowerCase();
+    if (!email || !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email)) {
+      toast({ title: "Invalid email", description: "Please enter a valid email address.", variant: "destructive" });
+      return;
+    }
+    if (hrEmails.includes(email)) {
+      toast({ title: "Duplicate", description: "This email is already added.", variant: "destructive" });
+      return;
+    }
+    setHrEmails((prev) => [...prev, email]);
+    setNewHrEmail("");
+  };
+
   const handleSavePreferences = async () => {
     try {
       setSavingPrefs(true);
