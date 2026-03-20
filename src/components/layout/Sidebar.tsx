@@ -1,6 +1,7 @@
 import { cn } from "@/lib/utils";
 import {
-  Users, 
+  Users,
+  Cake,
   LayoutDashboard, 
   UserPlus, 
   FileText, 
