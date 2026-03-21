@@ -384,3 +384,36 @@ Wednesday, December 17, 2025 4:24:46 PM - Secured env handling: added .env to .g
 - `download-file` now uses cached valid token first, then refresh-token flow, and only falls back to device-code exchange when needed (`backend/src/routes/sync.ts`).
 - Added explicit handling for already-redeemed device code (`AADSTS54005`/invalid_grant) to return a clear pending message instead of hard failure (`backend/src/routes/sync.ts`).
 - Ran `npm run lint`, `npx tsc --noEmit`, and `npm --prefix backend run typecheck` — passed (warnings only).
+
+## 2026-03-20 22:10:45 WITA — Align Check Connection with Cached Auth
+
+- Updated `POST /api/sync/sharepoint/auth-status` to use cached access token first, then refresh token, then fallback to device-code exchange (`backend/src/routes/sync.ts`).
+- Removed strict requirement for always providing fresh `device_code` in check flow; now returns `PENDING` reauth message only when cache is unusable and no valid code is available (`backend/src/routes/sync.ts`).
+- Added share-link based connection validation in auth-status when `share_url` is configured, making Check Connection useful for simple shared-link flow (`backend/src/routes/sync.ts`).
+- Ran `npm run lint`, `npx tsc --noEmit`, and `npm --prefix backend run typecheck` — passed (warnings only).
+
+## 2026-03-21 07:46:52 WITA — Restart-Safe SharePoint Action Buttons
+
+- Exposed auth-cache availability in sync config APIs (`sharepoint_auth_cached`, `sharepoint_auth_expires_at`) so frontend can detect persisted auth after app restart (`backend/src/routes/sync.ts`).
+- Updated Check Connection / Start Listener / Download button enable logic to allow actions when auth cache exists, even if in-memory device code is empty after refresh (`src/pages/SyncSettings.tsx`).
+- Removed hard backend requirement for `device_code` in download flow when cached/refresh token can be used (`backend/src/routes/sync.ts`).
+- Added UI status line for auth cache availability to make token state explicit (`src/pages/SyncSettings.tsx`).
+- Ran `npm run lint`, `npx tsc --noEmit`, and `npm --prefix backend run typecheck` — passed (warnings only).
+
+## 2026-03-21 08:22:16 WITA — Fixed Download Output Filename
+
+- Changed SharePoint review download to always overwrite the same local file: `storage/sharepoint-review/sharepoint-review.xlsx` for consistent downstream processing (`backend/src/routes/sync.ts`).
+- API response now returns `file_name` as fixed filename and `source_file_name` as original SharePoint item name (`backend/src/routes/sync.ts`).
+- Ran `npm run lint`, `npx tsc --noEmit`, and `npm --prefix backend run typecheck` — passed (warnings only).
+
+## 2026-03-21 14:04:51 WITA — Future-Ready Mapping Placeholders
+
+- Added unresolved mapping placeholders for future Excel columns (office email, month of birthday, bank/insurance/travel extras, etc.) in the master mapping JSON so HR can fill them when available (`backend/scripts/schema-mapping-final.json`).
+- Updated mapping summary counts to reflect new unresolved entries (`backend/scripts/schema-mapping-final.json`).
+- Ran `npm run lint` and `npx tsc --noEmit` — passed (warnings only).
+
+## 2026-03-21 14:11:57 WITA — Mapping Cleanup
+
+- Removed duplicate placeholder entries in schema-mapping JSON while keeping unique future columns (ID Card MTI, Residen, ICBC Bank Account No, Owlexa No, Name as Passport, Job Title KITAS) (`backend/scripts/schema-mapping-final.json`).
+- Recomputed mapping summary counts after cleanup (`backend/scripts/schema-mapping-final.json`).
+- Ran `npm run lint` and `npx tsc --noEmit` — passed (warnings only).

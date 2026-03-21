@@ -2295,13 +2295,169 @@
       "final": null,
       "decision": "unresolved",
       "rationale": ""
+    },
+    {
+      "excel": {
+        "table": null,
+        "schema": "dbo",
+        "column": null,
+        "excelName": "ID Card MTI",
+        "usedColumnHeader": "Column Name",
+        "usedTableHeader": null
+      },
+      "initial_status": "table_missing",
+      "matched": {
+        "table": null,
+        "column": null,
+        "type": null
+      },
+      "suggestions": [
+        {
+          "type": "column",
+          "value": "dbo.employee_core.id_card_mti",
+          "score": 1
+        }
+      ],
+      "final": null,
+      "decision": "unresolved",
+      "rationale": "future column"
+    },
+    {
+      "excel": {
+        "table": null,
+        "schema": "dbo",
+        "column": null,
+        "excelName": "Residen",
+        "usedColumnHeader": "Column Name",
+        "usedTableHeader": null
+      },
+      "initial_status": "table_missing",
+      "matched": {
+        "table": null,
+        "column": null,
+        "type": null
+      },
+      "suggestions": [
+        {
+          "type": "column",
+          "value": "dbo.employee_core.residen",
+          "score": 1
+        }
+      ],
+      "final": null,
+      "decision": "unresolved",
+      "rationale": "future column"
+    },
+    {
+      "excel": {
+        "table": null,
+        "schema": "dbo",
+        "column": null,
+        "excelName": "ICBC Bank Account No",
+        "usedColumnHeader": "Column Name",
+        "usedTableHeader": null
+      },
+      "initial_status": "table_missing",
+      "matched": {
+        "table": null,
+        "column": null,
+        "type": null
+      },
+      "suggestions": [
+        {
+          "type": "column",
+          "value": "dbo.employee_bank.icbc_bank_account_no",
+          "score": 1
+        }
+      ],
+      "final": null,
+      "decision": "unresolved",
+      "rationale": "future column"
+    },
+    {
+      "excel": {
+        "table": null,
+        "schema": "dbo",
+        "column": null,
+        "excelName": "Owlexa No",
+        "usedColumnHeader": "Column Name",
+        "usedTableHeader": null
+      },
+      "initial_status": "table_missing",
+      "matched": {
+        "table": null,
+        "column": null,
+        "type": null
+      },
+      "suggestions": [
+        {
+          "type": "column",
+          "value": "dbo.employee_insurance.owlexa_no",
+          "score": 1
+        }
+      ],
+      "final": null,
+      "decision": "unresolved",
+      "rationale": "future column"
+    },
+    {
+      "excel": {
+        "table": null,
+        "schema": "dbo",
+        "column": null,
+        "excelName": "Name as Passport",
+        "usedColumnHeader": "Column Name",
+        "usedTableHeader": null
+      },
+      "initial_status": "table_missing",
+      "matched": {
+        "table": null,
+        "column": null,
+        "type": null
+      },
+      "suggestions": [
+        {
+          "type": "column",
+          "value": "dbo.employee_travel.name_as_passport",
+          "score": 1
+        }
+      ],
+      "final": null,
+      "decision": "unresolved",
+      "rationale": "future column"
+    },
+    {
+      "excel": {
+        "table": null,
+        "schema": "dbo",
+        "column": null,
+        "excelName": "Job Title KITAS",
+        "usedColumnHeader": "Column Name",
+        "usedTableHeader": null
+      },
+      "initial_status": "table_missing",
+      "matched": {
+        "table": null,
+        "column": null,
+        "type": null
+      },
+      "suggestions": [
+        {
+          "type": "column",
+          "value": "dbo.employee_travel.job_title_kitas",
+          "score": 1
+        }
+      ],
+      "final": null,
+      "decision": "unresolved",
+      "rationale": "future column"
     }
   ],
   "summary": {
-    "accepted": 70,
-    "autoMapped": 5,
+    "accepted": 71,
+    "autoMapped": 4,
     "tableOnly": 0,
-    "unresolved": 28,
-    "total": 103
+    "unresolved": 34,
+    "total": 109
   }
 }

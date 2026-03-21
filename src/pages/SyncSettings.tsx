@@ -151,6 +151,7 @@ export default function SyncSettings() {
   const [downloadingSharepoint, setDownloadingSharepoint] = useState(false);
   const [downloadResult, setDownloadResult] = useState<SharePointDownloadResult | null>(null);
   const [showAdvancedPathFields, setShowAdvancedPathFields] = useState(false);
+  const [hasSharepointAuthCache, setHasSharepointAuthCache] = useState(false);
 
   useEffect(() => {
     if (!running) return;
@@ -237,6 +238,7 @@ export default function SyncSettings() {
         if (parsed.dayOfWeek !== undefined) setScheduleDayOfWeek(parsed.dayOfWeek);
         if (parsed.dayOfMonth !== undefined) setScheduleDayOfMonth(parsed.dayOfMonth);
         const sp = cfg.sharepoint;
+        setHasSharepointAuthCache(!!cfg.sharepoint_auth_cached);
         if (sp && typeof sp === "object" && !Array.isArray(sp)) {
           const record = sp as Record<string, unknown>;
           setSharepointEnabled(!!record.enabled);
@@ -445,11 +447,11 @@ export default function SyncSettings() {
   };
 
   const checkSharePointConnection = useCallback(async (silent = false) => {
-    if (!deviceCodePayload?.device_code) {
+    if (!deviceCodePayload?.device_code && !hasSharepointAuthCache) {
       if (!silent) {
         toast({
           title: "No device code",
-          description: "Generate device code first.",
+          description: "Generate device code first, or establish auth cache once.",
           variant: "destructive",
         });
       }
@@ -462,7 +464,7 @@ export default function SyncSettings() {
         credentials: "include",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
-          device_code: deviceCodePayload.device_code,
+          device_code: deviceCodePayload?.device_code || "",
           sharepoint: buildSharepointConfig(),
         }),
       });
@@ -479,6 +481,7 @@ export default function SyncSettings() {
       const stateRaw = String(data.state || "PENDING").toUpperCase();
       const message = String(data.message || "");
       if (stateRaw === "CONNECTED") {
+        setHasSharepointAuthCache(true);
         setSharepointConnectionState("ESTABLISHED");
         setSharepointConnectionMessage(message || "Connection established.");
         setListeningAuth(false);
@@ -511,20 +514,22 @@ export default function SyncSettings() {
     }
   }, [
     deviceCodePayload?.device_code,
+    hasSharepointAuthCache,
     buildSharepointConfig,
   ]);
 
   useEffect(() => {
-    if (!listeningAuth || !deviceCodePayload?.device_code) return;
+    if (!listeningAuth) return;
+    if (!deviceCodePayload?.device_code && !hasSharepointAuthCache) return;
     const wait = Math.max(3000, clampInt(deviceCodePayload.interval, 1, 30, 5) * 1000);
     const id = window.setInterval(() => {
       checkSharePointConnection(true).catch(() => {});
     }, wait);
     return () => window.clearInterval(id);
-  }, [listeningAuth, deviceCodePayload?.device_code, deviceCodePayload?.interval, checkSharePointConnection]);
+  }, [listeningAuth, deviceCodePayload?.device_code, deviceCodePayload?.interval, hasSharepointAuthCache, checkSharePointConnection]);
 
   const downloadSharePointFileForReview = async () => {
-    if (!deviceCodePayload?.device_code) {
+    if (!deviceCodePayload?.device_code && !hasSharepointAuthCache) {
       toast({
         title: "No device code",
         description: "Generate device code and complete sign-in first.",
@@ -548,7 +553,7 @@ export default function SyncSettings() {
         credentials: "include",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
-          device_code: deviceCodePayload.device_code,
+          device_code: deviceCodePayload?.device_code || "",
           share_url: sharepointConfig.share_url,
           sharepoint: sharepointConfig,
         }),
@@ -577,6 +582,7 @@ export default function SyncSettings() {
         message: String(data.message || "File downloaded."),
       };
       setDownloadResult(result);
+      setHasSharepointAuthCache(true);
       setSharepointConnectionState("ESTABLISHED");
       setSharepointConnectionMessage("CONNECTED: authentication established and file downloaded.");
       toast({ title: "Connected", description: "File downloaded and stored for review." });
@@ -1084,7 +1090,7 @@ export default function SyncSettings() {
                 onClick={() => {
                   checkSharePointConnection(false).catch(() => {});
                 }}
-                disabled={loading || running || requestingDeviceCode || checkingConnection || !deviceCodePayload?.device_code}
+                disabled={loading || running || requestingDeviceCode || checkingConnection || (!deviceCodePayload?.device_code && !hasSharepointAuthCache)}
               >
                 {checkingConnection ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : null}
                 {checkingConnection ? "Checking..." : "Check Connection"}
@@ -1093,7 +1099,7 @@ export default function SyncSettings() {
                 type="button"
                 variant={listeningAuth ? "destructive" : "outline"}
                 onClick={() => setListeningAuth((v) => !v)}
-                disabled={loading || running || requestingDeviceCode || !deviceCodePayload?.device_code}
+                disabled={loading || running || requestingDeviceCode || (!deviceCodePayload?.device_code && !hasSharepointAuthCache)}
               >
                 {listeningAuth ? "Stop Listener" : "Start Listener"}
               </Button>
@@ -1115,7 +1121,7 @@ export default function SyncSettings() {
                 onClick={() => {
                   downloadSharePointFileForReview().catch(() => {});
                 }}
-                disabled={loading || running || requestingDeviceCode || downloadingSharepoint || !deviceCodePayload?.device_code}
+                disabled={loading || running || requestingDeviceCode || downloadingSharepoint || (!deviceCodePayload?.device_code && !hasSharepointAuthCache)}
               >
                 {downloadingSharepoint ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : <Download className="mr-2 h-4 w-4" />}
                 {downloadingSharepoint ? "Downloading..." : "Download File For Review"}
@@ -1126,6 +1132,9 @@ export default function SyncSettings() {
               <div className="font-medium">Connection Status: {sharepointConnectionState}</div>
               <div className="text-xs text-muted-foreground mt-1">
                 {sharepointConnectionMessage || "No connection check executed yet."}
+              </div>
+              <div className="text-xs text-muted-foreground mt-1">
+                Auth Cache: {hasSharepointAuthCache ? "AVAILABLE" : "NOT AVAILABLE"}
               </div>
             </div>
 
