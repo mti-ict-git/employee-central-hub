@@ -1,0 +1,1759 @@
+{
+  "source": {
+    "workbook": "public/Master Data - Database Schema Proposed - Rev. 002.xlsx",
+    "sheet": "Sheet2",
+    "ignored_columns": [
+      "Active Employee (ID) New",
+      "`"
+    ],
+    "generated_at": "2026-03-21T06:21:38.883439Z"
+  },
+  "sheet_name_map": {
+    "Active Employee (ID)": "Active Empl (IND)",
+    "Inactive Employee (ID)": "Non Active (IND)",
+    "Active Employee CHN": "Active Empl (CHN)",
+    "Inactive Employee CHN": "Non Active (CHN)"
+  },
+  "columns": {
+    "Active Employee (ID)": [
+      {
+        "excelName": "Insurance (Endorsment)",
+        "db": {
+          "table": "dbo.employee_insurance",
+          "column": "insurance_endorsement"
+        },
+        "status": "mapped"
+      },
+      {
+        "excelName": "Insurance Card Owlexa",
+        "db": {
+          "table": "dbo.employee_insurance",
+          "column": "insurance_owlexa"
+        },
+        "status": "mapped"
+      },
+      {
+        "excelName": "Insurance Card FPG",
+        "db": {
+          "table": "dbo.employee_insurance",
+          "column": "insurance_fpg"
+        },
+        "status": "mapped"
+      },
+      {
+        "excelName": "Emp. ID",
+        "db": [
+          {
+            "table": "dbo.employee_bank",
+            "column": "employee_id"
+          },
+          {
+            "table": "dbo.employee_contact",
+            "column": "employee_id"
+          },
+          {
+            "table": "dbo.employee_core",
+            "column": "employee_id"
+          },
+          {
+            "table": "dbo.employee_employment",
+            "column": "employee_id"
+          },
+          {
+            "table": "dbo.employee_insurance",
+            "column": "employee_id"
+          },
+          {
+            "table": "dbo.employee_onboard",
+            "column": "employee_id"
+          },
+          {
+            "table": "dbo.employee_travel",
+            "column": "employee_id"
+          }
+        ],
+        "status": "mapped"
+      },
+      {
+        "excelName": "IMIP ID",
+        "db": {
+          "table": "dbo.employee_core",
+          "column": "imip_id"
+        },
+        "status": "mapped"
+      },
+      {
+        "excelName": "Employee Name",
+        "db": {
+          "table": "dbo.employee_core",
+          "column": "name"
+        },
+        "status": "mapped"
+      },
+      {
+        "excelName": "Gender",
+        "db": {
+          "table": "dbo.employee_core",
+          "column": "gender"
+        },
+        "status": "mapped"
+      },
+      {
+        "excelName": "Place of Birth",
+        "db": {
+          "table": "dbo.employee_core",
+          "column": "place_of_birth"
+        },
+        "status": "mapped"
+      },
+      {
+        "excelName": "Date of Birth",
+        "db": {
+          "table": "dbo.employee_core",
+          "column": "date_of_birth"
+        },
+        "status": "mapped"
+      },
+      {
+        "excelName": "Age",
+        "db": {
+          "table": "dbo.employee_core",
+          "column": "age"
+        },
+        "status": "mapped"
+      },
+      {
+        "excelName": "Marital Status",
+        "db": {
+          "table": "dbo.employee_core",
+          "column": "marital_status"
+        },
+        "status": "mapped"
+      },
+      {
+        "excelName": "Tax Status",
+        "db": {
+          "table": "dbo.employee_core",
+          "column": "tax_status"
+        },
+        "status": "mapped"
+      },
+      {
+        "excelName": "Spouse Name",
+        "db": {
+          "table": "dbo.employee_contact",
+          "column": "spouse_name"
+        },
+        "status": "mapped"
+      },
+      {
+        "excelName": "Child Name 1",
+        "db": {
+          "table": "dbo.employee_contact",
+          "column": "child_name_1"
+        },
+        "status": "mapped"
+      },
+      {
+        "excelName": "Child Name 2",
+        "db": {
+          "table": "dbo.employee_contact",
+          "column": "child_name_2"
+        },
+        "status": "mapped"
+      },
+      {
+        "excelName": "Child Name 3",
+        "db": {
+          "table": "dbo.employee_contact",
+          "column": "child_name_3"
+        },
+        "status": "mapped"
+      },
+      {
+        "excelName": "Religion",
+        "db": {
+          "table": "dbo.employee_core",
+          "column": "religion"
+        },
+        "status": "mapped"
+      },
+      {
+        "excelName": "Nationality",
+        "db": {
+          "table": "dbo.employee_core",
+          "column": "nationality"
+        },
+        "status": "mapped"
+      },
+      {
+        "excelName": "Blood Type",
+        "db": {
+          "table": "dbo.employee_core",
+          "column": "blood_type"
+        },
+        "status": "mapped"
+      },
+      {
+        "excelName": "Mobile Phone",
+        "db": {
+          "table": "dbo.employee_contact",
+          "column": "phone_number"
+        },
+        "status": "mapped"
+      },
+      {
+        "excelName": "Emergency Contact Name",
+        "db": {
+          "table": "dbo.employee_contact",
+          "column": "emergency_contact_name"
+        },
+        "status": "mapped"
+      },
+      {
+        "excelName": "Emergency Contact Phone",
+        "db": {
+          "table": "dbo.employee_contact",
+          "column": "emergency_contact_phone"
+        },
+        "status": "mapped"
+      },
+      {
+        "excelName": "Email",
+        "db": null,
+        "status": "unmapped"
+      },
+      {
+        "excelName": "Kartu Keluarga No",
+        "db": {
+          "table": "dbo.employee_core",
+          "column": "kartu_keluarga_no"
+        },
+        "status": "mapped"
+      },
+      {
+        "excelName": "KTP No",
+        "db": {
+          "table": "dbo.employee_core",
+          "column": "ktp_no"
+        },
+        "status": "mapped"
+      },
+      {
+        "excelName": "KTP Address",
+        "db": {
+          "table": "dbo.employee_contact",
+          "column": "address"
+        },
+        "status": "mapped"
+      },
+      {
+        "excelName": "KTP City",
+        "db": {
+          "table": "dbo.employee_contact",
+          "column": "city"
+        },
+        "status": "mapped"
+      },
+      {
+        "excelName": "Poin of Hire",
+        "db": {
+          "table": "dbo.employee_onboard",
+          "column": "point_of_hire"
+        },
+        "status": "mapped"
+      },
+      {
+        "excelName": "Poin of Origin",
+        "db": {
+          "table": "dbo.employee_onboard",
+          "column": "point_of_origin"
+        },
+        "status": "mapped"
+      },
+      {
+        "excelName": "Education",
+        "db": {
+          "table": "dbo.employee_core",
+          "column": "education"
+        },
+        "status": "mapped"
+      },
+      {
+        "excelName": "Schedule Type",
+        "db": {
+          "table": "dbo.employee_onboard",
+          "column": "schedule_type"
+        },
+        "status": "mapped"
+      },
+      {
+        "excelName": "First Join Date (Merdeka Group)",
+        "db": {
+          "table": "dbo.employee_onboard",
+          "column": "first_join_date_merdeka"
+        },
+        "status": "mapped"
+      },
+      {
+        "excelName": "Transfer Merdeka Group",
+        "db": {
+          "table": "dbo.employee_onboard",
+          "column": "transfer_merdeka"
+        },
+        "status": "mapped"
+      },
+      {
+        "excelName": "First Join Date",
+        "db": {
+          "table": "dbo.employee_onboard",
+          "column": "first_join_date"
+        },
+        "status": "mapped"
+      },
+      {
+        "excelName": "Join Date",
+        "db": {
+          "table": "dbo.employee_onboard",
+          "column": "join_date"
+        },
+        "status": "mapped"
+      },
+      {
+        "excelName": "Employment Status",
+        "db": {
+          "table": "dbo.employee_onboard",
+          "column": "employment_status"
+        },
+        "status": "mapped"
+      },
+      {
+        "excelName": "End Contract",
+        "db": {
+          "table": "dbo.employee_onboard",
+          "column": "end_contract"
+        },
+        "status": "mapped"
+      },
+      {
+        "excelName": "Years in Service",
+        "db": {
+          "table": "dbo.employee_onboard",
+          "column": "years_in_service"
+        },
+        "status": "mapped"
+      },
+      {
+        "excelName": "Branch ID",
+        "db": null,
+        "status": "unmapped"
+      },
+      {
+        "excelName": "Branch",
+        "db": {
+          "table": "dbo.employee_core",
+          "column": "Branch"
+        },
+        "status": "mapped"
+      },
+      {
+        "excelName": "Division",
+        "db": {
+          "table": "dbo.employee_employment",
+          "column": "division"
+        },
+        "status": "mapped"
+      },
+      {
+        "excelName": "Department",
+        "db": {
+          "table": "dbo.employee_employment",
+          "column": "department"
+        },
+        "status": "mapped"
+      },
+      {
+        "excelName": "Section",
+        "db": {
+          "table": "dbo.employee_employment",
+          "column": "section"
+        },
+        "status": "mapped"
+      },
+      {
+        "excelName": "Direct Report",
+        "db": {
+          "table": "dbo.employee_employment",
+          "column": "direct_report"
+        },
+        "status": "mapped"
+      },
+      {
+        "excelName": "Job Title",
+        "db": {
+          "table": "dbo.employee_employment",
+          "column": "job_title"
+        },
+        "status": "mapped"
+      },
+      {
+        "excelName": "Grade",
+        "db": {
+          "table": "dbo.employee_employment",
+          "column": "grade"
+        },
+        "status": "mapped"
+      },
+      {
+        "excelName": "Position Grade",
+        "db": {
+          "table": "dbo.employee_employment",
+          "column": "position_grade"
+        },
+        "status": "mapped"
+      },
+      {
+        "excelName": "Group Job Title",
+        "db": {
+          "table": "dbo.employee_employment",
+          "column": "group_job_title"
+        },
+        "status": "mapped"
+      },
+      {
+        "excelName": "Bank Name",
+        "db": {
+          "table": "dbo.employee_bank",
+          "column": "bank_name"
+        },
+        "status": "mapped"
+      },
+      {
+        "excelName": "Account Name",
+        "db": {
+          "table": "dbo.employee_bank",
+          "column": "account_name"
+        },
+        "status": "mapped"
+      },
+      {
+        "excelName": "Account No",
+        "db": {
+          "table": "dbo.employee_bank",
+          "column": "account_no"
+        },
+        "status": "mapped"
+      },
+      {
+        "excelName": "NPWP",
+        "db": {
+          "table": "dbo.employee_core",
+          "column": "npwp"
+        },
+        "status": "mapped"
+      },
+      {
+        "excelName": "BPJS TK No",
+        "db": {
+          "table": "dbo.employee_insurance",
+          "column": "bpjs_tk"
+        },
+        "status": "mapped"
+      },
+      {
+        "excelName": "BPJS KES No",
+        "db": {
+          "table": "dbo.employee_insurance",
+          "column": "bpjs_kes"
+        },
+        "status": "mapped"
+      },
+      {
+        "excelName": "STATUS BPJS Kesehatan",
+        "db": {
+          "table": "dbo.employee_insurance",
+          "column": "status_bpjs_kes"
+        },
+        "status": "mapped"
+      },
+      {
+        "excelName": "Travel In",
+        "db": {
+          "table": "dbo.employee_travel",
+          "column": "travel_in"
+        },
+        "status": "mapped"
+      },
+      {
+        "excelName": "Travel Out",
+        "db": {
+          "table": "dbo.employee_travel",
+          "column": "travel_out"
+        },
+        "status": "mapped"
+      }
+    ],
+    "Inactive Employee (ID)": [
+      {
+        "excelName": "Insurance (Endorsment)",
+        "db": {
+          "table": "dbo.employee_insurance",
+          "column": "insurance_endorsement"
+        },
+        "status": "mapped"
+      },
+      {
+        "excelName": "Insurance Card Owlexa",
+        "db": {
+          "table": "dbo.employee_insurance",
+          "column": "insurance_owlexa"
+        },
+        "status": "mapped"
+      },
+      {
+        "excelName": "Insurance Card FPG",
+        "db": {
+          "table": "dbo.employee_insurance",
+          "column": "insurance_fpg"
+        },
+        "status": "mapped"
+      },
+      {
+        "excelName": "Emp. ID",
+        "db": [
+          {
+            "table": "dbo.employee_bank",
+            "column": "employee_id"
+          },
+          {
+            "table": "dbo.employee_contact",
+            "column": "employee_id"
+          },
+          {
+            "table": "dbo.employee_core",
+            "column": "employee_id"
+          },
+          {
+            "table": "dbo.employee_employment",
+            "column": "employee_id"
+          },
+          {
+            "table": "dbo.employee_insurance",
+            "column": "employee_id"
+          },
+          {
+            "table": "dbo.employee_onboard",
+            "column": "employee_id"
+          },
+          {
+            "table": "dbo.employee_travel",
+            "column": "employee_id"
+          }
+        ],
+        "status": "mapped"
+      },
+      {
+        "excelName": "IMIP ID",
+        "db": {
+          "table": "dbo.employee_core",
+          "column": "imip_id"
+        },
+        "status": "mapped"
+      },
+      {
+        "excelName": "Employee Name",
+        "db": {
+          "table": "dbo.employee_core",
+          "column": "name"
+        },
+        "status": "mapped"
+      },
+      {
+        "excelName": "Gender",
+        "db": {
+          "table": "dbo.employee_core",
+          "column": "gender"
+        },
+        "status": "mapped"
+      },
+      {
+        "excelName": "Place of Birth",
+        "db": {
+          "table": "dbo.employee_core",
+          "column": "place_of_birth"
+        },
+        "status": "mapped"
+      },
+      {
+        "excelName": "Date of Birth",
+        "db": {
+          "table": "dbo.employee_core",
+          "column": "date_of_birth"
+        },
+        "status": "mapped"
+      },
+      {
+        "excelName": "Age",
+        "db": {
+          "table": "dbo.employee_core",
+          "column": "age"
+        },
+        "status": "mapped"
+      },
+      {
+        "excelName": "Marital Status",
+        "db": {
+          "table": "dbo.employee_core",
+          "column": "marital_status"
+        },
+        "status": "mapped"
+      },
+      {
+        "excelName": "Tax Status",
+        "db": {
+          "table": "dbo.employee_core",
+          "column": "tax_status"
+        },
+        "status": "mapped"
+      },
+      {
+        "excelName": "Spouse Name",
+        "db": {
+          "table": "dbo.employee_contact",
+          "column": "spouse_name"
+        },
+        "status": "mapped"
+      },
+      {
+        "excelName": "Child Name 1",
+        "db": {
+          "table": "dbo.employee_contact",
+          "column": "child_name_1"
+        },
+        "status": "mapped"
+      },
+      {
+        "excelName": "Child Name 2",
+        "db": {
+          "table": "dbo.employee_contact",
+          "column": "child_name_2"
+        },
+        "status": "mapped"
+      },
+      {
+        "excelName": "Child Name 3",
+        "db": {
+          "table": "dbo.employee_contact",
+          "column": "child_name_3"
+        },
+        "status": "mapped"
+      },
+      {
+        "excelName": "Religion",
+        "db": {
+          "table": "dbo.employee_core",
+          "column": "religion"
+        },
+        "status": "mapped"
+      },
+      {
+        "excelName": "Nationality",
+        "db": {
+          "table": "dbo.employee_core",
+          "column": "nationality"
+        },
+        "status": "mapped"
+      },
+      {
+        "excelName": "Blood Type",
+        "db": {
+          "table": "dbo.employee_core",
+          "column": "blood_type"
+        },
+        "status": "mapped"
+      },
+      {
+        "excelName": "Mobile Phone",
+        "db": {
+          "table": "dbo.employee_contact",
+          "column": "phone_number"
+        },
+        "status": "mapped"
+      },
+      {
+        "excelName": "Emergency Contact Name",
+        "db": {
+          "table": "dbo.employee_contact",
+          "column": "emergency_contact_name"
+        },
+        "status": "mapped"
+      },
+      {
+        "excelName": "Emergency Contact Phone",
+        "db": {
+          "table": "dbo.employee_contact",
+          "column": "emergency_contact_phone"
+        },
+        "status": "mapped"
+      },
+      {
+        "excelName": "Email",
+        "db": null,
+        "status": "unmapped"
+      },
+      {
+        "excelName": "Kartu Keluarga No",
+        "db": {
+          "table": "dbo.employee_core",
+          "column": "kartu_keluarga_no"
+        },
+        "status": "mapped"
+      },
+      {
+        "excelName": "KTP No",
+        "db": {
+          "table": "dbo.employee_core",
+          "column": "ktp_no"
+        },
+        "status": "mapped"
+      },
+      {
+        "excelName": "KTP Address",
+        "db": {
+          "table": "dbo.employee_contact",
+          "column": "address"
+        },
+        "status": "mapped"
+      },
+      {
+        "excelName": "KTP City",
+        "db": {
+          "table": "dbo.employee_contact",
+          "column": "city"
+        },
+        "status": "mapped"
+      },
+      {
+        "excelName": "Poin of Hire",
+        "db": {
+          "table": "dbo.employee_onboard",
+          "column": "point_of_hire"
+        },
+        "status": "mapped"
+      },
+      {
+        "excelName": "Poin of Origin",
+        "db": {
+          "table": "dbo.employee_onboard",
+          "column": "point_of_origin"
+        },
+        "status": "mapped"
+      },
+      {
+        "excelName": "Education",
+        "db": {
+          "table": "dbo.employee_core",
+          "column": "education"
+        },
+        "status": "mapped"
+      },
+      {
+        "excelName": "Schedule Type",
+        "db": {
+          "table": "dbo.employee_onboard",
+          "column": "schedule_type"
+        },
+        "status": "mapped"
+      },
+      {
+        "excelName": "First Join Date (Merdeka Group)",
+        "db": {
+          "table": "dbo.employee_onboard",
+          "column": "first_join_date_merdeka"
+        },
+        "status": "mapped"
+      },
+      {
+        "excelName": "Transfer Merdeka Group",
+        "db": {
+          "table": "dbo.employee_onboard",
+          "column": "transfer_merdeka"
+        },
+        "status": "mapped"
+      },
+      {
+        "excelName": "First Join Date",
+        "db": {
+          "table": "dbo.employee_onboard",
+          "column": "first_join_date"
+        },
+        "status": "mapped"
+      },
+      {
+        "excelName": "Join Date",
+        "db": {
+          "table": "dbo.employee_onboard",
+          "column": "join_date"
+        },
+        "status": "mapped"
+      },
+      {
+        "excelName": "Employment Status",
+        "db": {
+          "table": "dbo.employee_onboard",
+          "column": "employment_status"
+        },
+        "status": "mapped"
+      },
+      {
+        "excelName": "End Contract",
+        "db": {
+          "table": "dbo.employee_onboard",
+          "column": "end_contract"
+        },
+        "status": "mapped"
+      },
+      {
+        "excelName": "Years in Service",
+        "db": {
+          "table": "dbo.employee_onboard",
+          "column": "years_in_service"
+        },
+        "status": "mapped"
+      },
+      {
+        "excelName": "Branch ID",
+        "db": null,
+        "status": "unmapped"
+      },
+      {
+        "excelName": "Branch",
+        "db": {
+          "table": "dbo.employee_core",
+          "column": "Branch"
+        },
+        "status": "mapped"
+      },
+      {
+        "excelName": "Division",
+        "db": {
+          "table": "dbo.employee_employment",
+          "column": "division"
+        },
+        "status": "mapped"
+      },
+      {
+        "excelName": "Department",
+        "db": {
+          "table": "dbo.employee_employment",
+          "column": "department"
+        },
+        "status": "mapped"
+      },
+      {
+        "excelName": "Section",
+        "db": {
+          "table": "dbo.employee_employment",
+          "column": "section"
+        },
+        "status": "mapped"
+      },
+      {
+        "excelName": "Direct Report",
+        "db": {
+          "table": "dbo.employee_employment",
+          "column": "direct_report"
+        },
+        "status": "mapped"
+      },
+      {
+        "excelName": "Job Title",
+        "db": {
+          "table": "dbo.employee_employment",
+          "column": "job_title"
+        },
+        "status": "mapped"
+      },
+      {
+        "excelName": "Grade",
+        "db": {
+          "table": "dbo.employee_employment",
+          "column": "grade"
+        },
+        "status": "mapped"
+      },
+      {
+        "excelName": "Position Grade",
+        "db": {
+          "table": "dbo.employee_employment",
+          "column": "position_grade"
+        },
+        "status": "mapped"
+      },
+      {
+        "excelName": "Group Job Title",
+        "db": {
+          "table": "dbo.employee_employment",
+          "column": "group_job_title"
+        },
+        "status": "mapped"
+      },
+      {
+        "excelName": "Bank Name",
+        "db": {
+          "table": "dbo.employee_bank",
+          "column": "bank_name"
+        },
+        "status": "mapped"
+      },
+      {
+        "excelName": "Account Name",
+        "db": {
+          "table": "dbo.employee_bank",
+          "column": "account_name"
+        },
+        "status": "mapped"
+      },
+      {
+        "excelName": "Account No",
+        "db": {
+          "table": "dbo.employee_bank",
+          "column": "account_no"
+        },
+        "status": "mapped"
+      },
+      {
+        "excelName": "NPWP",
+        "db": {
+          "table": "dbo.employee_core",
+          "column": "npwp"
+        },
+        "status": "mapped"
+      },
+      {
+        "excelName": "Social Insurance No",
+        "db": null,
+        "status": "unmapped"
+      },
+      {
+        "excelName": "BPJS Kesehatan No",
+        "db": null,
+        "status": "unmapped"
+      },
+      {
+        "excelName": "Terminated Date",
+        "db": {
+          "table": "dbo.employee_employment",
+          "column": "terminated_date"
+        },
+        "status": "mapped"
+      },
+      {
+        "excelName": "Terminated Type",
+        "db": {
+          "table": "dbo.employee_employment",
+          "column": "terminated_type"
+        },
+        "status": "mapped"
+      },
+      {
+        "excelName": "Terminated Reason",
+        "db": {
+          "table": "dbo.employee_employment",
+          "column": "terminated_reason"
+        },
+        "status": "mapped"
+      },
+      {
+        "excelName": "Black List MTI",
+        "db": {
+          "table": "dbo.employee_employment",
+          "column": "blacklist_mti"
+        },
+        "status": "mapped"
+      },
+      {
+        "excelName": "Black List IMIP",
+        "db": {
+          "table": "dbo.employee_employment",
+          "column": "blacklist_imip"
+        },
+        "status": "mapped"
+      }
+    ],
+    "Active Employee CHN": [
+      {
+        "excelName": "Insurance (Endorsment)",
+        "db": {
+          "table": "dbo.employee_insurance",
+          "column": "insurance_endorsement"
+        },
+        "status": "mapped"
+      },
+      {
+        "excelName": "Insurance (Card) Owlexa",
+        "db": null,
+        "status": "unmapped"
+      },
+      {
+        "excelName": "Insurance (Card) FPG",
+        "db": null,
+        "status": "unmapped"
+      },
+      {
+        "excelName": "Emp. ID",
+        "db": [
+          {
+            "table": "dbo.employee_bank",
+            "column": "employee_id"
+          },
+          {
+            "table": "dbo.employee_contact",
+            "column": "employee_id"
+          },
+          {
+            "table": "dbo.employee_core",
+            "column": "employee_id"
+          },
+          {
+            "table": "dbo.employee_employment",
+            "column": "employee_id"
+          },
+          {
+            "table": "dbo.employee_insurance",
+            "column": "employee_id"
+          },
+          {
+            "table": "dbo.employee_onboard",
+            "column": "employee_id"
+          },
+          {
+            "table": "dbo.employee_travel",
+            "column": "employee_id"
+          }
+        ],
+        "status": "mapped"
+      },
+      {
+        "excelName": "Employee Name",
+        "db": {
+          "table": "dbo.employee_core",
+          "column": "name"
+        },
+        "status": "mapped"
+      },
+      {
+        "excelName": "Gender",
+        "db": {
+          "table": "dbo.employee_core",
+          "column": "gender"
+        },
+        "status": "mapped"
+      },
+      {
+        "excelName": "Place of Birth",
+        "db": {
+          "table": "dbo.employee_core",
+          "column": "place_of_birth"
+        },
+        "status": "mapped"
+      },
+      {
+        "excelName": "Date of Birth",
+        "db": {
+          "table": "dbo.employee_core",
+          "column": "date_of_birth"
+        },
+        "status": "mapped"
+      },
+      {
+        "excelName": "Age",
+        "db": {
+          "table": "dbo.employee_core",
+          "column": "age"
+        },
+        "status": "mapped"
+      },
+      {
+        "excelName": "Marital Status",
+        "db": {
+          "table": "dbo.employee_core",
+          "column": "marital_status"
+        },
+        "status": "mapped"
+      },
+      {
+        "excelName": "Tax Status",
+        "db": {
+          "table": "dbo.employee_core",
+          "column": "tax_status"
+        },
+        "status": "mapped"
+      },
+      {
+        "excelName": "Religion",
+        "db": {
+          "table": "dbo.employee_core",
+          "column": "religion"
+        },
+        "status": "mapped"
+      },
+      {
+        "excelName": "Nationality",
+        "db": {
+          "table": "dbo.employee_core",
+          "column": "nationality"
+        },
+        "status": "mapped"
+      },
+      {
+        "excelName": "Blood Type",
+        "db": {
+          "table": "dbo.employee_core",
+          "column": "blood_type"
+        },
+        "status": "mapped"
+      },
+      {
+        "excelName": "Mobile Phone",
+        "db": {
+          "table": "dbo.employee_contact",
+          "column": "phone_number"
+        },
+        "status": "mapped"
+      },
+      {
+        "excelName": "Email",
+        "db": null,
+        "status": "unmapped"
+      },
+      {
+        "excelName": "KTP No",
+        "db": {
+          "table": "dbo.employee_core",
+          "column": "ktp_no"
+        },
+        "status": "mapped"
+      },
+      {
+        "excelName": "KTP Address",
+        "db": {
+          "table": "dbo.employee_contact",
+          "column": "address"
+        },
+        "status": "mapped"
+      },
+      {
+        "excelName": "KTP City",
+        "db": {
+          "table": "dbo.employee_contact",
+          "column": "city"
+        },
+        "status": "mapped"
+      },
+      {
+        "excelName": "Poin of Hire",
+        "db": {
+          "table": "dbo.employee_onboard",
+          "column": "point_of_hire"
+        },
+        "status": "mapped"
+      },
+      {
+        "excelName": "Poin of Origin",
+        "db": {
+          "table": "dbo.employee_onboard",
+          "column": "point_of_origin"
+        },
+        "status": "mapped"
+      },
+      {
+        "excelName": "Education",
+        "db": {
+          "table": "dbo.employee_core",
+          "column": "education"
+        },
+        "status": "mapped"
+      },
+      {
+        "excelName": "Schedule Type",
+        "db": {
+          "table": "dbo.employee_onboard",
+          "column": "schedule_type"
+        },
+        "status": "mapped"
+      },
+      {
+        "excelName": "First Join Date",
+        "db": {
+          "table": "dbo.employee_onboard",
+          "column": "first_join_date"
+        },
+        "status": "mapped"
+      },
+      {
+        "excelName": "Join Date",
+        "db": {
+          "table": "dbo.employee_onboard",
+          "column": "join_date"
+        },
+        "status": "mapped"
+      },
+      {
+        "excelName": "Employment Status",
+        "db": {
+          "table": "dbo.employee_onboard",
+          "column": "employment_status"
+        },
+        "status": "mapped"
+      },
+      {
+        "excelName": "End Contract",
+        "db": {
+          "table": "dbo.employee_onboard",
+          "column": "end_contract"
+        },
+        "status": "mapped"
+      },
+      {
+        "excelName": "Years in Service",
+        "db": {
+          "table": "dbo.employee_onboard",
+          "column": "years_in_service"
+        },
+        "status": "mapped"
+      },
+      {
+        "excelName": "Company Office",
+        "db": {
+          "table": "dbo.employee_employment",
+          "column": "company_office"
+        },
+        "status": "mapped"
+      },
+      {
+        "excelName": "Work Location",
+        "db": {
+          "table": "dbo.employee_employment",
+          "column": "work_location"
+        },
+        "status": "mapped"
+      },
+      {
+        "excelName": "Division",
+        "db": {
+          "table": "dbo.employee_employment",
+          "column": "division"
+        },
+        "status": "mapped"
+      },
+      {
+        "excelName": "Department",
+        "db": {
+          "table": "dbo.employee_employment",
+          "column": "department"
+        },
+        "status": "mapped"
+      },
+      {
+        "excelName": "Section",
+        "db": {
+          "table": "dbo.employee_employment",
+          "column": "section"
+        },
+        "status": "mapped"
+      },
+      {
+        "excelName": "Direct Report",
+        "db": {
+          "table": "dbo.employee_employment",
+          "column": "direct_report"
+        },
+        "status": "mapped"
+      },
+      {
+        "excelName": "Job Title",
+        "db": {
+          "table": "dbo.employee_employment",
+          "column": "job_title"
+        },
+        "status": "mapped"
+      },
+      {
+        "excelName": "Grade",
+        "db": {
+          "table": "dbo.employee_employment",
+          "column": "grade"
+        },
+        "status": "mapped"
+      },
+      {
+        "excelName": "Position Grade",
+        "db": {
+          "table": "dbo.employee_employment",
+          "column": "position_grade"
+        },
+        "status": "mapped"
+      },
+      {
+        "excelName": "NPWP",
+        "db": {
+          "table": "dbo.employee_core",
+          "column": "npwp"
+        },
+        "status": "mapped"
+      },
+      {
+        "excelName": "BPJS TK No",
+        "db": {
+          "table": "dbo.employee_insurance",
+          "column": "bpjs_tk"
+        },
+        "status": "mapped"
+      },
+      {
+        "excelName": "BPJS KES No",
+        "db": {
+          "table": "dbo.employee_insurance",
+          "column": "bpjs_kes"
+        },
+        "status": "mapped"
+      },
+      {
+        "excelName": "STATUS BPJS Kesehatan",
+        "db": {
+          "table": "dbo.employee_insurance",
+          "column": "status_bpjs_kes"
+        },
+        "status": "mapped"
+      },
+      {
+        "excelName": "KITAS NO",
+        "db": {
+          "table": "dbo.employee_travel",
+          "column": "kitas_no"
+        },
+        "status": "mapped"
+      },
+      {
+        "excelName": "PASSPORT ID",
+        "db": {
+          "table": "dbo.employee_travel",
+          "column": "passport_no"
+        },
+        "status": "mapped"
+      },
+      {
+        "excelName": "Travel In",
+        "db": {
+          "table": "dbo.employee_travel",
+          "column": "travel_in"
+        },
+        "status": "mapped"
+      },
+      {
+        "excelName": "Travel Out",
+        "db": {
+          "table": "dbo.employee_travel",
+          "column": "travel_out"
+        },
+        "status": "mapped"
+      }
+    ],
+    "Inactive Employee CHN": [
+      {
+        "excelName": "Insurance (Endorsment)",
+        "db": {
+          "table": "dbo.employee_insurance",
+          "column": "insurance_endorsement"
+        },
+        "status": "mapped"
+      },
+      {
+        "excelName": "Insurance (Card) Owlexa",
+        "db": null,
+        "status": "unmapped"
+      },
+      {
+        "excelName": "Insurance (Card) FPG",
+        "db": null,
+        "status": "unmapped"
+      },
+      {
+        "excelName": "Emp. ID",
+        "db": [
+          {
+            "table": "dbo.employee_bank",
+            "column": "employee_id"
+          },
+          {
+            "table": "dbo.employee_contact",
+            "column": "employee_id"
+          },
+          {
+            "table": "dbo.employee_core",
+            "column": "employee_id"
+          },
+          {
+            "table": "dbo.employee_employment",
+            "column": "employee_id"
+          },
+          {
+            "table": "dbo.employee_insurance",
+            "column": "employee_id"
+          },
+          {
+            "table": "dbo.employee_onboard",
+            "column": "employee_id"
+          },
+          {
+            "table": "dbo.employee_travel",
+            "column": "employee_id"
+          }
+        ],
+        "status": "mapped"
+      },
+      {
+        "excelName": "Employee Name",
+        "db": {
+          "table": "dbo.employee_core",
+          "column": "name"
+        },
+        "status": "mapped"
+      },
+      {
+        "excelName": "Gender",
+        "db": {
+          "table": "dbo.employee_core",
+          "column": "gender"
+        },
+        "status": "mapped"
+      },
+      {
+        "excelName": "Place of Birth",
+        "db": {
+          "table": "dbo.employee_core",
+          "column": "place_of_birth"
+        },
+        "status": "mapped"
+      },
+      {
+        "excelName": "Date of Birth",
+        "db": {
+          "table": "dbo.employee_core",
+          "column": "date_of_birth"
+        },
+        "status": "mapped"
+      },
+      {
+        "excelName": "Age",
+        "db": {
+          "table": "dbo.employee_core",
+          "column": "age"
+        },
+        "status": "mapped"
+      },
+      {
+        "excelName": "Marital Status",
+        "db": {
+          "table": "dbo.employee_core",
+          "column": "marital_status"
+        },
+        "status": "mapped"
+      },
+      {
+        "excelName": "Tax Status",
+        "db": {
+          "table": "dbo.employee_core",
+          "column": "tax_status"
+        },
+        "status": "mapped"
+      },
+      {
+        "excelName": "Religion",
+        "db": {
+          "table": "dbo.employee_core",
+          "column": "religion"
+        },
+        "status": "mapped"
+      },
+      {
+        "excelName": "Nationality",
+        "db": {
+          "table": "dbo.employee_core",
+          "column": "nationality"
+        },
+        "status": "mapped"
+      },
+      {
+        "excelName": "Blood Type",
+        "db": {
+          "table": "dbo.employee_core",
+          "column": "blood_type"
+        },
+        "status": "mapped"
+      },
+      {
+        "excelName": "Mobile Phone",
+        "db": {
+          "table": "dbo.employee_contact",
+          "column": "phone_number"
+        },
+        "status": "mapped"
+      },
+      {
+        "excelName": "Email",
+        "db": null,
+        "status": "unmapped"
+      },
+      {
+        "excelName": "KTP No",
+        "db": {
+          "table": "dbo.employee_core",
+          "column": "ktp_no"
+        },
+        "status": "mapped"
+      },
+      {
+        "excelName": "KTP Address",
+        "db": {
+          "table": "dbo.employee_contact",
+          "column": "address"
+        },
+        "status": "mapped"
+      },
+      {
+        "excelName": "KTP City",
+        "db": {
+          "table": "dbo.employee_contact",
+          "column": "city"
+        },
+        "status": "mapped"
+      },
+      {
+        "excelName": "Poin of Hire",
+        "db": {
+          "table": "dbo.employee_onboard",
+          "column": "point_of_hire"
+        },
+        "status": "mapped"
+      },
+      {
+        "excelName": "Poin of Origin",
+        "db": {
+          "table": "dbo.employee_onboard",
+          "column": "point_of_origin"
+        },
+        "status": "mapped"
+      },
+      {
+        "excelName": "Education",
+        "db": {
+          "table": "dbo.employee_core",
+          "column": "education"
+        },
+        "status": "mapped"
+      },
+      {
+        "excelName": "Schedule Type",
+        "db": {
+          "table": "dbo.employee_onboard",
+          "column": "schedule_type"
+        },
+        "status": "mapped"
+      },
+      {
+        "excelName": "First Join Date",
+        "db": {
+          "table": "dbo.employee_onboard",
+          "column": "first_join_date"
+        },
+        "status": "mapped"
+      },
+      {
+        "excelName": "Join Date",
+        "db": {
+          "table": "dbo.employee_onboard",
+          "column": "join_date"
+        },
+        "status": "mapped"
+      },
+      {
+        "excelName": "Employment Status",
+        "db": {
+          "table": "dbo.employee_onboard",
+          "column": "employment_status"
+        },
+        "status": "mapped"
+      },
+      {
+        "excelName": "End Contract",
+        "db": {
+          "table": "dbo.employee_onboard",
+          "column": "end_contract"
+        },
+        "status": "mapped"
+      },
+      {
+        "excelName": "Years in Service",
+        "db": {
+          "table": "dbo.employee_onboard",
+          "column": "years_in_service"
+        },
+        "status": "mapped"
+      },
+      {
+        "excelName": "Company Office",
+        "db": {
+          "table": "dbo.employee_employment",
+          "column": "company_office"
+        },
+        "status": "mapped"
+      },
+      {
+        "excelName": "Work Location",
+        "db": {
+          "table": "dbo.employee_employment",
+          "column": "work_location"
+        },
+        "status": "mapped"
+      },
+      {
+        "excelName": "Division",
+        "db": {
+          "table": "dbo.employee_employment",
+          "column": "division"
+        },
+        "status": "mapped"
+      },
+      {
+        "excelName": "Department",
+        "db": {
+          "table": "dbo.employee_employment",
+          "column": "department"
+        },
+        "status": "mapped"
+      },
+      {
+        "excelName": "Section",
+        "db": {
+          "table": "dbo.employee_employment",
+          "column": "section"
+        },
+        "status": "mapped"
+      },
+      {
+        "excelName": "Direct Report",
+        "db": {
+          "table": "dbo.employee_employment",
+          "column": "direct_report"
+        },
+        "status": "mapped"
+      },
+      {
+        "excelName": "Job Title",
+        "db": {
+          "table": "dbo.employee_employment",
+          "column": "job_title"
+        },
+        "status": "mapped"
+      },
+      {
+        "excelName": "Grade",
+        "db": {
+          "table": "dbo.employee_employment",
+          "column": "grade"
+        },
+        "status": "mapped"
+      },
+      {
+        "excelName": "Position Grade",
+        "db": {
+          "table": "dbo.employee_employment",
+          "column": "position_grade"
+        },
+        "status": "mapped"
+      },
+      {
+        "excelName": "Group Job Title",
+        "db": {
+          "table": "dbo.employee_employment",
+          "column": "group_job_title"
+        },
+        "status": "mapped"
+      },
+      {
+        "excelName": "NPWP",
+        "db": {
+          "table": "dbo.employee_core",
+          "column": "npwp"
+        },
+        "status": "mapped"
+      },
+      {
+        "excelName": "BPJS TK No",
+        "db": {
+          "table": "dbo.employee_insurance",
+          "column": "bpjs_tk"
+        },
+        "status": "mapped"
+      },
+      {
+        "excelName": "BPJS KES No",
+        "db": {
+          "table": "dbo.employee_insurance",
+          "column": "bpjs_kes"
+        },
+        "status": "mapped"
+      },
+      {
+        "excelName": "STATUS BPJS Kesehatan",
+        "db": {
+          "table": "dbo.employee_insurance",
+          "column": "status_bpjs_kes"
+        },
+        "status": "mapped"
+      },
+      {
+        "excelName": "KITAS NO",
+        "db": {
+          "table": "dbo.employee_travel",
+          "column": "kitas_no"
+        },
+        "status": "mapped"
+      },
+      {
+        "excelName": "PASSPORT ID",
+        "db": {
+          "table": "dbo.employee_travel",
+          "column": "passport_no"
+        },
+        "status": "mapped"
+      },
+      {
+        "excelName": "Terminated Date",
+        "db": {
+          "table": "dbo.employee_employment",
+          "column": "terminated_date"
+        },
+        "status": "mapped"
+      },
+      {
+        "excelName": "Terminated Type",
+        "db": {
+          "table": "dbo.employee_employment",
+          "column": "terminated_type"
+        },
+        "status": "mapped"
+      },
+      {
+        "excelName": "Terminated Reason",
+        "db": {
+          "table": "dbo.employee_employment",
+          "column": "terminated_reason"
+        },
+        "status": "mapped"
+      }
+    ]
+  }
+}

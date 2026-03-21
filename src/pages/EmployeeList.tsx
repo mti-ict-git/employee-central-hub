@@ -15,6 +15,7 @@ import { Pagination, PaginationContent, PaginationEllipsis, PaginationItem, Pagi
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Skeleton } from "@/components/ui/skeleton";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
+import { Badge } from "@/components/ui/badge";
 import { fetchColumnAccess } from "@/lib/rbac";
 import {
   AlertDialog,
@@ -49,6 +50,7 @@ const EmployeeList = () => {
   const [search, setSearch] = useState("");
   const [typeFilter, setTypeFilter] = useState(searchParams.get('type') || 'all');
   const [statusFilter, setStatusFilter] = useState('all');
+  const [syncSource, setSyncSource] = useState<"ranhr" | "sharepoint">("ranhr");
   const [remoteEmployees, setRemoteEmployees] = useState<Employee[]>([]);
   const [serverTotal, setServerTotal] = useState<number | null>(null);
   const [loading, setLoading] = useState(false);
@@ -63,6 +65,9 @@ const EmployeeList = () => {
   const [page, setPage] = useState(1);
   const [pageSize, setPageSize] = useState(10);
   const [bulkDeleteOpen, setBulkDeleteOpen] = useState(false);
+  const [syncRunning, setSyncRunning] = useState(false);
+  const [syncStartedAt, setSyncStartedAt] = useState<number | null>(null);
+  const [syncElapsed, setSyncElapsed] = useState(0);
 
   const preferredColumnOrder = useMemo(
     () => [
@@ -218,6 +223,14 @@ const EmployeeList = () => {
     push(total);
     return items;
   }, [page, totalPages]);
+
+  useEffect(() => {
+    if (!syncRunning || syncStartedAt === null) return;
+    const id = window.setInterval(() => {
+      setSyncElapsed(Math.floor((Date.now() - syncStartedAt) / 1000));
+    }, 1000);
+    return () => window.clearInterval(id);
+  }, [syncRunning, syncStartedAt]);
   const topScrollRef = useRef<HTMLDivElement | null>(null);
   const bodyScrollRef = useRef<HTMLDivElement | null>(null);
 
@@ -817,30 +830,52 @@ const EmployeeList = () => {
             Export
           </Button>
           {(caps?.canManageUsers || caps?.canCreateEmployees) && (
-            <Button
-              variant="outline"
-              onClick={async () => {
-                try {
-                  const ok = window.confirm("Run sync now? This will write updates to destination.");
-                  if (!ok) return;
-                  const r = await apiFetch(`/sync/run`, {
-                    method: "POST",
-                    credentials: "include",
-                    headers: { "Content-Type": "application/json" },
-                    body: JSON.stringify({ dry_run: false, limit: 1000, offset: 0 }),
-                  });
-                  const d = await r.json().catch(() => null);
-                  if (!r.ok) throw new Error(d?.error || `HTTP_${r.status}`);
-                  const s = d?.stats;
-                  const msg = s ? `Inserted ${s.inserted}, Updated ${s.updated}, Skipped ${s.skipped}` : "Sync completed";
-                  toast({ title: "Manual Sync", description: msg });
-                } catch (e: unknown) {
-                  toast({ title: "Error", description: e instanceof Error ? e.message : "Failed to run sync", variant: "destructive" });
-                }
-              }}
-            >
-              Sync
-            </Button>
+            <>
+              <Select value={syncSource} onValueChange={(value) => setSyncSource(value === "sharepoint" ? "sharepoint" : "ranhr")}>
+                <SelectTrigger className="w-[170px]">
+                  <SelectValue placeholder="Sync source" />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="ranhr">RanHR DB</SelectItem>
+                  <SelectItem value="sharepoint">SharePoint Excel</SelectItem>
+                </SelectContent>
+              </Select>
+              <Button
+                variant="outline"
+                disabled={syncRunning}
+                onClick={async () => {
+                  try {
+                    const ok = window.confirm(`Run ${syncSource === "sharepoint" ? "SharePoint" : "RanHR"} sync now? This will write updates to destination.`);
+                    if (!ok) return;
+                    setSyncRunning(true);
+                    setSyncStartedAt(Date.now());
+                    setSyncElapsed(0);
+                    toast({ title: "Sync started", description: `${syncSource === "sharepoint" ? "SharePoint" : "RanHR"} sync is running.` });
+                    const url = syncSource === "sharepoint" ? "/sync/run-sharepoint" : "/sync/run";
+                    const payload = syncSource === "sharepoint" ? { dry_run: false } : { dry_run: false, limit: 1000, offset: 0 };
+                    const r = await apiFetch(url, {
+                      method: "POST",
+                      credentials: "include",
+                      headers: { "Content-Type": "application/json" },
+                      body: JSON.stringify(payload),
+                    });
+                    const d = await r.json().catch(() => null);
+                    if (!r.ok) throw new Error(d?.error || `HTTP_${r.status}`);
+                    const s = d?.stats;
+                    const msg = s ? `Inserted ${s.inserted}, Updated ${s.updated}, Skipped ${s.skipped}` : "Sync completed";
+                    toast({ title: "Manual Sync", description: msg });
+                  } catch (e: unknown) {
+                    toast({ title: "Error", description: e instanceof Error ? e.message : "Failed to run sync", variant: "destructive" });
+                  } finally {
+                    setSyncRunning(false);
+                    setSyncStartedAt(null);
+                    setSyncElapsed(0);
+                  }
+                }}
+              >
+                {syncRunning ? "Syncing..." : "Sync"}
+              </Button>
+            </>
           )}
           <DropdownMenu>
             <DropdownMenuTrigger asChild>
@@ -1065,6 +1100,11 @@ const EmployeeList = () => {
                 Clear filters
               </Button>
             </div>
+          )}
+          {syncRunning && (
+            <Badge variant="secondary" className="bg-blue-100 text-blue-800">
+              Sync running{syncElapsed ? ` • ${syncElapsed}s` : ""}
+            </Badge>
           )}
         </div>
         {sortedEmployees.length > 0 && (

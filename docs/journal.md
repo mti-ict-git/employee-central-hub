@@ -417,3 +417,44 @@ Wednesday, December 17, 2025 4:24:46 PM - Secured env handling: added .env to .g
 - Removed duplicate placeholder entries in schema-mapping JSON while keeping unique future columns (ID Card MTI, Residen, ICBC Bank Account No, Owlexa No, Name as Passport, Job Title KITAS) (`backend/scripts/schema-mapping-final.json`).
 - Recomputed mapping summary counts after cleanup (`backend/scripts/schema-mapping-final.json`).
 - Ran `npm run lint` and `npx tsc --noEmit` — passed (warnings only).
+
+## 2026-03-21 14:23:58 WITA — SharePoint Mapping Reference File
+
+- Generated `backend/scripts/sharepoint-mapping.json` from “Master Data - Database Schema Proposed - Rev. 002.xlsx” Sheet2 (ignored last two columns) to provide exact Excel header mapping reference for SharePoint sync.
+- SharePoint config save now loads this mapping file into `dbo.sync_config.mapping` when SharePoint sync is enabled (`backend/src/routes/sync.ts`).
+- Updated README to document mapping reference location (`README.md`).
+- Ran `npm run lint`, `npx tsc --noEmit`, and `npm --prefix backend run typecheck` — passed (warnings only).
+
+## 2026-03-21 14:43:03 WITA — Mapping Preview UI
+
+- Added `GET /api/sync/sharepoint/mapping-preview` endpoint to serve mapping JSON for UI review (`backend/src/routes/sync.ts`).
+- Added SharePoint Mapping Preview section to Data Sync page with group selector and unmapped count (`src/pages/SyncSettings.tsx`).
+- Updated README with mapping preview endpoint (`README.md`).
+- Ran `npm run lint`, `npx tsc --noEmit`, and `npm --prefix backend run typecheck` — passed (warnings only).
+
+## 2026-03-21 15:02:21 WITA — SharePoint Sync Run + Source Selector
+
+- Added `POST /api/sync/run-sharepoint` to read the downloaded Excel file, apply mapping, and upsert employee tables (`backend/src/routes/sync.ts`).
+- Added sync source selector (RanHR vs SharePoint) to Employee List Sync button (`src/pages/EmployeeList.tsx`).
+- Updated README with SharePoint sync run endpoint (`README.md`).
+
+## 2026-03-21 15:18:17 WITA — Employee List Sync Progress
+
+- Added running state and elapsed time indicator for manual sync in Employee List (shows “Sync running” badge and disables button while running) (`src/pages/EmployeeList.tsx`).
+- Ran `npm run lint`, `npx tsc --noEmit`, and `npm --prefix backend run typecheck` — passed (warnings only).
+
+## 2026-03-21 15:23:40 WITA — Sync UI Error Fixes
+
+- Fixed missing Badge import in Employee List to prevent runtime ReferenceError (`src/pages/EmployeeList.tsx`).
+- Moved drag-and-drop context wrapper outside of table markup to resolve invalid DOM nesting warning (`src/components/employees/EmployeeTable.tsx`).
+- Ran `npm run lint`, `npx tsc --noEmit`, and `npm --prefix backend run typecheck` — passed (warnings only).
+
+## 2026-03-21 16:00:40 WITA — SharePoint Sync File Path Fix
+
+- Fixed SharePoint sync run file path to avoid duplicate `backend/` segment when resolving `sharepoint-review.xlsx` (`backend/src/routes/sync.ts`).
+- Ran `npm run lint`, `npx tsc --noEmit`, and `npm --prefix backend run typecheck` — passed (warnings only).
+
+## 2026-03-21 16:06:11 WITA — Dashboard Active/Inactive Logic
+
+- Updated employee stats calculation to use `employee_employment.employment_status` with fallback to `employee_employment.status` for active count (`backend/src/routes/employees.ts`).
+- Ran `npm run lint`, `npx tsc --noEmit`, and `npm --prefix backend run typecheck` — passed (warnings only).

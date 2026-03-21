@@ -64,6 +64,25 @@ type SharePointDownloadResult = {
   message: string;
 };
 
+type MappingTarget = { table: string; column: string };
+
+type MappingColumn = {
+  excelName: string;
+  db: MappingTarget | MappingTarget[] | null;
+  status: "mapped" | "unmapped";
+};
+
+type SharePointMappingPreview = {
+  source: {
+    workbook: string;
+    sheet: string;
+    ignored_columns: string[];
+    generated_at: string;
+  };
+  sheet_name_map: Record<string, string>;
+  columns: Record<string, MappingColumn[]>;
+};
+
 const SHAREPOINT_SHARE_URL_FALLBACK_KEY = "sync_sharepoint_share_url";
 
 const clampInt = (v: unknown, min: number, max: number, fallback: number) => {
@@ -152,6 +171,10 @@ export default function SyncSettings() {
   const [downloadResult, setDownloadResult] = useState<SharePointDownloadResult | null>(null);
   const [showAdvancedPathFields, setShowAdvancedPathFields] = useState(false);
   const [hasSharepointAuthCache, setHasSharepointAuthCache] = useState(false);
+  const [mappingPreview, setMappingPreview] = useState<SharePointMappingPreview | null>(null);
+  const [mappingLoading, setMappingLoading] = useState(false);
+  const [mappingError, setMappingError] = useState("");
+  const [mappingGroup, setMappingGroup] = useState("");
 
   useEffect(() => {
     if (!running) return;
@@ -598,6 +621,39 @@ export default function SyncSettings() {
       setDownloadingSharepoint(false);
     }
   };
+
+  const loadMappingPreview = async () => {
+    try {
+      setMappingLoading(true);
+      setMappingError("");
+      const r = await apiFetch(`/sync/sharepoint/mapping-preview`, {
+        method: "GET",
+        credentials: "include",
+      });
+      const body = (await r.json().catch(() => null)) as unknown;
+      if (!r.ok || !body || typeof body !== "object" || Array.isArray(body)) {
+        const msg = body && typeof body === "object" && "error" in body && typeof (body as { error?: unknown }).error === "string"
+          ? String((body as { error?: unknown }).error)
+          : `HTTP_${r.status}`;
+        throw new Error(msg);
+      }
+      const preview = body as SharePointMappingPreview;
+      setMappingPreview(preview);
+      const groups = Object.keys(preview.columns || {});
+      if (groups.length > 0) setMappingGroup((current) => current || groups[0]);
+    } catch (e: unknown) {
+      setMappingError(e instanceof Error ? e.message : "FAILED_TO_LOAD_MAPPING");
+    } finally {
+      setMappingLoading(false);
+    }
+  };
+
+  const mappingGroups = useMemo(() => Object.keys(mappingPreview?.columns || {}), [mappingPreview]);
+  const mappingRows = useMemo(() => {
+    if (!mappingPreview || !mappingGroup) return [];
+    return mappingPreview.columns[mappingGroup] || [];
+  }, [mappingPreview, mappingGroup]);
+  const unmappedCount = useMemo(() => mappingRows.filter((row) => row.status === "unmapped").length, [mappingRows]);
 
   const runSync = async () => {
     try {
@@ -1147,6 +1203,87 @@ export default function SyncSettings() {
                 <div className="text-xs text-muted-foreground">{downloadResult.message}</div>
               </div>
             )}
+
+            <div className="rounded-md border p-3 space-y-3">
+              <div className="flex flex-wrap items-center justify-between gap-3">
+                <div className="space-y-1">
+                  <div className="text-sm font-medium">Mapping Preview</div>
+                  <div className="text-xs text-muted-foreground">
+                    Loads mapping generated from the schema workbook for SharePoint sync.
+                  </div>
+                </div>
+                <div className="flex items-center gap-2">
+                  <Button type="button" variant="outline" size="sm" onClick={loadMappingPreview} disabled={mappingLoading}>
+                    {mappingLoading ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : null}
+                    {mappingLoading ? "Loading..." : "Load Mapping"}
+                  </Button>
+                </div>
+              </div>
+
+              {mappingError ? (
+                <div className="text-xs text-red-600">{mappingError}</div>
+              ) : null}
+
+              {mappingPreview && (
+                <div className="space-y-3">
+                  <div className="flex flex-wrap items-center gap-3">
+                    <div className="text-xs text-muted-foreground">
+                      Source: {mappingPreview.source.workbook} ({mappingPreview.source.sheet})
+                    </div>
+                    <Badge variant="outline">Unmapped: {unmappedCount}</Badge>
+                  </div>
+                  <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
+                    <div className="space-y-2">
+                      <div className="text-sm font-medium">Sheet Group</div>
+                      <Select value={mappingGroup} onValueChange={setMappingGroup}>
+                        <SelectTrigger>
+                          <SelectValue placeholder="Select group" />
+                        </SelectTrigger>
+                        <SelectContent>
+                          {mappingGroups.map((g) => (
+                            <SelectItem key={g} value={g}>
+                              {g}
+                            </SelectItem>
+                          ))}
+                        </SelectContent>
+                      </Select>
+                    </div>
+                  </div>
+                  <div className="rounded-md border">
+                    <Table>
+                      <TableHeader>
+                        <TableRow>
+                          <TableHead>Excel Column</TableHead>
+                          <TableHead>DB Target</TableHead>
+                          <TableHead>Status</TableHead>
+                        </TableRow>
+                      </TableHeader>
+                      <TableBody>
+                        {mappingRows.map((row) => {
+                          const db = row.db;
+                          const dbText = Array.isArray(db)
+                            ? db.map((d) => `${d.table}.${d.column}`).join(", ")
+                            : db
+                              ? `${db.table}.${db.column}`
+                              : "—";
+                          return (
+                            <TableRow key={row.excelName}>
+                              <TableCell>{row.excelName}</TableCell>
+                              <TableCell className="text-xs">{dbText}</TableCell>
+                              <TableCell>
+                                <Badge variant={row.status === "mapped" ? "secondary" : "outline"}>
+                                  {row.status}
+                                </Badge>
+                              </TableCell>
+                            </TableRow>
+                          );
+                        })}
+                      </TableBody>
+                    </Table>
+                  </div>
+                </div>
+              )}
+            </div>
 
             {deviceCodePayload && (
               <div className="space-y-3 rounded-md border p-3">

@@ -850,7 +850,11 @@ employeesRouter.get("/stats", async (req, res) => {
     const statsSql = `
       SELECT
         COUNT(DISTINCT core.employee_id) AS total,
-        SUM(CASE WHEN LOWER(LTRIM(RTRIM(ISNULL(emp.status, '')))) = 'active' THEN 1 ELSE 0 END) AS active,
+        SUM(CASE 
+          WHEN LOWER(LTRIM(RTRIM(ISNULL(emp.employment_status, '')))) IN ('active','contract','probation','intern') THEN 1
+          WHEN LTRIM(RTRIM(ISNULL(emp.employment_status, ''))) = '' AND LOWER(LTRIM(RTRIM(ISNULL(emp.status, '')))) = 'active' THEN 1
+          ELSE 0
+        END) AS active,
         SUM(CASE WHEN LOWER(LTRIM(RTRIM(ISNULL(core.nationality, '')))) = 'indonesia' THEN 1 ELSE 0 END) AS indonesia
       FROM dbo.employee_core AS core
       LEFT JOIN dbo.employee_employment AS emp ON emp.employee_id = core.employee_id

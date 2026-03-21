@@ -427,12 +427,12 @@ export function EmployeeTable({ employees, onDelete, selectable = false, selecte
   };
 
   return (
-    <div className="overflow-hidden rounded-xl border border-border/60 bg-card/95">
-      <Table className="[&_tbody_tr:last-child]:border-b-0 table-fixed">
-        <DndContext sensors={sensors} collisionDetection={closestCenter} onDragEnd={handleDragEnd}>
+    <DndContext sensors={sensors} collisionDetection={closestCenter} onDragEnd={handleDragEnd}>
+      <div className="overflow-hidden rounded-xl border border-border/60 bg-card/95">
+        <Table className="[&_tbody_tr:last-child]:border-b-0 table-fixed">
           <SortableContext items={columns} strategy={horizontalListSortingStrategy}>
             <TableHeader>
-          <TableRow className="bg-muted/50">
+              <TableRow className="bg-muted/50">
             {selectable && (
               <TableHead className="w-10 text-xs font-semibold uppercase tracking-wide text-muted-foreground">
                 <Checkbox
@@ -526,11 +526,10 @@ export function EmployeeTable({ employees, onDelete, selectable = false, selecte
               );
             })}
             <TableHead className="text-right text-xs font-semibold uppercase tracking-wide text-muted-foreground">Actions</TableHead>
-          </TableRow>
+              </TableRow>
             </TableHeader>
           </SortableContext>
-        </DndContext>
-        <TableBody>
+          <TableBody>
           {employees.map((employee) => (
             <TableRow 
               key={employee.core.employee_id}
@@ -599,8 +598,9 @@ export function EmployeeTable({ employees, onDelete, selectable = false, selecte
               </TableCell>
             </TableRow>
           ))}
-        </TableBody>
-      </Table>
+          </TableBody>
+        </Table>
+      </div>
       <AlertDialog
         open={Boolean(deleteTarget)}
         onOpenChange={(open) => {
@@ -655,6 +655,6 @@ export function EmployeeTable({ employees, onDelete, selectable = false, selecte
           </AlertDialogFooter>
         </AlertDialogContent>
       </AlertDialog>
-    </div>
+    </DndContext>
   );
 }
