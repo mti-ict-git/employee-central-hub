@@ -66,6 +66,7 @@ const EmployeeList = () => {
   const [pageSize, setPageSize] = useState(10);
   const [bulkDeleteOpen, setBulkDeleteOpen] = useState(false);
   const [syncRunning, setSyncRunning] = useState(false);
+  const [syncConfirmOpen, setSyncConfirmOpen] = useState(false);
   const [syncStartedAt, setSyncStartedAt] = useState<number | null>(null);
   const [syncElapsed, setSyncElapsed] = useState(0);
 
@@ -797,6 +798,34 @@ const EmployeeList = () => {
     });
   };
 
+  const runSync = async () => {
+    try {
+      setSyncRunning(true);
+      setSyncStartedAt(Date.now());
+      setSyncElapsed(0);
+      toast({ title: "Sync started", description: `${syncSource === "sharepoint" ? "SharePoint" : "RanHR"} sync is running.` });
+      const url = syncSource === "sharepoint" ? "/sync/run-sharepoint" : "/sync/run";
+      const payload = syncSource === "sharepoint" ? { dry_run: false } : { dry_run: false, limit: 1000, offset: 0 };
+      const r = await apiFetch(url, {
+        method: "POST",
+        credentials: "include",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify(payload),
+      });
+      const d = await r.json().catch(() => null);
+      if (!r.ok) throw new Error(d?.error || `HTTP_${r.status}`);
+      const s = d?.stats;
+      const msg = s ? `Inserted ${s.inserted}, Updated ${s.updated}, Skipped ${s.skipped}` : "Sync completed";
+      toast({ title: "Manual Sync", description: msg });
+    } catch (e: unknown) {
+      toast({ title: "Error", description: e instanceof Error ? e.message : "Failed to run sync", variant: "destructive" });
+    } finally {
+      setSyncRunning(false);
+      setSyncStartedAt(null);
+      setSyncElapsed(0);
+    }
+  };
+
   return (
     <MainLayout 
       title="Employee List" 
@@ -843,38 +872,35 @@ const EmployeeList = () => {
               <Button
                 variant="outline"
                 disabled={syncRunning}
-                onClick={async () => {
-                  try {
-                    const ok = window.confirm(`Run ${syncSource === "sharepoint" ? "SharePoint" : "RanHR"} sync now? This will write updates to destination.`);
-                    if (!ok) return;
-                    setSyncRunning(true);
-                    setSyncStartedAt(Date.now());
-                    setSyncElapsed(0);
-                    toast({ title: "Sync started", description: `${syncSource === "sharepoint" ? "SharePoint" : "RanHR"} sync is running.` });
-                    const url = syncSource === "sharepoint" ? "/sync/run-sharepoint" : "/sync/run";
-                    const payload = syncSource === "sharepoint" ? { dry_run: false } : { dry_run: false, limit: 1000, offset: 0 };
-                    const r = await apiFetch(url, {
-                      method: "POST",
-                      credentials: "include",
-                      headers: { "Content-Type": "application/json" },
-                      body: JSON.stringify(payload),
-                    });
-                    const d = await r.json().catch(() => null);
-                    if (!r.ok) throw new Error(d?.error || `HTTP_${r.status}`);
-                    const s = d?.stats;
-                    const msg = s ? `Inserted ${s.inserted}, Updated ${s.updated}, Skipped ${s.skipped}` : "Sync completed";
-                    toast({ title: "Manual Sync", description: msg });
-                  } catch (e: unknown) {
-                    toast({ title: "Error", description: e instanceof Error ? e.message : "Failed to run sync", variant: "destructive" });
-                  } finally {
-                    setSyncRunning(false);
-                    setSyncStartedAt(null);
-                    setSyncElapsed(0);
-                  }
-                }}
+                onClick={() => setSyncConfirmOpen(true)}
               >
                 {syncRunning ? "Syncing..." : "Sync"}
               </Button>
+              <AlertDialog open={syncConfirmOpen} onOpenChange={setSyncConfirmOpen}>
+                <AlertDialogContent className="sm:max-w-[520px]">
+                  <AlertDialogHeader>
+                    <AlertDialogTitle>
+                      Run {syncSource === "sharepoint" ? "SharePoint" : "RanHR"} sync now?
+                    </AlertDialogTitle>
+                    <AlertDialogDescription>
+                      This will write updates to destination and may take a few minutes.
+                    </AlertDialogDescription>
+                  </AlertDialogHeader>
+                  <AlertDialogFooter>
+                    <AlertDialogCancel>Cancel</AlertDialogCancel>
+                    <AlertDialogAction asChild>
+                      <Button
+                        onClick={async () => {
+                          setSyncConfirmOpen(false);
+                          await runSync();
+                        }}
+                      >
+                        Run Sync
+                      </Button>
+                    </AlertDialogAction>
+                  </AlertDialogFooter>
+                </AlertDialogContent>
+              </AlertDialog>
             </>
           )}
           <DropdownMenu>

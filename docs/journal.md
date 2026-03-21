@@ -458,3 +458,13 @@ Wednesday, December 17, 2025 4:24:46 PM - Secured env handling: added .env to .g
 
 - Updated employee stats calculation to use `employee_employment.employment_status` with fallback to `employee_employment.status` for active count (`backend/src/routes/employees.ts`).
 - Ran `npm run lint`, `npx tsc --noEmit`, and `npm --prefix backend run typecheck` — passed (warnings only).
+
+## 2026-03-21 17:25:39 WITA — Anniversary PRD Draft
+
+- Drafted Anniversary feature PRD with UX flow, UI components, and backend API proposals (`docs/anniversary.md`).
+- Ran `npm run lint` (warnings only) and `npx tsc --noEmit`.
+
+## 2026-03-21 18:52:52 WITA — Employee Sync Confirmation Modal
+
+- Replaced browser confirm popup with modal dialog for Employee List sync (`src/pages/EmployeeList.tsx`).
+- Ran `npm run lint` (warnings only) and `npx tsc --noEmit`.
