@@ -503,3 +503,49 @@ Wednesday, December 17, 2025 4:24:46 PM - Secured env handling: added .env to .g
 - Converted `POST /api/sync/run-photo` to async-first mode so request returns fast and work runs in background, avoiding UI timeout for long sync jobs (`backend/src/routes/sync.ts`).
 - Updated Data Sync UI to trigger async photo sync with missing-only mode and poll `/api/sync/status` until finished (`src/pages/SyncSettings.tsx`).
 - Ran `npm run lint`, `npx tsc --noEmit`, and `npm --prefix backend run typecheck` — passed (warnings only).
+
+## 2026-03-22 10:30:24 WITA — Anniversary AI Plan Updates
+
+- Updated anniversary AI plan with confirmed schedule, review flow, and photo reference details (`docs/anniversary-plan.md`).
+
+## 2026-03-22 10:33:51 WITA — Anniversary AI Plan Confirmation
+
+- Confirmed HR/admin roles for approval and Monday 08:00 WITA weekly generation (`docs/anniversary-plan.md`).
+
+## 2026-03-22 10:54:01 WITA — Anniversary AI Workflow Implementation
+
+- Added anniversary settings + notification tables and migration support (`backend/db/schema.sql`, `backend/scripts/db-migrate.ts`).
+- Implemented anniversary workflow API endpoints for queue, review, generation, and settings (`backend/src/routes/anniversaries.ts`, `backend/src/server.ts`).
+- Updated Anniversaries UI with weekly review queue actions and regenerate flow (`src/pages/Anniversaries.tsx`).
+- Updated Email Template Preview to use new template asset for work anniversary (`src/pages/EmailTemplatePreview.tsx`).
+- Added AI Notifications settings section with provider selection and API keys (`src/pages/Settings.tsx`).
+- Updated README with anniversary AI endpoints (`README.md`).
+- Ran `npm run lint` (warnings only) and `npx tsc --noEmit`.
+
+## 2026-03-22 11:14:46 WITA — Gemini Model Selection
+
+- Added Gemini model selector in AI Notifications settings and stored model preset in anniversary drafts (`src/pages/Settings.tsx`, `backend/src/routes/anniversaries.ts`).
+- Updated README with model preset note (`README.md`).
+- Ran `npm run lint` (warnings only) and `npx tsc --noEmit`.
+
+## 2026-03-22 11:19:27 WITA — Anniversary Settings HR Access
+
+- Fixed anniversary settings auth to allow `hr_general` role to save API keys (`backend/src/routes/anniversaries.ts`).
+
+## 2026-03-22 11:40:26 WITA — Work Anniversary Template Preview
+
+- Updated Email Template Preview to use the provided anniversary template image with dynamic name/department/years/join date and controls (`src/pages/EmailTemplatePreview.tsx`).
+
+## 2026-03-22 12:15:50 WITA — Nano Banana Prompt Refinement
+
+- Refined Gemini/Nano Banana prompt to enforce neutral expression, forward-facing head, single text set (no overlays), and minimal gender-aware body proportion adjustments while preserving uniform and logos (`backend/src/routes/anniversaries.ts`).
+- Increased preview output to 2K for better detail.
+- Lint and typecheck passed.
+
+## 2026-03-22 12:23:36 WITA — Removed Overlay Text for Generated Preview
+
+- Disabled overlay texts on Work Anniversary preview when a generated image is present to avoid duplicated text (`src/pages/EmailTemplatePreview.tsx`).
+
+## 2026-03-22 12:32:19 WITA — Prompt Logging Guard
+
+- Added optional server-side console logging for Nano Banana prompt, gated by `LOG_ANNIV_PROMPT=1` env var (`backend/src/routes/anniversaries.ts`).

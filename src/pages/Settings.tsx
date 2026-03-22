@@ -11,7 +11,7 @@ import { Avatar, AvatarFallback } from "@/components/ui/avatar";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { useToast } from "@/hooks/use-toast";
-import { User, Bell, Shield, Palette, Globe, Save, KeyRound, Cake, Briefcase, X, Plus } from "lucide-react";
+import { User, Bell, Shield, Palette, Globe, Save, KeyRound, Cake, Briefcase, X, Plus, Bot } from "lucide-react";
 import { Slider } from "@/components/ui/slider";
 import { apiFetch } from "@/lib/api";
 import { useTheme } from "next-themes";
@@ -89,6 +89,17 @@ const Settings = () => {
   const [onDayReminder, setOnDayReminder] = useState(true);
   const [hrEmails, setHrEmails] = useState<string[]>(["hr-team@merdekagroup.com"]);
   const [newHrEmail, setNewHrEmail] = useState("");
+  const [aiProvider, setAiProvider] = useState<"nano_banana" | "openai">("nano_banana");
+  const [aiFallbackEnabled, setAiFallbackEnabled] = useState(true);
+  const [nanoBananaKey, setNanoBananaKey] = useState("");
+  const [openAiKey, setOpenAiKey] = useState("");
+  const [nanoBananaKeySet, setNanoBananaKeySet] = useState(false);
+  const [openAiKeySet, setOpenAiKeySet] = useState(false);
+  const [modelPreset, setModelPreset] = useState("gemini-3.1-flash-image-preview");
+  const [weeklyGenerationDay, setWeeklyGenerationDay] = useState("Monday");
+  const [weeklyGenerationTime, setWeeklyGenerationTime] = useState("08:00");
+  const [weeklyGenerationTimezone, setWeeklyGenerationTimezone] = useState("WITA");
+  const [savingAi, setSavingAi] = useState(false);
   const [language, setLanguage] = useState("en");
   const [timezone, setTimezone] = useState("Asia/Jakarta");
   const [themePref, setThemePref] = useState<ThemePref>("system");
@@ -133,6 +144,27 @@ const Settings = () => {
     return () => ctrl.abort();
   }, [setTheme]);
 
+  useEffect(() => {
+    const ctrl = new AbortController();
+    const run = async () => {
+      const res = await apiFetch(`/anniversaries/settings`, { signal: ctrl.signal, credentials: "include" });
+      if (!res.ok) return;
+      const body = (await res.json().catch(() => null)) as unknown;
+      if (!isRecord(body)) return;
+      const provider = String(body.provider || "").toLowerCase() === "openai" ? "openai" : "nano_banana";
+      setAiProvider(provider);
+      setAiFallbackEnabled(Boolean(body.fallbackEnabled));
+      setNanoBananaKeySet(Boolean(body.nanoBananaKeySet));
+      setOpenAiKeySet(Boolean(body.openAiKeySet));
+      setModelPreset(String(body.modelPreset || "gemini-3.1-flash-image-preview"));
+      setWeeklyGenerationDay(String(body.weeklyGenerationDay || "Monday"));
+      setWeeklyGenerationTime(String(body.weeklyGenerationTime || "08:00"));
+      setWeeklyGenerationTimezone(String(body.weeklyGenerationTimezone || "WITA"));
+    };
+    run().catch(() => {});
+    return () => ctrl.abort();
+  }, []);
+
   const handleSaveProfile = () => {
     toast({
       title: "Profile Updated",
@@ -152,6 +184,53 @@ const Settings = () => {
       title: "Anniversary Settings Updated",
       description: "Your anniversary notification preferences have been saved.",
     });
+  };
+
+  const handleSaveAiSettings = async () => {
+    try {
+      setSavingAi(true);
+      const res = await apiFetch(`/anniversaries/settings`, {
+        method: "PUT",
+        credentials: "include",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          provider: aiProvider,
+          fallbackEnabled: aiFallbackEnabled,
+          modelPreset,
+          weeklyGenerationDay,
+          weeklyGenerationTime,
+          weeklyGenerationTimezone,
+          nanoBananaApiKey: nanoBananaKey,
+          openAiApiKey: openAiKey,
+        }),
+      });
+      const body = (await res.json().catch(() => null)) as unknown;
+      if (!res.ok) {
+        const msg = isRecord(body) && typeof body.error === "string" ? body.error : `HTTP_${res.status}`;
+        throw new Error(msg);
+      }
+      setNanoBananaKey("");
+      setOpenAiKey("");
+      if (isRecord(body)) {
+        setNanoBananaKeySet(Boolean(body.nanoBananaKeySet));
+        setOpenAiKeySet(Boolean(body.openAiKeySet));
+      } else {
+        setNanoBananaKeySet(nanoBananaKey.trim().length > 0 || nanoBananaKeySet);
+        setOpenAiKeySet(openAiKey.trim().length > 0 || openAiKeySet);
+      }
+      toast({
+        title: "AI Settings Updated",
+        description: "Your AI notification settings have been saved.",
+      });
+    } catch (err: unknown) {
+      toast({
+        title: "Failed to Save AI Settings",
+        description: err instanceof Error ? err.message : "FAILED_TO_SAVE_AI_SETTINGS",
+        variant: "destructive",
+      });
+    } finally {
+      setSavingAi(false);
+    }
   };
 
   const addHrEmail = () => {
@@ -214,7 +293,7 @@ const Settings = () => {
     <MainLayout title="Settings" subtitle="Manage your account settings and preferences">
       <div className="max-w-4xl mx-auto">
         <Tabs defaultValue="profile" className="space-y-6">
-          <TabsList className="grid w-full grid-cols-5 lg:w-auto lg:inline-grid">
+          <TabsList className="grid w-full grid-cols-6 lg:w-auto lg:inline-grid">
             <TabsTrigger value="profile" className="flex items-center gap-2">
               <User className="h-4 w-4" />
               <span className="hidden sm:inline">Profile</span>
@@ -226,6 +305,10 @@ const Settings = () => {
             <TabsTrigger value="anniversaries" className="flex items-center gap-2">
               <Cake className="h-4 w-4" />
               <span className="hidden sm:inline">Anniversaries</span>
+            </TabsTrigger>
+            <TabsTrigger value="ai" className="flex items-center gap-2">
+              <Bot className="h-4 w-4" />
+              <span className="hidden sm:inline">AI Notifications</span>
             </TabsTrigger>
             <TabsTrigger value="security" className="flex items-center gap-2">
               <Shield className="h-4 w-4" />
@@ -266,7 +349,7 @@ const Settings = () => {
 
                 <Separator />
 
-                <div className="grid gap-4 md:grid-cols-2">
+                <div className="grid gap-4 md:grid-cols-3">
                   <div className="space-y-2">
                     <Label htmlFor="displayName">Display Name</Label>
                     <Input
@@ -497,6 +580,96 @@ const Settings = () => {
                   <Button onClick={handleSaveAnniversaries} className="flex items-center gap-2">
                     <Save className="h-4 w-4" />
                     Save Anniversary Settings
+                  </Button>
+                </div>
+              </CardContent>
+            </Card>
+          </TabsContent>
+
+          <TabsContent value="ai">
+            <Card>
+              <CardHeader>
+                <CardTitle>AI Notification Provider</CardTitle>
+                <CardDescription>Configure the AI engine that generates anniversary assets and copy.</CardDescription>
+              </CardHeader>
+              <CardContent className="space-y-6">
+                <div className="grid gap-4 md:grid-cols-2">
+                  <div className="space-y-2">
+                    <Label>Provider</Label>
+                    <Select value={aiProvider} onValueChange={(value) => setAiProvider(value === "openai" ? "openai" : "nano_banana")}>
+                      <SelectTrigger>
+                        <SelectValue />
+                      </SelectTrigger>
+                      <SelectContent>
+                        <SelectItem value="nano_banana">Nano Banana (Gemini)</SelectItem>
+                        <SelectItem value="openai">OpenAI</SelectItem>
+                      </SelectContent>
+                    </Select>
+                  </div>
+                  <div className="space-y-2">
+                    <Label>Gemini Model</Label>
+                    <Select value={modelPreset} onValueChange={setModelPreset} disabled={aiProvider !== "nano_banana"}>
+                      <SelectTrigger>
+                        <SelectValue />
+                      </SelectTrigger>
+                      <SelectContent>
+                        <SelectItem value="gemini-3.1-flash-image-preview">Gemini 3.1 Flash Image Preview</SelectItem>
+                        <SelectItem value="gemini-3-pro-image-preview">Gemini 3 Pro Image Preview</SelectItem>
+                        <SelectItem value="gemini-2.5-flash-image">Gemini 2.5 Flash Image</SelectItem>
+                      </SelectContent>
+                    </Select>
+                  </div>
+                  <div className="space-y-2">
+                    <Label>Fallback to OpenAI</Label>
+                    <div className="flex items-center justify-between rounded-lg border p-3">
+                      <div className="text-sm text-muted-foreground">Use OpenAI when primary provider fails.</div>
+                      <Switch checked={aiFallbackEnabled} onCheckedChange={setAiFallbackEnabled} />
+                    </div>
+                  </div>
+                </div>
+
+                <Separator />
+
+                <div className="grid gap-4 md:grid-cols-2">
+                  <div className="space-y-2">
+                    <Label>Nano Banana API Key</Label>
+                    <Input
+                      type="password"
+                      value={nanoBananaKey}
+                      onChange={(e) => setNanoBananaKey(e.target.value)}
+                      placeholder={nanoBananaKeySet ? "Key saved" : "Enter API key"}
+                    />
+                  </div>
+                  <div className="space-y-2">
+                    <Label>OpenAI API Key</Label>
+                    <Input
+                      type="password"
+                      value={openAiKey}
+                      onChange={(e) => setOpenAiKey(e.target.value)}
+                      placeholder={openAiKeySet ? "Key saved" : "Enter API key"}
+                    />
+                  </div>
+                </div>
+
+                <div className="grid gap-4 md:grid-cols-3">
+                  <div className="space-y-2">
+                    <Label>Weekly Generation Day</Label>
+                    <Input value={weeklyGenerationDay} onChange={(e) => setWeeklyGenerationDay(e.target.value)} />
+                  </div>
+                  <div className="space-y-2">
+                    <Label>Generation Time</Label>
+                    <Input value={weeklyGenerationTime} onChange={(e) => setWeeklyGenerationTime(e.target.value)} />
+                  </div>
+                  <div className="space-y-2">
+                    <Label>Timezone</Label>
+                    <Input value={weeklyGenerationTimezone} onChange={(e) => setWeeklyGenerationTimezone(e.target.value)} />
+                  </div>
+                </div>
+
+                <div className="flex justify-end">
+                  <Button onClick={handleSaveAiSettings} className="flex items-center gap-2" disabled={savingAi}>
+                    <Save className="h-4 w-4" />
+                    {savingAi ? "Saving..." : "Save AI Settings"}
                   </Button>
                 </div>
               </CardContent>

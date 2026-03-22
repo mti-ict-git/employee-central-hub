@@ -79,6 +79,15 @@ This project is built with:
 - Data Sync config now includes `photo_sync_enabled` and `photo_sync_schedule` for photo worker settings.
 - Employee photo endpoint: `GET /api/employees/:id/photo`.
 
+## Anniversary AI Notifications
+
+- Weekly draft generation endpoint: `POST /api/anniversaries/generate-weekly` (next 7 days).
+- Review queue endpoint: `GET /api/anniversaries/queue?range=next7days`.
+- Review actions: `POST /api/anniversaries/:id/approve`, `POST /api/anniversaries/:id/revise`, `POST /api/anniversaries/:id/reject`.
+- Settings endpoint: `GET/PUT /api/anniversaries/settings` (provider, fallback, weekly schedule, API keys).
+- Gemini model selection stored in `model_preset` (e.g., `gemini-3.1-flash-image-preview`).
+- Send-on-date endpoint: `POST /api/anniversaries/send-today` (approved items only).
+
 ## How can I deploy this project?
 
 You can deploy with Docker using the included Compose setup.

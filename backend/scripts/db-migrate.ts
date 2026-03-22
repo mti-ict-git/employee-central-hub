@@ -57,6 +57,65 @@ async function main() {
 
       IF COL_LENGTH('dbo.employee_core', 'photo_blob') IS NULL
         ALTER TABLE dbo.employee_core ADD photo_blob VARBINARY(MAX) NULL;
+
+      IF NOT EXISTS (SELECT 1 FROM sys.tables WHERE name='anniversary_settings' AND schema_id = SCHEMA_ID('dbo'))
+      BEGIN
+        CREATE TABLE dbo.anniversary_settings (
+          id INT NOT NULL CONSTRAINT PK_anniversary_settings PRIMARY KEY,
+          provider NVARCHAR(30) NOT NULL CONSTRAINT DF_anniversary_provider DEFAULT 'nano_banana',
+          nano_banana_api_key NVARCHAR(512) NULL,
+          openai_api_key NVARCHAR(512) NULL,
+          fallback_enabled BIT NOT NULL CONSTRAINT DF_anniversary_fallback DEFAULT 1,
+          model_preset NVARCHAR(50) NULL,
+          weekly_generation_day NVARCHAR(20) NULL,
+          weekly_generation_time NVARCHAR(10) NULL,
+          weekly_generation_timezone NVARCHAR(50) NULL,
+          updated_at DATETIME2 NOT NULL CONSTRAINT DF_anniversary_settings_updated_at DEFAULT SYSDATETIME()
+        );
+      END;
+
+      IF NOT EXISTS (SELECT 1 FROM dbo.anniversary_settings WHERE id=1)
+      BEGIN
+        INSERT INTO dbo.anniversary_settings (id, provider, fallback_enabled, model_preset, weekly_generation_day, weekly_generation_time, weekly_generation_timezone, updated_at)
+        VALUES (1, 'nano_banana', 1, NULL, 'Monday', '08:00', 'WITA', SYSDATETIME());
+      END;
+
+      IF NOT EXISTS (SELECT 1 FROM sys.tables WHERE name='anniversary_notifications' AND schema_id = SCHEMA_ID('dbo'))
+      BEGIN
+        CREATE TABLE dbo.anniversary_notifications (
+          id BIGINT IDENTITY(1,1) NOT NULL CONSTRAINT PK_anniversary_notifications PRIMARY KEY,
+          employee_id VARCHAR(20) NOT NULL,
+          anniversary_date DATE NOT NULL,
+          type NVARCHAR(20) NOT NULL,
+          status NVARCHAR(20) NOT NULL,
+          week_start DATE NULL,
+          prompt NVARCHAR(MAX) NULL,
+          revised_prompt NVARCHAR(MAX) NULL,
+          provider_used NVARCHAR(30) NULL,
+          image_url NVARCHAR(500) NULL,
+          email_subject NVARCHAR(200) NULL,
+          email_body_html NVARCHAR(MAX) NULL,
+          created_at DATETIME2 NOT NULL CONSTRAINT DF_anniversary_notifications_created_at DEFAULT SYSDATETIME(),
+          updated_at DATETIME2 NULL,
+          approved_by NVARCHAR(100) NULL,
+          approved_at DATETIME2 NULL,
+          rejected_by NVARCHAR(100) NULL,
+          rejected_at DATETIME2 NULL,
+          archived BIT NOT NULL CONSTRAINT DF_anniversary_notifications_archived DEFAULT 0,
+          sent_at DATETIME2 NULL
+        );
+      END;
+
+      IF NOT EXISTS (
+        SELECT 1
+        FROM sys.indexes
+        WHERE name='UX_anniversary_notifications_employee_date_type'
+          AND object_id = OBJECT_ID('dbo.anniversary_notifications')
+      )
+      BEGIN
+        CREATE UNIQUE INDEX UX_anniversary_notifications_employee_date_type
+          ON dbo.anniversary_notifications (employee_id, anniversary_date, type);
+      END;
     `);
 
     const result = await new sql.Request(pool).query(`

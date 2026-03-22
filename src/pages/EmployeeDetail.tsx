@@ -5,6 +5,7 @@ import type { Employee, EmployeeCustomField } from "@/types/employee";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
+import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { 
   ArrowLeft, 
   Pencil, 
@@ -92,6 +93,7 @@ const EmployeeDetail = () => {
   const [employee, setEmployee] = useState<Employee | null>(null);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const [photoOpen, setPhotoOpen] = useState(false);
   const [assigning, setAssigning] = useState(false);
   const [newId, setNewId] = useState("");
   const [assignError, setAssignError] = useState<string | null>(null);
@@ -373,7 +375,10 @@ const EmployeeDetail = () => {
       {/* Employee Header Card */}
       <div className="rounded-xl border border-border bg-card p-6 shadow-card mb-6 animate-fade-in">
         <div className="flex flex-wrap items-start gap-6">
-          <div className="relative flex h-20 w-20 items-center justify-center overflow-hidden rounded-2xl gradient-primary text-2xl font-bold text-primary-foreground">
+          <div
+            className="relative flex h-20 w-20 items-center justify-center overflow-hidden rounded-2xl gradient-primary text-2xl font-bold text-primary-foreground cursor-zoom-in"
+            onClick={() => setPhotoOpen(true)}
+          >
             <span className="absolute inset-0 flex items-center justify-center">
               {(employee.core?.name || '').split(' ').map(n => n[0]).join('').slice(0, 2)}
             </span>
@@ -415,6 +420,32 @@ const EmployeeDetail = () => {
         </div>
       </div>
 
+      <Dialog open={photoOpen} onOpenChange={setPhotoOpen}>
+        <DialogContent className="sm:max-w-[720px]">
+          <DialogHeader>
+            <DialogTitle>{employee?.core?.name || employee?.core?.employee_id || "Employee Photo"}</DialogTitle>
+          </DialogHeader>
+          <div className="relative">
+            <img
+              src={`/api/employees/${encodeURIComponent(employee?.core?.employee_id || "")}/photo?token=${encodeURIComponent(typeof window !== "undefined" ? (localStorage.getItem("auth_token") || "") : "")}`}
+              alt={employee?.core?.name || employee?.core?.employee_id || "Employee photo"}
+              className="mx-auto max-h-[70vh] w-full object-contain rounded"
+            />
+          </div>
+          <div className="flex justify-end gap-2">
+            <Button asChild variant="outline">
+              <a
+                href={`/api/employees/${encodeURIComponent(employee?.core?.employee_id || "")}/photo?token=${encodeURIComponent(typeof window !== "undefined" ? (localStorage.getItem("auth_token") || "") : "")}`}
+                target="_blank"
+                rel="noreferrer"
+              >
+                Open in new tab
+              </a>
+            </Button>
+            <Button onClick={() => setPhotoOpen(false)}>Close</Button>
+          </div>
+        </DialogContent>
+      </Dialog>
       {/* Tabs */}
       <Tabs defaultValue="personal" className="animate-fade-in" style={{ animationDelay: '0.1s' }}>
         <TabsList className="mb-6 w-full justify-start overflow-x-auto">

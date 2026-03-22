@@ -158,7 +158,7 @@ const Index = () => {
               </Link>
             </Button>
           </div>
-          <EmployeeTable employees={recentEmployees} onDelete={handleDelete} />
+          <EmployeeTable employees={recentEmployees} onDelete={handleDelete} showAvatar={false} />
         </div>
 
         <div className="space-y-4 animate-fade-in" style={{ animationDelay: '0.2s' }}>

@@ -4,6 +4,10 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Badge } from "@/components/ui/badge";
 import { Card } from "@/components/ui/card";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
+import { Input } from "@/components/ui/input";
+import { Button } from "@/components/ui/button";
+import { apiFetch } from "@/lib/api";
+import { toast } from "@/hooks/use-toast";
 import { Monitor, Smartphone } from "lucide-react";
 import { cn } from "@/lib/utils";
 
@@ -132,125 +136,65 @@ function BirthdayEmail({ recipientType }: { recipientType: string }) {
 /* ------------------------------------------------------------------ */
 /*  Work Anniversary Email Template                                    */
 /* ------------------------------------------------------------------ */
-function WorkAnniversaryEmail({ recipientType }: { recipientType: string }) {
+function WorkAnniversaryEmail({
+  recipientType,
+  name,
+  department,
+  years,
+  joinDate,
+  employeePhotoUrl,
+  previewImageBase64,
+}: {
+  recipientType: string;
+  name: string;
+  department: string;
+  years: number;
+  joinDate: string;
+  employeePhotoUrl?: string | null;
+  previewImageBase64?: string | null;
+}) {
   const isEmployee = recipientType === "employee";
-  const isManager = recipientType === "manager";
-
+  const subtitle = isEmployee ? `Celebrating ${years} Years of Dedication` : "Please celebrate this milestone with the team.";
   return (
-    <div style={{ fontFamily: "'Inter', 'Segoe UI', Arial, sans-serif", backgroundColor: BRAND.bgLight, padding: "32px 0" }}>
-      <table cellPadding={0} cellSpacing={0} style={{ maxWidth: 560, margin: "0 auto", backgroundColor: BRAND.white, borderRadius: 12, overflow: "hidden", boxShadow: "0 1px 3px rgba(0,0,0,0.08)" }}>
-        {/* Header */}
-        <thead>
-          <tr>
-            <td style={{ backgroundColor: BRAND.primaryColor, padding: "28px 32px", textAlign: "center" as const }}>
-              <div style={{ fontSize: 14, fontWeight: 600, color: "rgba(255,255,255,0.85)", letterSpacing: 1, textTransform: "uppercase" as const, marginBottom: 4 }}>
-                {BRAND.name}
-              </div>
-              <div style={{ fontSize: 11, color: "rgba(255,255,255,0.6)" }}>
-                {BRAND.tagline}
-              </div>
-            </td>
-          </tr>
-        </thead>
-        <tbody>
-          {/* Emoji hero */}
-          <tr>
-            <td style={{ textAlign: "center" as const, padding: "36px 32px 8px" }}>
-              <div style={{ fontSize: 56, lineHeight: 1, marginBottom: 8 }}>🎉</div>
-            </td>
-          </tr>
-          {/* Title */}
-          <tr>
-            <td style={{ textAlign: "center" as const, padding: "0 32px 8px" }}>
-              <h1 style={{ margin: 0, fontSize: 22, fontWeight: 700, color: BRAND.textDark, lineHeight: 1.3 }}>
-                {isEmployee
-                  ? "Congratulations on 5 Years!"
-                  : "Work Anniversary Reminder"}
-              </h1>
-            </td>
-          </tr>
-          {/* Subtitle */}
-          <tr>
-            <td style={{ textAlign: "center" as const, padding: "0 32px 24px" }}>
-              <p style={{ margin: 0, fontSize: 14, color: BRAND.textMuted, lineHeight: 1.6 }}>
-                {isEmployee
-                  ? "Today marks your 5th year with Merdeka Group. Thank you for your dedication, hard work, and the incredible contributions you've made to our team."
-                  : isManager
-                    ? "Your team member, John Smith (Engineering), is celebrating 5 years with Merdeka Group today, March 20."
-                    : "John Smith from the Engineering department is celebrating 5 years with Merdeka Group today, March 20."}
-              </p>
-            </td>
-          </tr>
-          {/* Milestone badge */}
-          <tr>
-            <td style={{ textAlign: "center" as const, padding: "0 32px 24px" }}>
-              <div style={{
-                display: "inline-block",
-                padding: "14px 32px",
-                background: `linear-gradient(135deg, ${BRAND.primaryLight}, ${BRAND.white})`,
-                borderRadius: 10,
-                border: `1px solid ${BRAND.primaryColor}22`,
-              }}>
-                <div style={{ fontSize: 32, fontWeight: 800, color: BRAND.primaryColor, lineHeight: 1 }}>5</div>
-                <div style={{ fontSize: 11, fontWeight: 600, color: BRAND.primaryColor, textTransform: "uppercase" as const, letterSpacing: 1, marginTop: 2 }}>Years of Service</div>
-              </div>
-            </td>
-          </tr>
-          {/* Detail card */}
-          <tr>
-            <td style={{ padding: "0 32px 28px" }}>
-              <table cellPadding={0} cellSpacing={0} style={{ width: "100%", backgroundColor: BRAND.primaryLight, borderRadius: 8, border: `1px solid ${BRAND.primaryColor}22` }}>
-                <tbody>
-                  <tr>
-                    <td style={{ padding: "18px 20px" }}>
-                      <div style={{ fontSize: 11, fontWeight: 600, color: BRAND.primaryColor, textTransform: "uppercase" as const, letterSpacing: 0.8, marginBottom: 10 }}>Anniversary Details</div>
-                      <table cellPadding={0} cellSpacing={0} style={{ width: "100%" }}>
-                        <tbody>
-                          <tr>
-                            <td style={{ fontSize: 13, color: BRAND.textMuted, paddingBottom: 6, width: 100 }}>Employee</td>
-                            <td style={{ fontSize: 13, fontWeight: 600, color: BRAND.textDark, paddingBottom: 6 }}>John Smith</td>
-                          </tr>
-                          <tr>
-                            <td style={{ fontSize: 13, color: BRAND.textMuted, paddingBottom: 6 }}>Department</td>
-                            <td style={{ fontSize: 13, fontWeight: 600, color: BRAND.textDark, paddingBottom: 6 }}>Engineering</td>
-                          </tr>
-                          <tr>
-                            <td style={{ fontSize: 13, color: BRAND.textMuted, paddingBottom: 6 }}>Join Date</td>
-                            <td style={{ fontSize: 13, fontWeight: 600, color: BRAND.textDark, paddingBottom: 6 }}>March 20, 2021</td>
-                          </tr>
-                          <tr>
-                            <td style={{ fontSize: 13, color: BRAND.textMuted }}>Milestone</td>
-                            <td style={{ fontSize: 13, fontWeight: 600, color: BRAND.textDark }}>5 Years</td>
-                          </tr>
-                        </tbody>
-                      </table>
-                    </td>
-                  </tr>
-                </tbody>
-              </table>
-            </td>
-          </tr>
-          {/* CTA */}
-          {!isEmployee && (
-            <tr>
-              <td style={{ textAlign: "center" as const, padding: "0 32px 28px" }}>
-                <a href="#" style={{ display: "inline-block", padding: "10px 28px", backgroundColor: BRAND.primaryColor, color: BRAND.white, fontSize: 13, fontWeight: 600, borderRadius: 6, textDecoration: "none" }}>
-                  View Employee Profile
-                </a>
-              </td>
-            </tr>
+    <div className="bg-muted/40 p-6">
+      <div className="mx-auto max-w-[640px] overflow-hidden rounded-xl border bg-background shadow-sm">
+        <div className="relative">
+          <img
+            src={previewImageBase64 ? `data:image/png;base64,${previewImageBase64}` : "/anniversary_template.png"}
+            alt="Anniversary Template"
+            className="w-full object-cover"
+          />
+          {!previewImageBase64 && (
+            <div className="absolute inset-0 flex flex-col items-center justify-end px-6 pb-10 text-center">
+              <div className="text-sm font-semibold uppercase tracking-[0.2em] text-emerald-100">Happy Work Anniversary</div>
+              <div className="mt-2 text-3xl font-bold text-white">{name}</div>
+              <div className="mt-1 text-sm text-emerald-100">{subtitle}</div>
+            </div>
           )}
-          {/* Footer */}
-          <tr>
-            <td style={{ borderTop: `1px solid ${BRAND.border}`, padding: "20px 32px", textAlign: "center" as const }}>
-              <p style={{ margin: 0, fontSize: 11, color: BRAND.textMuted, lineHeight: 1.6 }}>
-                This is an automated notification from {BRAND.name} HRIS.<br />
-                To manage notification preferences, visit Settings → Anniversaries.
-              </p>
-            </td>
-          </tr>
-        </tbody>
-      </table>
+          {!!employeePhotoUrl && !previewImageBase64 && (
+            <img
+              src={employeePhotoUrl}
+              alt={name}
+              className="absolute left-1/2 top-1/2 h-24 w-24 -translate-x-1/2 -translate-y-1/2 rounded-full border-2 border-white object-cover shadow-md"
+            />
+          )}
+        </div>
+        <div className="space-y-3 p-6 text-sm text-muted-foreground">
+          <div className="text-base font-semibold text-foreground">Anniversary Details</div>
+          <div className="flex items-center justify-between">
+            <span>Department</span>
+            <span className="text-foreground">{department}</span>
+          </div>
+          <div className="flex items-center justify-between">
+            <span>Join Date</span>
+            <span className="text-foreground">{joinDate}</span>
+          </div>
+          <div className="flex items-center justify-between">
+            <span>Milestone</span>
+            <span className="text-foreground">{years} Years</span>
+          </div>
+        </div>
+      </div>
     </div>
   );
 }
@@ -348,6 +292,17 @@ function ReminderEmail() {
 export default function EmailTemplatePreview() {
   const [device, setDevice] = useState<"desktop" | "mobile">("desktop");
   const [recipient, setRecipient] = useState("employee");
+  const [activeTab, setActiveTab] = useState<"birthday" | "work" | "reminder">("work");
+  const [workName, setWorkName] = useState("John Smith");
+  const [workDept, setWorkDept] = useState("Engineering");
+  const [workYears, setWorkYears] = useState(5);
+  const [workJoinDate, setWorkJoinDate] = useState("March 20, 2021");
+  const [empSearch, setEmpSearch] = useState("");
+  const [empResults, setEmpResults] = useState<Array<{ id: string; name: string; dept?: string }>>([]);
+  const [selectedEmpId, setSelectedEmpId] = useState<string | null>(null);
+  const [employeePhotoUrl, setEmployeePhotoUrl] = useState<string | null>(null);
+  const [generating, setGenerating] = useState(false);
+  const [previewImageBase64, setPreviewImageBase64] = useState<string | null>(null);
 
   return (
     <MainLayout title="Email Template Preview">
@@ -396,8 +351,158 @@ export default function EmailTemplatePreview() {
           <Badge variant="outline" className="text-xs">Mockup — not sent</Badge>
         </div>
 
+        {activeTab === "work" && (
+          <div className="grid grid-cols-12 gap-4">
+            <div className="col-span-12 md:col-span-4">
+              <div className="flex items-center gap-2">
+                <Input
+                  className="w-full"
+                  value={empSearch}
+                  onChange={(e) => setEmpSearch(e.target.value)}
+                  placeholder="Search employee (name or ID)"
+                />
+                <Button
+                  variant="outline"
+                  onClick={async () => {
+                    try {
+                      const params = new URLSearchParams();
+                      params.set("limit", "5");
+                      params.set("offset", "0");
+                      params.set("q", empSearch.trim());
+                      const res = await apiFetch(`/employees?${params.toString()}`, { credentials: "include" });
+                      const data = await res.json().catch(() => null);
+                      if (!res.ok) throw new Error(`HTTP_${res.status}`);
+                      const items = Array.isArray(data?.items) ? (data.items as unknown[]) : [];
+                      const mapped = items.map((raw) => {
+                        const it = raw as Record<string, unknown>;
+                        const core = (it.core as Record<string, unknown>) || {};
+                        const emp = (it.employment as Record<string, unknown>) || {};
+                        return {
+                          id: String(core.employee_id || ""),
+                          name: String(core.name || ""),
+                          dept: emp && typeof emp.department !== "undefined" ? String(emp.department || "") : undefined,
+                        };
+                      });
+                      setEmpResults(mapped);
+                    } catch (err: unknown) {
+                      toast({ title: "Search failed", description: err instanceof Error ? err.message : "FAILED", variant: "destructive" });
+                    }
+                  }}
+                >
+                  Search
+                </Button>
+              </div>
+              {empResults.length > 0 && (
+                <div className="mt-2 rounded-md border">
+                  {empResults.map((e) => (
+                    <button
+                      key={e.id}
+                      className="flex w-full items-center justify-between px-3 py-2 text-left text-sm hover:bg-muted"
+                      onClick={async () => {
+                        try {
+                          setSelectedEmpId(e.id);
+                          setWorkName(e.name || e.id);
+                          setWorkDept(e.dept || "Unknown");
+                          setEmployeePhotoUrl(`/api/employees/${e.id}/photo`);
+                          const res = await apiFetch(`/employees/${e.id}`, { credentials: "include" });
+                          if (res.ok) {
+                            const det = await res.json().catch(() => null);
+                            const join = det?.onboard?.join_date || det?.employment?.join_date || null;
+                            if (join) {
+                              const dt = new Date(join);
+                              setWorkJoinDate(dt.toLocaleDateString(undefined, { year: "numeric", month: "long", day: "numeric" }));
+                              const now = new Date();
+                              const yrs = now.getFullYear() - dt.getFullYear() - ((now.getMonth() < dt.getMonth() || (now.getMonth() === dt.getMonth() && now.getDate() < dt.getDate())) ? 1 : 0);
+                              setWorkYears(Math.max(0, yrs));
+                            }
+                          }
+                        } catch { /* ignore */ }
+                      }}
+                    >
+                      <span>{e.name} <span className="text-muted-foreground">({e.id})</span></span>
+                      <span className="text-xs text-muted-foreground">{e.dept || "—"}</span>
+                    </button>
+                  ))}
+                </div>
+              )}
+            </div>
+            <div className="col-span-12 md:col-span-3">
+              <input
+                className="w-full rounded-md border px-3 py-2 text-sm"
+                value={workName}
+                onChange={(e) => setWorkName(e.target.value)}
+                placeholder="Employee Name"
+              />
+            </div>
+            <div className="col-span-12 md:col-span-3">
+              <input
+                className="w-full rounded-md border px-3 py-2 text-sm"
+                value={workDept}
+                onChange={(e) => setWorkDept(e.target.value)}
+                placeholder="Department"
+              />
+            </div>
+            <div className="col-span-6 md:col-span-2">
+              <input
+                type="number"
+                min={0}
+                className="w-full rounded-md border px-3 py-2 text-sm"
+                value={workYears}
+                onChange={(e) => setWorkYears(Number(e.target.value))}
+                placeholder="Years"
+              />
+            </div>
+            <div className="col-span-6 md:col-span-4">
+              <input
+                className="w-full rounded-md border px-3 py-2 text-sm"
+                value={workJoinDate}
+                onChange={(e) => setWorkJoinDate(e.target.value)}
+                placeholder="Join Date (text)"
+              />
+            </div>
+            <div className="col-span-12">
+              <Button
+                onClick={async () => {
+                  setPreviewImageBase64(null);
+                  if (!selectedEmpId) {
+                    toast({ title: "Select an employee first", description: "Search and choose an employee", variant: "destructive" });
+                    return;
+                  }
+                  try {
+                    setGenerating(true);
+                    const res = await apiFetch(`/anniversaries/preview-image?debug=1&returnPrompt=1`, {
+                      method: "POST",
+                      credentials: "include",
+                      headers: { "Content-Type": "application/json" },
+                      body: JSON.stringify({ employeeId: selectedEmpId, years: workYears }),
+                    });
+                    const data = await res.json().catch(() => null);
+                    if (!res.ok) throw new Error((data && data.error) || `HTTP_${res.status}`);
+                    if (data?.imageBase64) {
+                      setPreviewImageBase64(String(data.imageBase64));
+                      toast({ title: "Preview generated", description: "Image generated with Nano Banana" });
+                      if (data?.prompt) {
+                        console.info("[Anniversary Preview Prompt]", data.prompt, data?.meta || {});
+                      }
+                    } else {
+                      throw new Error("No image in response");
+                    }
+                  } catch (err: unknown) {
+                    toast({ title: "Generation failed", description: err instanceof Error ? err.message : "FAILED", variant: "destructive" });
+                  } finally {
+                    setGenerating(false);
+                  }
+                }}
+                disabled={!selectedEmpId || generating}
+              >
+                {generating ? "Generating..." : "Generate with Nano Banana"}
+              </Button>
+            </div>
+          </div>
+        )}
+
         {/* Templates */}
-        <Tabs defaultValue="birthday" className="w-full">
+        <Tabs value={activeTab} onValueChange={(v) => setActiveTab(v as typeof activeTab)} className="w-full">
           <TabsList>
             <TabsTrigger value="birthday">🎂 Birthday</TabsTrigger>
             <TabsTrigger value="work">🎉 Work Anniversary</TabsTrigger>
@@ -422,7 +527,7 @@ export default function EmailTemplatePreview() {
                   <div className="flex gap-2">
                     <span className="font-semibold text-foreground w-14">Subject:</span>
                     <span className="font-medium text-foreground">
-                      {tab === "birthday" ? "🎂 Happy Birthday, Maria!" : tab === "work" ? "🎉 Congratulations on 5 Years, John!" : "📅 Upcoming Anniversaries This Week"}
+                      {tab === "birthday" ? "🎂 Happy Birthday, Maria!" : tab === "work" ? `🎉 Congratulations on ${workYears} Years, ${workName}!` : "📅 Upcoming Anniversaries This Week"}
                     </span>
                   </div>
                 </div>
@@ -433,7 +538,17 @@ export default function EmailTemplatePreview() {
                   device === "mobile" ? "max-w-[375px]" : "w-full"
                 )}>
                   {tab === "birthday" && <BirthdayEmail recipientType={recipient} />}
-                  {tab === "work" && <WorkAnniversaryEmail recipientType={recipient} />}
+                  {tab === "work" && (
+                    <WorkAnniversaryEmail
+                      recipientType={recipient}
+                      name={workName}
+                      department={workDept}
+                      years={workYears}
+                      joinDate={workJoinDate}
+                      employeePhotoUrl={employeePhotoUrl}
+                      previewImageBase64={previewImageBase64}
+                    />
+                  )}
                   {tab === "reminder" && <ReminderEmail />}
                 </div>
               </Card>

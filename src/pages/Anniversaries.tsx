@@ -1,14 +1,21 @@
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import { MainLayout } from "@/components/layout/MainLayout";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Badge } from "@/components/ui/badge";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
-import { Cake, Briefcase, CalendarDays, Mail } from "lucide-react";
+import { Cake, Briefcase, CalendarDays, Mail, RefreshCcw } from "lucide-react";
 import { Link } from "react-router-dom";
 import { cn } from "@/lib/utils";
+import { Button } from "@/components/ui/button";
+import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
+import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle } from "@/components/ui/dialog";
+import { Textarea } from "@/components/ui/textarea";
+import { toast } from "@/hooks/use-toast";
+import { apiFetch } from "@/lib/api";
 
 type AnniversaryType = "birthday" | "work";
+type AnniversaryStatus = "pending" | "approved" | "rejected" | "needs_revision" | "sent";
 
 interface AnniversaryEntry {
   id: string;
@@ -18,6 +25,19 @@ interface AnniversaryEntry {
   date: string;
   years?: number;
 }
+
+type AnniversaryQueueItem = {
+  id: number;
+  employeeId: string;
+  name: string;
+  department: string | null;
+  anniversaryDate: string;
+  type: AnniversaryType;
+  status: AnniversaryStatus;
+  imageUrl: string;
+  emailSubject: string | null;
+  years: number | null;
+};
 
 const MOCK_DATA: AnniversaryEntry[] = [
   { id: "1", name: "John Smith", department: "Engineering", type: "work", date: "2026-03-20", years: 5 },
@@ -98,6 +118,34 @@ function AnniversaryRow({ entry }: { entry: AnniversaryEntry }) {
 export default function Anniversaries() {
   const [typeFilter, setTypeFilter] = useState<string>("all");
   const [deptFilter, setDeptFilter] = useState<string>("all");
+  const [queue, setQueue] = useState<AnniversaryQueueItem[]>([]);
+  const [queueLoading, setQueueLoading] = useState(false);
+  const [queueError, setQueueError] = useState<string | null>(null);
+  const [reviseOpen, setReviseOpen] = useState(false);
+  const [reviseTarget, setReviseTarget] = useState<AnniversaryQueueItem | null>(null);
+  const [revisePrompt, setRevisePrompt] = useState("");
+  const [actionLoading, setActionLoading] = useState(false);
+  const [generateLoading, setGenerateLoading] = useState(false);
+
+  const loadQueue = async () => {
+    try {
+      setQueueLoading(true);
+      setQueueError(null);
+      const res = await apiFetch("/anniversaries/queue?range=next7days", { credentials: "include" });
+      const data = await res.json().catch(() => null);
+      if (!res.ok) throw new Error((data && data.error) || `HTTP_${res.status}`);
+      const items = (data?.items || []) as AnniversaryQueueItem[];
+      setQueue(items);
+    } catch (err: unknown) {
+      setQueueError(err instanceof Error ? err.message : "FAILED_TO_LOAD_QUEUE");
+    } finally {
+      setQueueLoading(false);
+    }
+  };
+
+  useEffect(() => {
+    loadQueue().catch(() => {});
+  }, []);
 
   const filtered = MOCK_DATA.filter((e) => {
     if (typeFilter !== "all" && e.type !== typeFilter) return false;
@@ -108,6 +156,14 @@ export default function Anniversaries() {
   const thisWeek = filtered.filter((e) => isThisWeek(e.date));
   const thisMonth = filtered.filter((e) => isThisMonth(e.date));
   const history = filtered.filter((e) => new Date(e.date) < new Date());
+
+  const statusLabel = (status: AnniversaryStatus) => {
+    if (status === "approved") return "Approved";
+    if (status === "rejected") return "Rejected";
+    if (status === "needs_revision") return "Needs Revision";
+    if (status === "sent") return "Sent";
+    return "Pending";
+  };
 
   return (
     <MainLayout title="Anniversaries">
@@ -127,6 +183,146 @@ export default function Anniversaries() {
             Email Templates
           </Link>
         </div>
+
+        <Card>
+          <CardHeader className="flex flex-row items-center justify-between gap-3 space-y-0">
+            <div>
+              <CardTitle className="text-base">Weekly Review Queue</CardTitle>
+              <p className="text-sm text-muted-foreground">Review upcoming anniversaries for the next 7 days.</p>
+            </div>
+            <div className="flex items-center gap-2">
+              <Button
+                variant="outline"
+                onClick={async () => {
+                  try {
+                    setGenerateLoading(true);
+                    const res = await apiFetch("/anniversaries/generate-weekly", { method: "POST", credentials: "include" });
+                    const data = await res.json().catch(() => null);
+                    if (!res.ok) throw new Error((data && data.error) || `HTTP_${res.status}`);
+                    await loadQueue();
+                    toast({ title: "Weekly drafts generated", description: `Added ${data?.inserted ?? 0} items.` });
+                  } catch (err: unknown) {
+                    toast({ title: "Failed to generate drafts", description: err instanceof Error ? err.message : "FAILED", variant: "destructive" });
+                  } finally {
+                    setGenerateLoading(false);
+                  }
+                }}
+                disabled={generateLoading}
+              >
+                <RefreshCcw className="mr-2 h-4 w-4" />
+                {generateLoading ? "Generating..." : "Generate This Week"}
+              </Button>
+              <Button variant="outline" onClick={loadQueue} disabled={queueLoading}>
+                {queueLoading ? "Refreshing..." : "Refresh"}
+              </Button>
+            </div>
+          </CardHeader>
+          <CardContent>
+            {queueError ? (
+              <p className="text-sm text-destructive">Failed to load queue ({queueError}).</p>
+            ) : queue.length === 0 ? (
+              <p className="text-sm text-muted-foreground">No upcoming anniversaries in the next 7 days.</p>
+            ) : (
+              <Table>
+                <TableHeader>
+                  <TableRow>
+                    <TableHead>Employee</TableHead>
+                    <TableHead>Date</TableHead>
+                    <TableHead>Type</TableHead>
+                    <TableHead>Status</TableHead>
+                    <TableHead>Preview</TableHead>
+                    <TableHead className="text-right">Actions</TableHead>
+                  </TableRow>
+                </TableHeader>
+                <TableBody>
+                  {queue.map((item) => (
+                    <TableRow key={item.id}>
+                      <TableCell>
+                        <div className="flex items-center gap-3">
+                          <img src={item.imageUrl} alt={item.name} className="h-10 w-10 rounded object-cover" />
+                          <div>
+                            <div className="text-sm font-semibold">{item.name}</div>
+                            <div className="text-xs text-muted-foreground">{item.department || "Unknown Dept"}</div>
+                          </div>
+                        </div>
+                      </TableCell>
+                      <TableCell className="text-sm">{formatDate(item.anniversaryDate)}</TableCell>
+                      <TableCell>
+                        <Badge variant={item.type === "birthday" ? "secondary" : "outline"}>
+                          {item.type === "birthday" ? "Birthday" : "Work"}
+                        </Badge>
+                      </TableCell>
+                      <TableCell>
+                        <Badge variant={item.status === "approved" ? "default" : item.status === "rejected" ? "destructive" : "secondary"}>
+                          {statusLabel(item.status)}
+                        </Badge>
+                      </TableCell>
+                      <TableCell>
+                        <Button asChild variant="outline" size="sm">
+                          <a href={item.imageUrl} target="_blank" rel="noreferrer">View</a>
+                        </Button>
+                      </TableCell>
+                      <TableCell className="text-right space-x-2">
+                        <Button
+                          size="sm"
+                          onClick={async () => {
+                            try {
+                              setActionLoading(true);
+                              const res = await apiFetch(`/anniversaries/${item.id}/approve`, { method: "POST", credentials: "include" });
+                              const data = await res.json().catch(() => null);
+                              if (!res.ok) throw new Error((data && data.error) || `HTTP_${res.status}`);
+                              await loadQueue();
+                              toast({ title: "Approved", description: `${item.name} approved.` });
+                            } catch (err: unknown) {
+                              toast({ title: "Approval failed", description: err instanceof Error ? err.message : "FAILED", variant: "destructive" });
+                            } finally {
+                              setActionLoading(false);
+                            }
+                          }}
+                          disabled={actionLoading}
+                        >
+                          Approve
+                        </Button>
+                        <Button
+                          size="sm"
+                          variant="outline"
+                          onClick={() => {
+                            setReviseTarget(item);
+                            setRevisePrompt("");
+                            setReviseOpen(true);
+                          }}
+                        >
+                          Revise
+                        </Button>
+                        <Button
+                          size="sm"
+                          variant="destructive"
+                          onClick={async () => {
+                            try {
+                              setActionLoading(true);
+                              const res = await apiFetch(`/anniversaries/${item.id}/reject`, { method: "POST", credentials: "include" });
+                              const data = await res.json().catch(() => null);
+                              if (!res.ok) throw new Error((data && data.error) || `HTTP_${res.status}`);
+                              await loadQueue();
+                              toast({ title: "Rejected", description: `${item.name} archived.` });
+                            } catch (err: unknown) {
+                              toast({ title: "Reject failed", description: err instanceof Error ? err.message : "FAILED", variant: "destructive" });
+                            } finally {
+                              setActionLoading(false);
+                            }
+                          }}
+                          disabled={actionLoading}
+                        >
+                          Reject
+                        </Button>
+                      </TableCell>
+                    </TableRow>
+                  ))}
+                </TableBody>
+              </Table>
+            )}
+          </CardContent>
+        </Card>
 
         {/* Filters */}
         <div className="flex flex-wrap items-center gap-3">
@@ -221,6 +417,50 @@ export default function Anniversaries() {
           </TabsContent>
         </Tabs>
       </div>
+
+      <Dialog open={reviseOpen} onOpenChange={setReviseOpen}>
+        <DialogContent>
+          <DialogHeader>
+            <DialogTitle>Revise Anniversary Draft</DialogTitle>
+            <DialogDescription>Provide a prompt to regenerate the draft for {reviseTarget?.name}.</DialogDescription>
+          </DialogHeader>
+          <Textarea
+            value={revisePrompt}
+            onChange={(event) => setRevisePrompt(event.target.value)}
+            placeholder="Example: Use a warmer tone and emphasize team appreciation."
+          />
+          <DialogFooter>
+            <Button variant="outline" onClick={() => setReviseOpen(false)}>Cancel</Button>
+            <Button
+              onClick={async () => {
+                if (!reviseTarget) return;
+                try {
+                  setActionLoading(true);
+                  const res = await apiFetch(`/anniversaries/${reviseTarget.id}/revise`, {
+                    method: "POST",
+                    credentials: "include",
+                    headers: { "Content-Type": "application/json" },
+                    body: JSON.stringify({ prompt: revisePrompt }),
+                  });
+                  const data = await res.json().catch(() => null);
+                  if (!res.ok) throw new Error((data && data.error) || `HTTP_${res.status}`);
+                  setReviseOpen(false);
+                  setRevisePrompt("");
+                  await loadQueue();
+                  toast({ title: "Revision requested", description: `${reviseTarget.name} draft regenerated.` });
+                } catch (err: unknown) {
+                  toast({ title: "Revision failed", description: err instanceof Error ? err.message : "FAILED", variant: "destructive" });
+                } finally {
+                  setActionLoading(false);
+                }
+              }}
+              disabled={!revisePrompt.trim() || actionLoading}
+            >
+              Regenerate
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
     </MainLayout>
   );
 }

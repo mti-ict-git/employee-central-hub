@@ -218,6 +218,44 @@ CREATE TABLE [dbo].[employee_onboard] (
   PRIMARY KEY ([employee_id])
 );
 
+CREATE TABLE [dbo].[anniversary_settings] (
+  [id] int NOT NULL,
+  [provider] nvarchar(30) NOT NULL,
+  [nano_banana_api_key] nvarchar(512) NULL,
+  [openai_api_key] nvarchar(512) NULL,
+  [fallback_enabled] bit NOT NULL,
+  [model_preset] nvarchar(50) NULL,
+  [weekly_generation_day] nvarchar(20) NULL,
+  [weekly_generation_time] nvarchar(10) NULL,
+  [weekly_generation_timezone] nvarchar(50) NULL,
+  [updated_at] datetime2 NOT NULL,
+  PRIMARY KEY ([id])
+);
+
+CREATE TABLE [dbo].[anniversary_notifications] (
+  [id] bigint NOT NULL,
+  [employee_id] varchar(20) NOT NULL,
+  [anniversary_date] date NOT NULL,
+  [type] nvarchar(20) NOT NULL,
+  [status] nvarchar(20) NOT NULL,
+  [week_start] date NULL,
+  [prompt] nvarchar(max) NULL,
+  [revised_prompt] nvarchar(max) NULL,
+  [provider_used] nvarchar(30) NULL,
+  [image_url] nvarchar(500) NULL,
+  [email_subject] nvarchar(200) NULL,
+  [email_body_html] nvarchar(max) NULL,
+  [created_at] datetime2 NOT NULL,
+  [updated_at] datetime2 NULL,
+  [approved_by] nvarchar(100) NULL,
+  [approved_at] datetime2 NULL,
+  [rejected_by] nvarchar(100) NULL,
+  [rejected_at] datetime2 NULL,
+  [archived] bit NOT NULL,
+  [sent_at] datetime2 NULL,
+  PRIMARY KEY ([id])
+);
+
 CREATE TABLE [dbo].[employee_travel] (
   [employee_id] varchar(20) NOT NULL,
   [travel_in] date NULL,

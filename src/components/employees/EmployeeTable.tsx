@@ -61,6 +61,7 @@ interface EmployeeTableProps {
   pinState?: Record<string, "left" | "right" | undefined>;
   onPinChange?: (key: string, pin: "left" | "right" | null) => void;
   onReorderColumn?: (sourceKey: string, targetKey: string) => void;
+  showAvatar?: boolean;
 }
 
 type SortableHeaderCellProps = {
@@ -84,7 +85,7 @@ const SortableHeaderCell = ({ id, className, style, children }: SortableHeaderCe
   );
 };
 
-export function EmployeeTable({ employees, onDelete, selectable = false, selected, onToggleSelect, onToggleAll, visibleColumns, onRowClick, resizable = false, columnWidths, onColumnResize, sortState, onSortChange, pinState, onPinChange, onReorderColumn }: EmployeeTableProps) {
+export function EmployeeTable({ employees, onDelete, selectable = false, selected, onToggleSelect, onToggleAll, visibleColumns, onRowClick, resizable = false, columnWidths, onColumnResize, sortState, onSortChange, pinState, onPinChange, onReorderColumn, showAvatar = true }: EmployeeTableProps) {
   const { caps, typeAccess } = useRBAC();
   const [deleteTarget, setDeleteTarget] = useState<Employee | null>(null);
   const columns = useMemo(() => (
@@ -136,18 +137,20 @@ export function EmployeeTable({ employees, onDelete, selectable = false, selecte
 
     return (
       <div className="flex items-center gap-3">
-        <div className="relative flex h-9 w-9 items-center justify-center overflow-hidden rounded-full bg-primary/10 font-medium text-primary">
-          <span className="absolute inset-0 flex items-center justify-center">{initials || "??"}</span>
-          <img
-            src={`/api/employees/${encodeURIComponent(employee.core.employee_id)}/photo?token=${encodeURIComponent(typeof window !== "undefined" ? (localStorage.getItem("auth_token") || "") : "")}`}
-            alt={name || employee.core.employee_id}
-            className="relative z-10 h-full w-full object-cover"
-            loading="lazy"
-            onError={(event) => {
-              event.currentTarget.style.display = "none";
-            }}
-          />
-        </div>
+        {showAvatar ? (
+          <div className="relative flex h-9 w-9 items-center justify-center overflow-hidden rounded-full bg-primary/10 font-medium text-primary">
+            <span className="absolute inset-0 flex items-center justify-center">{initials || "??"}</span>
+            <img
+              src={`/api/employees/${encodeURIComponent(employee.core.employee_id)}/photo?token=${encodeURIComponent(typeof window !== "undefined" ? (localStorage.getItem("auth_token") || "") : "")}`}
+              alt={name || employee.core.employee_id}
+              className="relative z-10 h-full w-full object-cover"
+              loading="lazy"
+              onError={(event) => {
+                event.currentTarget.style.display = "none";
+              }}
+            />
+          </div>
+        ) : null}
         <div>
           <p className="font-medium">{name || "-"}</p>
           <p className="text-xs text-muted-foreground">
