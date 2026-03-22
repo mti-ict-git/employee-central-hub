@@ -6,6 +6,17 @@ import { can, readSectionsFor, writeSectionsFor } from "../policy";
 
 export const employeesRouter = Router();
 
+// Allow Bearer token via query param for image <img> requests
+employeesRouter.use((req, _res, next) => {
+  const existing = String(req.headers.authorization || "");
+  if (!existing && typeof req.query.token === "string" && req.query.token.trim()) {
+    req.headers.authorization = `Bearer ${String(req.query.token)}`;
+    // Do not expose token further down the stack via req.query
+    delete (req.query as Record<string, unknown>).token;
+  }
+  return next();
+});
+
 employeesRouter.use(authMiddleware);
 
 employeesRouter.use((req, res, next) => {
@@ -426,6 +437,25 @@ function getPool() {
       trustServerCertificate: CONFIG.DB.TRUST_SERVER_CERTIFICATE,
     },
   });
+}
+
+async function ensurePhotoColumn(pool: sql.ConnectionPool): Promise<void> {
+  await new sql.Request(pool).query(`
+    IF COL_LENGTH('dbo.employee_core', 'photo_blob') IS NULL
+      ALTER TABLE dbo.employee_core ADD photo_blob VARBINARY(MAX) NULL;
+  `);
+}
+
+function detectImageMime(buffer: Buffer): string {
+  if (buffer.length >= 3 && buffer[0] === 0xff && buffer[1] === 0xd8 && buffer[2] === 0xff) return "image/jpeg";
+  if (buffer.length >= 8 &&
+    buffer[0] === 0x89 && buffer[1] === 0x50 && buffer[2] === 0x4e && buffer[3] === 0x47 &&
+    buffer[4] === 0x0d && buffer[5] === 0x0a && buffer[6] === 0x1a && buffer[7] === 0x0a) return "image/png";
+  if (buffer.length >= 4 && buffer[0] === 0x47 && buffer[1] === 0x49 && buffer[2] === 0x46 && buffer[3] === 0x38) return "image/gif";
+  if (buffer.length >= 12 &&
+    buffer[0] === 0x52 && buffer[1] === 0x49 && buffer[2] === 0x46 && buffer[3] === 0x46 &&
+    buffer[8] === 0x57 && buffer[9] === 0x45 && buffer[10] === 0x42 && buffer[11] === 0x50) return "image/webp";
+  return "application/octet-stream";
 }
 
 type EmployeeListRow = {
@@ -2323,6 +2353,35 @@ employeesRouter.put("/:id/custom-fields", async (req, res) => {
     const message = err instanceof Error ? err.message : "FAILED_TO_SAVE_CUSTOM_FIELDS";
     const details = extractDbErrorDetails(err);
     return res.status(500).json({ error: message, details });
+  } finally {
+    await pool.close();
+  }
+});
+
+employeesRouter.get("/:id/photo", async (req, res) => {
+  const id = String(req.params.id || "").trim();
+  if (!id) return res.status(400).json({ error: "EMPLOYEE_ID_REQUIRED" });
+  const pool = getPool();
+  try {
+    await pool.connect();
+    await ensurePhotoColumn(pool);
+    const request = new sql.Request(pool);
+    request.input("id", sql.VarChar(100), id);
+    const result = await request.query(`
+      SELECT TOP 1 photo_blob
+      FROM dbo.employee_core
+      WHERE employee_id=@id
+    `);
+    const row = (result.recordset || [])[0] as { photo_blob?: Buffer | Uint8Array | null } | undefined;
+    const photo = row?.photo_blob;
+    const buffer = Buffer.isBuffer(photo) ? photo : (photo instanceof Uint8Array ? Buffer.from(photo) : null);
+    if (!buffer || !buffer.byteLength) return res.status(404).json({ error: "PHOTO_NOT_FOUND" });
+    res.setHeader("Content-Type", detectImageMime(buffer));
+    res.setHeader("Cache-Control", "private, max-age=300");
+    return res.send(buffer);
+  } catch (err: unknown) {
+    const message = err instanceof Error ? err.message : "FAILED_TO_LOAD_PHOTO";
+    return res.status(500).json({ error: message });
   } finally {
     await pool.close();
   }

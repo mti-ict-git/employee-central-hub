@@ -145,6 +145,7 @@ CREATE TABLE [dbo].[employee_core] (
   [id_card_mti] bit NULL,
   [field] nvarchar(255) NULL,
   [residen] bit NULL,
+  [photo_blob] varbinary(max) NULL,
   PRIMARY KEY ([employee_id])
 );
 
@@ -398,6 +399,10 @@ CREATE TABLE [dbo].[sync_config] (
   [enabled] bit NOT NULL,
   [schedule] nvarchar(100) NULL,
   [mapping] nvarchar(max) NULL,
+  [sharepoint] nvarchar(max) NULL,
+  [sharepoint_auth] nvarchar(max) NULL,
+  [photo_sync_enabled] bit NULL,
+  [photo_sync_schedule] nvarchar(100) NULL,
   [updated_at] datetime2 NOT NULL,
   PRIMARY KEY ([id])
 );

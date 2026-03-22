@@ -373,8 +373,18 @@ const EmployeeDetail = () => {
       {/* Employee Header Card */}
       <div className="rounded-xl border border-border bg-card p-6 shadow-card mb-6 animate-fade-in">
         <div className="flex flex-wrap items-start gap-6">
-          <div className="flex h-20 w-20 items-center justify-center rounded-2xl gradient-primary text-2xl font-bold text-primary-foreground">
-            {(employee.core?.name || '').split(' ').map(n => n[0]).join('').slice(0, 2)}
+          <div className="relative flex h-20 w-20 items-center justify-center overflow-hidden rounded-2xl gradient-primary text-2xl font-bold text-primary-foreground">
+            <span className="absolute inset-0 flex items-center justify-center">
+              {(employee.core?.name || '').split(' ').map(n => n[0]).join('').slice(0, 2)}
+            </span>
+            <img
+              src={`/api/employees/${encodeURIComponent(employee.core?.employee_id || "")}/photo?token=${encodeURIComponent(typeof window !== "undefined" ? (localStorage.getItem("auth_token") || "") : "")}`}
+              alt={employee.core?.name || employee.core?.employee_id || "Employee photo"}
+              className="relative z-10 h-full w-full object-cover"
+              onError={(event) => {
+                event.currentTarget.style.display = "none";
+              }}
+            />
           </div>
           <div className="flex-1">
             <div className="flex flex-wrap items-center gap-3 mb-2">

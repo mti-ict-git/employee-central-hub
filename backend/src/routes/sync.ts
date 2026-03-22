@@ -253,6 +253,20 @@ function getSrcPool() {
   });
 }
 
+function getCardPool() {
+  return new sql.ConnectionPool({
+    server: String(process.env.DATA_DB_SERVER || CONFIG.DB.SERVER),
+    database: String(process.env.DATA_DB_DATABASE || ""),
+    user: String(process.env.DATA_DB_USER || CONFIG.DB.USER),
+    password: String(process.env.DATA_DB_PASSWORD || CONFIG.DB.PASSWORD),
+    port: parseInt(String(process.env.DATA_DB_PORT || CONFIG.DB.PORT || "1433"), 10),
+    options: {
+      encrypt: (process.env.DATA_DB_ENCRYPT || "false").toLowerCase() === "true",
+      trustServerCertificate: (process.env.DATA_DB_TRUST_SERVER_CERTIFICATE || "true").toLowerCase() === "true",
+    },
+  });
+}
+
 async function ensureSyncSchema(pool: sql.ConnectionPool) {
   await new sql.Request(pool).query(`
     IF NOT EXISTS (SELECT 1 FROM sys.tables WHERE name='sync_config')
@@ -263,6 +277,8 @@ async function ensureSyncSchema(pool: sql.ConnectionPool) {
         mapping NVARCHAR(MAX) NULL,
         sharepoint NVARCHAR(MAX) NULL,
         sharepoint_auth NVARCHAR(MAX) NULL,
+        photo_sync_enabled BIT NULL,
+        photo_sync_schedule NVARCHAR(100) NULL,
         updated_at DATETIME2 NOT NULL CONSTRAINT DF_sync_config_updated_at DEFAULT SYSDATETIME()
       );
     IF NOT EXISTS (SELECT 1 FROM dbo.sync_config WHERE id=1)
@@ -280,6 +296,10 @@ async function ensureSyncSchema(pool: sql.ConnectionPool) {
       ALTER TABLE dbo.sync_config ADD sharepoint NVARCHAR(MAX) NULL;
     IF COL_LENGTH('dbo.sync_config', 'sharepoint_auth') IS NULL
       ALTER TABLE dbo.sync_config ADD sharepoint_auth NVARCHAR(MAX) NULL;
+    IF COL_LENGTH('dbo.sync_config', 'photo_sync_enabled') IS NULL
+      ALTER TABLE dbo.sync_config ADD photo_sync_enabled BIT NULL;
+    IF COL_LENGTH('dbo.sync_config', 'photo_sync_schedule') IS NULL
+      ALTER TABLE dbo.sync_config ADD photo_sync_schedule NVARCHAR(100) NULL;
   `);
 }
 
@@ -288,8 +308,17 @@ syncRouter.get("/config", async (_req, res) => {
   try {
     await pool.connect();
     await ensureSyncSchema(pool);
-    const r = await new sql.Request(pool).query(`SELECT TOP 1 enabled, schedule, mapping, sharepoint, sharepoint_auth, updated_at FROM dbo.sync_config WHERE id=1`);
-    const row = (r.recordset || [])[0] as { enabled?: boolean; schedule?: string; mapping?: string; sharepoint?: string; sharepoint_auth?: string; updated_at?: Date } | undefined;
+    const r = await new sql.Request(pool).query(`SELECT TOP 1 enabled, schedule, mapping, sharepoint, sharepoint_auth, photo_sync_enabled, photo_sync_schedule, updated_at FROM dbo.sync_config WHERE id=1`);
+    const row = (r.recordset || [])[0] as {
+      enabled?: boolean;
+      schedule?: string;
+      mapping?: string;
+      sharepoint?: string;
+      sharepoint_auth?: string;
+      photo_sync_enabled?: boolean;
+      photo_sync_schedule?: string;
+      updated_at?: Date;
+    } | undefined;
     const authCache = readSharePointAuthCache(parseJsonRecord(row?.sharepoint_auth));
     return res.json({
       enabled: !!row?.enabled,
@@ -298,6 +327,8 @@ syncRouter.get("/config", async (_req, res) => {
       sharepoint: parseJsonRecord(row?.sharepoint) || null,
       sharepoint_auth_cached: !!authCache,
       sharepoint_auth_expires_at: authCache?.expires_at || null,
+      photo_sync_enabled: !!row?.photo_sync_enabled,
+      photo_sync_schedule: row?.photo_sync_schedule || "",
       updated_at: row?.updated_at || null,
     });
   } catch (err: unknown) {
@@ -473,11 +504,176 @@ async function upsertMappedRow(
   }
 }
 
+type PhotoSyncStats = {
+  scanned: number;
+  updated: number;
+  skipped: number;
+  missing_in_dest: number;
+  errors: Array<{ employee_id?: string | null; message: string }>;
+};
+
+function sanitizeSqlIdentifier(value: string, fallback: string): string {
+  const raw = String(value || "").trim();
+  return /^[A-Za-z0-9_]+$/.test(raw) ? raw : fallback;
+}
+
+function resolveCardTableName(): string {
+  return sanitizeSqlIdentifier(String(process.env.DATA_DB_CARD_TABLE || "CardDB"), "CardDB");
+}
+
+function resolveCardSchemaName(): string {
+  return sanitizeSqlIdentifier(String(process.env.DATA_DB_CARD_SCHEMA || "dbo"), "dbo");
+}
+
+async function resolveCardSourceObject(cardPool: sql.ConnectionPool): Promise<{ schemaName: string; tableName: string }> {
+  const preferredSchema = resolveCardSchemaName();
+  const preferredTable = resolveCardTableName();
+  const preferredReq = new sql.Request(cardPool);
+  preferredReq.input("schema_name", sql.NVarChar(128), preferredSchema);
+  preferredReq.input("table_name", sql.NVarChar(128), preferredTable);
+  const preferred = await preferredReq.query(`
+    SELECT TOP 1 s.name AS schema_name, t.name AS table_name
+    FROM sys.tables t
+    INNER JOIN sys.schemas s ON s.schema_id = t.schema_id
+    WHERE s.name=@schema_name AND t.name=@table_name
+  `);
+  const preferredRow = (preferred.recordset || [])[0] as { schema_name?: string; table_name?: string } | undefined;
+  if (preferredRow?.schema_name && preferredRow?.table_name) {
+    return { schemaName: preferredRow.schema_name, tableName: preferredRow.table_name };
+  }
+
+  const searchReq = new sql.Request(cardPool);
+  searchReq.input("table_name", sql.NVarChar(128), preferredTable);
+  const found = await searchReq.query(`
+    WITH candidates AS (
+      SELECT
+        c.TABLE_SCHEMA AS schema_name,
+        c.TABLE_NAME AS table_name,
+        SUM(CASE WHEN LOWER(c.COLUMN_NAME)='staffno' THEN 1 ELSE 0 END) AS has_staffno,
+        SUM(CASE WHEN LOWER(c.COLUMN_NAME)='photo' THEN 1 ELSE 0 END) AS has_photo,
+        SUM(CASE WHEN LOWER(c.COLUMN_NAME)='del_state' THEN 1 ELSE 0 END) AS has_del_state
+      FROM INFORMATION_SCHEMA.COLUMNS c
+      GROUP BY c.TABLE_SCHEMA, c.TABLE_NAME
+    )
+    SELECT TOP 1 schema_name, table_name
+    FROM candidates
+    WHERE has_staffno > 0 AND has_photo > 0
+    ORDER BY
+      CASE WHEN table_name=@table_name THEN 0
+           WHEN table_name='CardDB' THEN 1
+           WHEN table_name='CardDB2' THEN 2
+           WHEN table_name LIKE 'CardDB%' THEN 3
+           ELSE 4 END,
+      CASE WHEN has_del_state > 0 THEN 0 ELSE 1 END,
+      schema_name, table_name
+  `);
+  const foundRow = (found.recordset || [])[0] as { schema_name?: string; table_name?: string } | undefined;
+  if (foundRow?.schema_name && foundRow?.table_name) {
+    return { schemaName: foundRow.schema_name, tableName: foundRow.table_name };
+  }
+  const dbNameRes = await new sql.Request(cardPool).query(`SELECT DB_NAME() AS db_name`);
+  const dbName = String(((dbNameRes.recordset || [])[0] as { db_name?: string } | undefined)?.db_name || "");
+  throw new Error(`CARD_SOURCE_TABLE_NOT_FOUND (requested ${preferredSchema}.${preferredTable}, db=${dbName})`);
+}
+
+async function ensurePhotoSchema(pool: sql.ConnectionPool): Promise<void> {
+  await new sql.Request(pool).query(`
+    IF COL_LENGTH('dbo.employee_core', 'photo_blob') IS NULL
+      ALTER TABLE dbo.employee_core ADD photo_blob VARBINARY(MAX) NULL;
+  `);
+}
+
+async function runPhotoSyncWorker(dest: sql.ConnectionPool, dryRun: boolean, pageSizeRaw: unknown, onlyMissing: boolean): Promise<PhotoSyncStats> {
+  const pageSize = Math.max(1, Math.min(1000, Math.floor(Number(pageSizeRaw) || 200)));
+  const cardPool = getCardPool();
+  const stats: PhotoSyncStats = { scanned: 0, updated: 0, skipped: 0, missing_in_dest: 0, errors: [] };
+  let offset = 0;
+  try {
+    await cardPool.connect();
+    await ensurePhotoSchema(dest);
+    const cardSource = await resolveCardSourceObject(cardPool);
+    const sourceSql = `[${cardSource.schemaName}].[${cardSource.tableName}]`;
+    while (true) {
+      const reqCard = new sql.Request(cardPool);
+      reqCard.input("offset", sql.Int, offset);
+      reqCard.input("limit", sql.Int, pageSize);
+      const r = await reqCard.query(`
+        SELECT StaffNo, Photo
+        FROM ${sourceSql}
+        WHERE ISNULL(Del_State, 0) = 0
+          AND StaffNo IS NOT NULL
+          AND LTRIM(RTRIM(StaffNo)) <> ''
+          AND Photo IS NOT NULL
+        ORDER BY StaffNo
+        OFFSET @offset ROWS FETCH NEXT @limit ROWS ONLY
+      `);
+      const rows = (r.recordset || []) as Array<{ StaffNo?: string | null; Photo?: Buffer | Uint8Array | null }>;
+      if (!rows.length) break;
+      stats.scanned += rows.length;
+      for (const row of rows) {
+        const empId = String(row.StaffNo || "").trim();
+        if (!empId) {
+          stats.skipped += 1;
+          continue;
+        }
+        const photoBuf = Buffer.isBuffer(row.Photo)
+          ? row.Photo
+          : row.Photo instanceof Uint8Array
+            ? Buffer.from(row.Photo)
+            : null;
+        if (!photoBuf || !photoBuf.byteLength) {
+          stats.skipped += 1;
+          continue;
+        }
+        try {
+          const existsReq = new sql.Request(dest);
+          existsReq.input("employee_id", sql.VarChar(100), empId);
+          const existsRes = await existsReq.query(`
+            SELECT TOP 1 employee_id, DATALENGTH(photo_blob) AS existing_photo_len
+            FROM dbo.employee_core
+            WHERE employee_id=@employee_id
+          `);
+          const existingRow = (existsRes.recordset || [])[0] as { employee_id?: string; existing_photo_len?: number | null } | undefined;
+          if (!existingRow?.employee_id) {
+            stats.missing_in_dest += 1;
+            continue;
+          }
+          const existingLen = Number(existingRow.existing_photo_len || 0);
+          if (onlyMissing && existingLen > 0) {
+            stats.skipped += 1;
+            continue;
+          }
+          if (!dryRun) {
+            const upReq = new sql.Request(dest);
+            upReq.input("employee_id", sql.VarChar(100), empId);
+            upReq.input("photo_blob", sql.VarBinary(sql.MAX), photoBuf);
+            await upReq.query(`
+              UPDATE dbo.employee_core
+              SET photo_blob=@photo_blob, updated_at=SYSDATETIME()
+              WHERE employee_id=@employee_id
+            `);
+          }
+          stats.updated += 1;
+        } catch (err: unknown) {
+          stats.skipped += 1;
+          stats.errors.push({ employee_id: empId, message: err instanceof Error ? err.message : String(err) });
+        }
+      }
+      offset += pageSize;
+    }
+  } finally {
+    await cardPool.close();
+  }
+  return stats;
+}
+
 syncRouter.put("/config", async (req, res) => {
   const pool = getDestPool();
   const body = req.body || {};
   const enabled = body.enabled === undefined ? false : !!body.enabled;
   const schedule = String(body.schedule || "");
+  const photoSyncEnabled = body.photo_sync_enabled === undefined ? null : !!body.photo_sync_enabled;
+  const photoSyncSchedule = String(body.photo_sync_schedule || "");
   const mapping = body.mapping ? JSON.stringify(body.mapping) : null;
   const sharepoint = body.sharepoint ? JSON.stringify(body.sharepoint) : null;
   try {
@@ -488,9 +684,12 @@ syncRouter.put("/config", async (req, res) => {
     request.input("schedule", sql.NVarChar(100), schedule || null);
     request.input("mapping", sql.NVarChar(sql.MAX), mapping);
     request.input("sharepoint", sql.NVarChar(sql.MAX), sharepoint);
+    request.input("photo_sync_enabled", sql.Bit, photoSyncEnabled === null ? null : (photoSyncEnabled ? 1 : 0));
+    request.input("photo_sync_schedule", sql.NVarChar(100), photoSyncSchedule || null);
     await request.query(`
       UPDATE dbo.sync_config 
-      SET enabled=@enabled, schedule=@schedule, mapping=@mapping, sharepoint=@sharepoint, updated_at=SYSDATETIME()
+      SET enabled=@enabled, schedule=@schedule, mapping=@mapping, sharepoint=@sharepoint,
+          photo_sync_enabled=@photo_sync_enabled, photo_sync_schedule=@photo_sync_schedule, updated_at=SYSDATETIME()
       WHERE id=1
     `);
     return res.json({ ok: true });
@@ -703,6 +902,96 @@ syncRouter.get("/sharepoint/mapping-preview", async (_req, res) => {
   } catch (err: unknown) {
     const message = err instanceof Error ? err.message : "FAILED_TO_READ_MAPPING_FILE";
     return res.status(500).json({ error: message });
+  }
+});
+
+syncRouter.post("/run-photo", async (req, res) => {
+  const startedAt = new Date();
+  const body = req.body || {};
+  const dryRun = !!body.dry_run;
+  const pageSize = body.limit;
+  const onlyMissing = body.only_missing === undefined ? true : !!body.only_missing;
+  const runAsync = body.async === undefined ? true : !!body.async;
+  const dest = getDestPool();
+  try {
+    await dest.connect();
+    await ensureSyncSchema(dest);
+    await ensurePhotoSchema(dest);
+
+    const initReq = new sql.Request(dest);
+    initReq.input("started_at", sql.DateTime2, startedAt);
+    initReq.input("stats", sql.NVarChar(sql.MAX), JSON.stringify({ state: "running", dry_run: dryRun, only_missing: onlyMissing }));
+    const initRes = await initReq.query(`
+      INSERT INTO dbo.sync_runs (started_at, success, stats)
+      OUTPUT INSERTED.run_id
+      VALUES (@started_at, NULL, @stats)
+    `);
+    const runId = Number(((initRes.recordset || [])[0] as { run_id?: number } | undefined)?.run_id || 0);
+
+    const execute = async () => {
+      const workPool = getDestPool();
+      let success = 1;
+      let statsPayload: unknown = { scanned: 0, updated: 0, skipped: 0, missing_in_dest: 0, errors: [] };
+      let errorMessage: string | null = null;
+      try {
+        await workPool.connect();
+        await ensureSyncSchema(workPool);
+        await ensurePhotoSchema(workPool);
+        const stats = await runPhotoSyncWorker(workPool, dryRun, pageSize, onlyMissing);
+        statsPayload = stats;
+      } catch (err: unknown) {
+        success = 0;
+        errorMessage = err instanceof Error ? err.message : "FAILED_TO_RUN_PHOTO_SYNC";
+      } finally {
+        try {
+          const endReq = new sql.Request(workPool);
+          endReq.input("run_id", sql.Int, runId);
+          endReq.input("finished_at", sql.DateTime2, new Date());
+          endReq.input("success", sql.Bit, success);
+          endReq.input("stats", sql.NVarChar(sql.MAX), JSON.stringify(statsPayload));
+          endReq.input("error", sql.NVarChar(sql.MAX), errorMessage);
+          await endReq.query(`
+            UPDATE dbo.sync_runs
+            SET finished_at=@finished_at, success=@success, stats=@stats, error=@error
+            WHERE run_id=@run_id
+          `);
+        } finally {
+          try { await workPool.close(); } catch {}
+        }
+      }
+    };
+
+    if (runAsync) {
+      setTimeout(() => {
+        execute().catch(() => {});
+      }, 0);
+      return res.status(202).json({ ok: true, accepted: true, run_id: runId, dry_run: dryRun, only_missing: onlyMissing });
+    }
+
+    await execute();
+    const doneReq = new sql.Request(dest);
+    doneReq.input("run_id", sql.Int, runId);
+    const doneRes = await doneReq.query(`SELECT TOP 1 success, stats, error FROM dbo.sync_runs WHERE run_id=@run_id`);
+    const doneRow = (doneRes.recordset || [])[0] as { success?: boolean | null; stats?: string | null; error?: string | null } | undefined;
+    const doneStats = parseJsonRecord(doneRow?.stats) || null;
+    if (!doneRow?.success) return res.status(500).json({ error: doneRow?.error || "FAILED_TO_RUN_PHOTO_SYNC", stats: doneStats, run_id: runId });
+    return res.json({ ok: true, stats: doneStats, run_id: runId, dry_run: dryRun, only_missing: onlyMissing });
+  } catch (err: unknown) {
+    const message = err instanceof Error ? err.message : "FAILED_TO_RUN_PHOTO_SYNC";
+    try {
+      const r = new sql.Request(dest);
+      r.input("started_at", sql.DateTime2, startedAt);
+      r.input("finished_at", sql.DateTime2, new Date());
+      r.input("success", sql.Bit, 0);
+      r.input("stats", sql.NVarChar(sql.MAX), JSON.stringify({ scanned: 0, updated: 0, skipped: 0, missing_in_dest: 0, errors: [] }));
+      r.input("error", sql.NVarChar(sql.MAX), String(message));
+      await r.query(`
+        INSERT INTO dbo.sync_runs (started_at, finished_at, success, stats, error) VALUES (@started_at, @finished_at, @success, @stats, @error)
+      `);
+    } catch {}
+    return res.status(500).json({ error: message });
+  } finally {
+    try { await dest.close(); } catch {}
   }
 });
 

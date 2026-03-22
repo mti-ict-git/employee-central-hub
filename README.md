@@ -75,6 +75,9 @@ This project is built with:
 - SharePoint sync uses mapping reference at `backend/scripts/sharepoint-mapping.json` (generated from “Master Data - Database Schema Proposed - Rev. 002.xlsx”, Sheet2) and applies it when SharePoint sync is enabled.
 - Mapping preview endpoint: `GET /api/sync/sharepoint/mapping-preview` returns the mapping JSON for UI review.
 - SharePoint sync run endpoint: `POST /api/sync/run-sharepoint` reads the downloaded Excel file and upserts employee tables using the mapping reference.
+- CardDB photo sync endpoint: `POST /api/sync/run-photo` syncs `CardDB.Photo` to `employee_core.photo_blob` by `StaffNo = employee_id` with `Del_State=0`.
+- Data Sync config now includes `photo_sync_enabled` and `photo_sync_schedule` for photo worker settings.
+- Employee photo endpoint: `GET /api/employees/:id/photo`.
 
 ## How can I deploy this project?
 

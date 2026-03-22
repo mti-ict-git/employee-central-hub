@@ -136,8 +136,17 @@ export function EmployeeTable({ employees, onDelete, selectable = false, selecte
 
     return (
       <div className="flex items-center gap-3">
-        <div className="flex h-9 w-9 items-center justify-center rounded-full bg-primary/10 font-medium text-primary">
-          {initials || "??"}
+        <div className="relative flex h-9 w-9 items-center justify-center overflow-hidden rounded-full bg-primary/10 font-medium text-primary">
+          <span className="absolute inset-0 flex items-center justify-center">{initials || "??"}</span>
+          <img
+            src={`/api/employees/${encodeURIComponent(employee.core.employee_id)}/photo?token=${encodeURIComponent(typeof window !== "undefined" ? (localStorage.getItem("auth_token") || "") : "")}`}
+            alt={name || employee.core.employee_id}
+            className="relative z-10 h-full w-full object-cover"
+            loading="lazy"
+            onError={(event) => {
+              event.currentTarget.style.display = "none";
+            }}
+          />
         </div>
         <div>
           <p className="font-medium">{name || "-"}</p>

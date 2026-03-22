@@ -3,6 +3,7 @@ import { MainLayout } from "@/components/layout/MainLayout";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
+import { Label } from "@/components/ui/label";
 import { Switch } from "@/components/ui/switch";
 import { toast } from "@/hooks/use-toast";
 import { apiFetch } from "@/lib/api";
@@ -17,6 +18,7 @@ type SyncRunStats = {
   updated?: number;
   skipped?: number;
   missing_in_source?: number;
+  missing_in_dest?: number;
   scanned?: number;
   examples?: Array<{ employee_id?: string | null; StaffNo?: string | null }>;
   errors?: Array<{ employee_id?: string | null; StaffNo?: string | null; message?: string }>;
@@ -175,6 +177,9 @@ export default function SyncSettings() {
   const [mappingLoading, setMappingLoading] = useState(false);
   const [mappingError, setMappingError] = useState("");
   const [mappingGroup, setMappingGroup] = useState("");
+  const [photoSyncEnabled, setPhotoSyncEnabled] = useState(false);
+  const [photoSyncSchedule, setPhotoSyncSchedule] = useState("");
+  const [photoSyncRunning, setPhotoSyncRunning] = useState(false);
 
   useEffect(() => {
     if (!running) return;
@@ -260,6 +265,8 @@ export default function SyncSettings() {
         if (parsed.hour !== undefined) setScheduleHour(parsed.hour);
         if (parsed.dayOfWeek !== undefined) setScheduleDayOfWeek(parsed.dayOfWeek);
         if (parsed.dayOfMonth !== undefined) setScheduleDayOfMonth(parsed.dayOfMonth);
+        setPhotoSyncEnabled(!!cfg.photo_sync_enabled);
+        setPhotoSyncSchedule(String(cfg.photo_sync_schedule || ""));
         const sp = cfg.sharepoint;
         setHasSharepointAuthCache(!!cfg.sharepoint_auth_cached);
         if (sp && typeof sp === "object" && !Array.isArray(sp)) {
@@ -314,7 +321,13 @@ export default function SyncSettings() {
         method: "PUT",
         credentials: "include",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ enabled, schedule, sharepoint: sharepointConfig }),
+        body: JSON.stringify({
+          enabled,
+          schedule,
+          sharepoint: sharepointConfig,
+          photo_sync_enabled: photoSyncEnabled,
+          photo_sync_schedule: photoSyncSchedule.trim(),
+        }),
       });
       if (!r.ok) {
         const d = await r.json().catch(() => null);
@@ -682,6 +695,48 @@ export default function SyncSettings() {
     } finally {
       setRunning(false);
       setRunStartedAt(null);
+    }
+  };
+
+  const runPhotoSync = async () => {
+    try {
+      setPhotoSyncRunning(true);
+      const r = await apiFetch(`/sync/run-photo`, {
+        method: "POST",
+        credentials: "include",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ dry_run: false, limit: 200, only_missing: true, async: true }),
+      });
+      const d = await r.json().catch(() => null) as { stats?: SyncRunStats; error?: string; accepted?: boolean } | null;
+      if (!r.ok) throw new Error(d?.error || `HTTP_${r.status}`);
+      toast({
+        title: "Photo Sync Started",
+        description: "Running in background. Only employees without photo are updated.",
+      });
+      await load();
+      const startedAt = Date.now();
+      const waitLoop = async () => {
+        while (Date.now() - startedAt < 10 * 60 * 1000) {
+          await new Promise((resolve) => setTimeout(resolve, 3000));
+          const statusRes = await apiFetch(`/sync/status`, { credentials: "include" });
+          const statusBody = await statusRes.json().catch(() => null) as SyncStatus | null;
+          if (!statusRes.ok || !statusBody) continue;
+          setStatus(statusBody);
+          if (statusBody.finished_at) {
+            const s = statusBody.stats;
+            const msg = s
+              ? `Scanned ${Number(s.scanned || 0)}, Updated ${Number(s.updated || 0)}, Missing ${Number(s.missing_in_dest || 0)}, Skipped ${Number(s.skipped || 0)}`
+              : (statusBody.success ? "Photo sync completed" : "Photo sync failed");
+            toast({ title: statusBody.success ? "Photo Sync Completed" : "Photo Sync Failed", description: msg, variant: statusBody.success ? "default" : "destructive" });
+            return;
+          }
+        }
+      };
+      await waitLoop();
+    } catch (e: unknown) {
+      toast({ title: "Error", description: e instanceof Error ? e.message : "Failed to run photo sync", variant: "destructive" });
+    } finally {
+      setPhotoSyncRunning(false);
     }
   };
 
@@ -1283,6 +1338,44 @@ export default function SyncSettings() {
                   </div>
                 </div>
               )}
+            </div>
+
+            <div className="rounded-md border p-3 space-y-3">
+              <div className="text-sm font-medium">CardDB Photo Sync</div>
+              <div className="grid grid-cols-12 gap-4">
+                <div className="col-span-12 md:col-span-4 flex items-center justify-between rounded-md border p-3">
+                  <div className="space-y-1">
+                    <div className="text-sm font-medium">Enable Photo Sync</div>
+                    <div className="text-xs text-muted-foreground">Sync photos from CardDB Photo by StaffNo.</div>
+                  </div>
+                  <Switch checked={photoSyncEnabled} onCheckedChange={setPhotoSyncEnabled} />
+                </div>
+                <div className="col-span-12 md:col-span-5 space-y-1">
+                  <Label>Photo Sync Schedule (cron text)</Label>
+                  <Input
+                    value={photoSyncSchedule}
+                    onChange={(event) => setPhotoSyncSchedule(event.target.value)}
+                    placeholder="*/30 * * * *"
+                  />
+                </div>
+                <div className="col-span-12 md:col-span-3 flex items-end">
+                  <Button
+                    type="button"
+                    variant="outline"
+                    className="w-full"
+                    disabled={photoSyncRunning}
+                    onClick={() => {
+                      runPhotoSync().catch(() => {});
+                    }}
+                  >
+                    {photoSyncRunning ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : null}
+                    {photoSyncRunning ? "Running..." : "Run Photo Sync"}
+                  </Button>
+                </div>
+              </div>
+              <div className="text-xs text-muted-foreground">
+                Source: DATA_DB_DATABASE table CardDB where Del_State=0.
+              </div>
             </div>
 
             {deviceCodePayload && (

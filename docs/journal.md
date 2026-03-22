@@ -468,3 +468,38 @@ Wednesday, December 17, 2025 4:24:46 PM - Secured env handling: added .env to .g
 
 - Replaced browser confirm popup with modal dialog for Employee List sync (`src/pages/EmployeeList.tsx`).
 - Ran `npm run lint` (warnings only) and `npx tsc --noEmit`.
+
+## 2026-03-22 09:33:48 WITA — CardDB Photo Sync + UI Photos
+
+- Added destination schema support for `employee_core.photo_blob` and photo sync config fields in `sync_config` (`backend/db/schema.sql`).
+- Added CardDB connection helper and new `POST /api/sync/run-photo` worker to sync `CardDB.Photo` by `StaffNo = employee_id` with `Del_State=0` (`backend/src/routes/sync.ts`).
+- Extended Data Sync config API with `photo_sync_enabled` and `photo_sync_schedule`, and added a dedicated CardDB Photo Sync section in Data Sync UI (`backend/src/routes/sync.ts`, `src/pages/SyncSettings.tsx`).
+- Added `GET /api/employees/:id/photo` endpoint and rendered photo thumbnails in Employee List + Employee Detail (`backend/src/routes/employees.ts`, `src/components/employees/EmployeeTable.tsx`, `src/pages/EmployeeDetail.tsx`).
+- Updated README for new photo sync/photo APIs (`README.md`).
+- Ran `npm run lint`, `npx tsc --noEmit`, and `npm --prefix backend run typecheck` — passed (warnings only).
+
+## 2026-03-22 09:41:23 WITA — Standardized DB Migration Command
+
+- Added reusable migration runner script `backend/scripts/db-migrate.ts` for idempotent schema updates (sync_config + employee_core photo fields).
+- Added `db:migrate` script in backend and root package scripts so future schema changes can be applied with `npm run db:migrate`.
+- Executed `npm run db:migrate` successfully and verified migrated columns.
+- Ran `npm run lint`, `npx tsc --noEmit`, and `npm --prefix backend run typecheck` — passed (warnings only).
+
+## 2026-03-22 09:44:24 WITA — CardDB Source Table Auto Detection
+
+- Fixed photo sync source resolution to auto-detect schema/table when `dbo.CardDB` is not present (`backend/src/routes/sync.ts`).
+- Added fallback search for table names (`DATA_DB_CARD_TABLE`, `CardDB`, `Card`) across schemas.
+- Ran `npm run lint`, `npx tsc --noEmit`, and `npm --prefix backend run typecheck` — passed (warnings only).
+
+## 2026-03-22 09:48:02 WITA — CardDB Table Discovery by Columns
+
+- Updated photo sync source discovery to pick tables containing `StaffNo` + `Photo` (and prioritize `Del_State`) so non-standard names like `CardDB2` are supported (`backend/src/routes/sync.ts`).
+- Improved not-found error to include active database name for faster troubleshooting.
+- Ran `npm run lint`, `npx tsc --noEmit`, and `npm --prefix backend run typecheck` — passed (warnings only).
+
+## 2026-03-22 09:54:57 WITA — Photo Sync Timeout + Missing-Only Policy
+
+- Changed photo sync policy to update only employees with empty `employee_core.photo_blob` by default (`only_missing=true`) (`backend/src/routes/sync.ts`).
+- Converted `POST /api/sync/run-photo` to async-first mode so request returns fast and work runs in background, avoiding UI timeout for long sync jobs (`backend/src/routes/sync.ts`).
+- Updated Data Sync UI to trigger async photo sync with missing-only mode and poll `/api/sync/status` until finished (`src/pages/SyncSettings.tsx`).
+- Ran `npm run lint`, `npx tsc --noEmit`, and `npm --prefix backend run typecheck` — passed (warnings only).

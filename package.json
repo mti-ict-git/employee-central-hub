@@ -9,7 +9,8 @@
     "build:dev": "vite build --mode development",
     "lint": "eslint .",
     "preview": "vite preview",
-    "dev:full": "concurrently -n web,api -c green,blue \"npm run dev\" \"npm --prefix backend run dev\""
+    "dev:full": "concurrently -n web,api -c green,blue \"npm run dev\" \"npm --prefix backend run dev\"",
+    "db:migrate": "npm --prefix backend run db:migrate"
   },
   "dependencies": {
     "@hookform/resolvers": "^3.10.0",

@@ -10,6 +10,7 @@
     "typecheck": "tsc --noEmit -p tsconfig.json",
     "inspect:workflow:mtiusers": "tsx scripts/inspect-workflow-users.ts",
     "scan:schema": "tsx scripts/scan-schema.ts",
+    "db:migrate": "tsx scripts/db-migrate.ts",
     "map:schema": "tsx scripts/map-schema-from-excel.ts",
     "map:schema:final": "tsx scripts/build-final-mapping.ts",
     "map:dbinfo": "tsx scripts/map-schema-from-dbinfo.ts",
