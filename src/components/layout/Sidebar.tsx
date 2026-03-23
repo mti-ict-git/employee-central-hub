@@ -45,7 +45,14 @@ const navigation: NavItem[] = [
       { name: 'Anniversaries', href: '/employees/anniversaries', icon: Cake },
     ],
   },
-  { name: 'Reports', href: '/reports', icon: FileText },
+  {
+    name: 'Reports',
+    icon: FileText,
+    children: [
+      { name: 'Reports Home', href: '/reports', icon: FileText },
+      { name: 'Sync History', href: '/reports/sync-history', icon: RefreshCcw },
+    ],
+  },
   {
     name: 'Settings',
     icon: SettingsIcon,
@@ -210,6 +217,10 @@ export function Sidebar({ collapsed = false, onToggleSidebar }: { collapsed?: bo
                 if (child.href === '/employees/import') return caps.canCreateEmployees;
                 return true;
               });
+            }
+            if (item.name === 'Reports' && caps) {
+              // Hide Reports group entirely if user cannot access reports
+              if (!caps.canAccessReport) visibleChildren = [];
             }
 
             if (visibleChildren.length === 0) return null;

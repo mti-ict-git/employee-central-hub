@@ -290,8 +290,11 @@ async function ensureSyncSchema(pool: sql.ConnectionPool) {
         finished_at DATETIME2 NULL,
         success BIT NULL,
         stats NVARCHAR(MAX) NULL,
-        error NVARCHAR(MAX) NULL
+        error NVARCHAR(MAX) NULL,
+        source NVARCHAR(50) NULL
       );
+    IF COL_LENGTH('dbo.sync_runs', 'source') IS NULL
+      ALTER TABLE dbo.sync_runs ADD source NVARCHAR(50) NULL;
     IF COL_LENGTH('dbo.sync_config', 'sharepoint') IS NULL
       ALTER TABLE dbo.sync_config ADD sharepoint NVARCHAR(MAX) NULL;
     IF COL_LENGTH('dbo.sync_config', 'sharepoint_auth') IS NULL
@@ -333,6 +336,53 @@ syncRouter.get("/config", async (_req, res) => {
     });
   } catch (err: unknown) {
     const message = err instanceof Error ? err.message : "FAILED_TO_READ_SYNC_CONFIG";
+    return res.status(500).json({ error: message });
+  } finally {
+    await pool.close();
+  }
+});
+
+syncRouter.post("/sharepoint/upload-local", async (req, res) => {
+  const pool = getDestPool();
+  try {
+    await pool.connect();
+    await ensureSyncSchema(pool);
+    const body = isRecord(req.body) ? req.body : {};
+    const raw = String((body as any).excel_base64 || (body as any).file_base64 || "").trim();
+    if (!raw) return res.status(400).json({ error: "BASE64_REQUIRED" });
+    const hasPrefix = raw.startsWith("data:");
+    const base64 = hasPrefix ? raw.split(",").slice(1).join(",") : raw;
+    let buffer: Buffer;
+    try {
+      buffer = Buffer.from(base64, "base64");
+    } catch {
+      return res.status(400).json({ error: "BASE64_INVALID" });
+    }
+    if (!buffer || buffer.length === 0) return res.status(400).json({ error: "FILE_EMPTY" });
+    const xlsx = await loadXLSXModule();
+    try {
+      const wb = xlsx.read(buffer, { type: "buffer" });
+      if (!wb || !Array.isArray(wb.SheetNames) || wb.SheetNames.length === 0) {
+        return res.status(400).json({ error: "XLSX_INVALID" });
+      }
+    } catch {
+      return res.status(400).json({ error: "XLSX_INVALID" });
+    }
+    const dir = path.resolve(process.cwd(), "storage", "sharepoint-review");
+    await fs.mkdir(dir, { recursive: true });
+    const fixedFileName = "sharepoint-review.xlsx";
+    const absolutePath = path.join(dir, fixedFileName);
+    await fs.writeFile(absolutePath, buffer);
+    return res.json({
+      state: "DOWNLOADED",
+      message: "File uploaded and stored for review.",
+      file_name: fixedFileName,
+      source_file_name: "uploaded.xlsx",
+      bytes: buffer.byteLength,
+      local_path: absolutePath,
+    });
+  } catch (err: unknown) {
+    const message = err instanceof Error ? err.message : "FAILED_TO_UPLOAD_LOCAL_FILE";
     return res.status(500).json({ error: message });
   } finally {
     await pool.close();
@@ -705,8 +755,9 @@ syncRouter.post("/run-sharepoint", async (req, res) => {
   const startedAt = new Date();
   const body = req.body || {};
   const dryRun = !!body.dry_run;
+  const source = String(body.source || "").trim().toLowerCase() === "local_upload" ? "local_upload" : "sharepoint";
   const dest = getDestPool();
-  const stats = { inserted: 0, updated: 0, skipped: 0, missing_in_source: 0, scanned: 0, examples: [] as Array<{ employee_id?: string | null }>, errors: [] as Array<{ employee_id?: string | null; message: string }> };
+  const stats = { inserted: 0, updated: 0, skipped: 0, missing_in_source: 0, scanned: 0, examples: [] as Array<{ employee_id?: string | null }>, errors: [] as Array<{ employee_id?: string | null; message: string }>, changes: [] as Array<{ employee_id: string; table: string; column: string; before: unknown; after: unknown; change: "insert" | "update" }> };
   try {
     await dest.connect();
     await ensureSyncSchema(dest);
@@ -792,6 +843,34 @@ syncRouter.post("/run-sharepoint", async (req, res) => {
           const data = tableData[t];
           if (!data) continue;
           data.employee_id = empId;
+        try {
+          const existsReq = new sql.Request(dest);
+          existsReq.input("employee_id", sql.VarChar(100), empId);
+          const existsRes = await existsReq.query(`SELECT TOP 1 * FROM dbo.${t} WHERE employee_id=@employee_id`);
+          const existing = (existsRes.recordset || [])[0] as Record<string, unknown> | undefined;
+          const infoList = infoMap[t] || [];
+          const infoLookup = new Map(infoList.map((c) => [c.name, c]));
+          for (const [k, v] of Object.entries(data)) {
+            const col = String(k).toLowerCase();
+            if (col === "employee_id") continue;
+            const meta = infoLookup.get(col);
+            if (!meta) continue;
+            const afterVal = coerceValueForColumn(xlsx, meta, v);
+            const beforeRaw = existing ? (existing[col] as unknown) : null;
+            const beforeVal = beforeRaw;
+            const hasChanged =
+              (afterVal instanceof Date && beforeVal instanceof Date)
+                ? afterVal.getTime() !== beforeVal.getTime()
+                : JSON.stringify(afterVal) !== JSON.stringify(beforeVal);
+            if (existing) {
+              if (hasChanged) {
+                stats.changes.push({ employee_id: empId, table: t, column: col, before: beforeVal ?? null, after: afterVal ?? null, change: "update" });
+              }
+            } else {
+              stats.changes.push({ employee_id: empId, table: t, column: col, before: null, after: afterVal ?? null, change: "insert" });
+            }
+          }
+        } catch {}
           await upsertMappedRow(dest, t, data, columnsMap[t], infoMap[t], xlsx, dryRun);
         }
         stats.inserted += 1;
@@ -806,8 +885,9 @@ syncRouter.post("/run-sharepoint", async (req, res) => {
     runReq.input("finished_at", sql.DateTime2, new Date());
     runReq.input("success", sql.Bit, 1);
     runReq.input("stats", sql.NVarChar(sql.MAX), JSON.stringify(stats));
+    runReq.input("source", sql.NVarChar(50), source);
     await runReq.query(`
-      INSERT INTO dbo.sync_runs (started_at, finished_at, success, stats) VALUES (@started_at, @finished_at, @success, @stats)
+      INSERT INTO dbo.sync_runs (started_at, finished_at, success, stats, source) VALUES (@started_at, @finished_at, @success, @stats, @source)
     `);
     return res.json({ ok: true, stats, dry_run: dryRun });
   } catch (err: unknown) {
@@ -819,8 +899,9 @@ syncRouter.post("/run-sharepoint", async (req, res) => {
       r.input("success", sql.Bit, 0);
       r.input("stats", sql.NVarChar(sql.MAX), JSON.stringify(stats));
       r.input("error", sql.NVarChar(sql.MAX), String(message));
+      r.input("source", sql.NVarChar(50), source);
       await r.query(`
-        INSERT INTO dbo.sync_runs (started_at, finished_at, success, stats, error) VALUES (@started_at, @finished_at, @success, @stats, @error)
+        INSERT INTO dbo.sync_runs (started_at, finished_at, success, stats, error, source) VALUES (@started_at, @finished_at, @success, @stats, @error, @source)
       `);
     } catch {}
     return res.status(500).json({ error: message });
@@ -1363,6 +1444,100 @@ syncRouter.get("/status", async (_req, res) => {
     });
   } catch (err: unknown) {
     const message = err instanceof Error ? err.message : "FAILED_TO_READ_SYNC_STATUS";
+    return res.status(500).json({ error: message });
+  } finally {
+    await pool.close();
+  }
+});
+
+syncRouter.get("/runs", async (req, res) => {
+  const pool = getDestPool();
+  try {
+    await pool.connect();
+    await ensureSyncSchema(pool);
+    const q = req.query || {};
+    const limit = Math.max(1, Math.min(200, Math.floor(Number(q.limit || 50))));
+    const offset = Math.max(0, Math.floor(Number(q.offset || 0)));
+    const successParam = q.success;
+    const sourceParam = String(q.source || "").trim().toLowerCase();
+    const dateFrom = String(q.date_from || "").trim();
+    const dateTo = String(q.date_to || "").trim();
+    const filters: string[] = [];
+    const request = new sql.Request(pool);
+    if (successParam === "1" || successParam === "0") {
+      filters.push(`success=${successParam === "1" ? 1 : 0}`);
+    }
+    if (sourceParam === "sharepoint" || sourceParam === "local_upload") {
+      filters.push(`LOWER(ISNULL(source,''))='${sourceParam}'`);
+    }
+    if (dateFrom) {
+      request.input("date_from", sql.DateTime2, new Date(dateFrom));
+      filters.push(`started_at >= @date_from`);
+    }
+    if (dateTo) {
+      request.input("date_to", sql.DateTime2, new Date(dateTo));
+      filters.push(`started_at <= @date_to`);
+    }
+    const where = filters.length ? `WHERE ${filters.join(" AND ")}` : "";
+    const r = await request.query(`
+      SELECT run_id, started_at, finished_at, success, stats, error, source
+      FROM dbo.sync_runs
+      ${where}
+      ORDER BY run_id DESC
+      OFFSET ${offset} ROWS FETCH NEXT ${limit} ROWS ONLY
+    `);
+    const rows = (r.recordset || []) as Array<{ run_id: number; started_at: Date; finished_at: Date; success: boolean; stats?: string; error?: string; source?: string }>;
+    const list = rows.map((row) => {
+      const stats = row.stats ? JSON.parse(String(row.stats)) : null;
+      const summary = stats && typeof stats === "object"
+        ? {
+            inserted: Number(stats.inserted || 0),
+            updated: Number(stats.updated || 0),
+            skipped: Number(stats.skipped || 0),
+            scanned: Number(stats.scanned || 0),
+          }
+        : { inserted: 0, updated: 0, skipped: 0, scanned: 0 };
+      return {
+        run_id: row.run_id,
+        started_at: row.started_at,
+        finished_at: row.finished_at,
+        success: !!row.success,
+        source: String(row.source || ""),
+        error: row.error || null,
+        summary,
+      };
+    });
+    return res.json({ ok: true, runs: list, limit, offset });
+  } catch (err: unknown) {
+    const message = err instanceof Error ? err.message : "FAILED_TO_LIST_SYNC_RUNS";
+    return res.status(500).json({ error: message });
+  } finally {
+    await pool.close();
+  }
+});
+
+syncRouter.get("/runs/:id", async (req, res) => {
+  const pool = getDestPool();
+  try {
+    await pool.connect();
+    await ensureSyncSchema(pool);
+    const id = Math.max(1, Math.floor(Number(req.params.id || 0)));
+    const r = await new sql.Request(pool).query(`SELECT TOP 1 run_id, started_at, finished_at, success, stats, error, source FROM dbo.sync_runs WHERE run_id=${id}`);
+    const row = (r.recordset || [])[0] as { run_id?: number; started_at?: Date; finished_at?: Date; success?: boolean; stats?: string; error?: string; source?: string } | undefined;
+    if (!row?.run_id) return res.status(404).json({ error: "SYNC_RUN_NOT_FOUND" });
+    const stats = row.stats ? JSON.parse(String(row.stats)) : null;
+    return res.json({
+      ok: true,
+      run_id: row.run_id,
+      started_at: row.started_at || null,
+      finished_at: row.finished_at || null,
+      success: !!row.success,
+      source: String(row.source || ""),
+      stats,
+      error: row.error || null,
+    });
+  } catch (err: unknown) {
+    const message = err instanceof Error ? err.message : "FAILED_TO_READ_SYNC_RUN";
     return res.status(500).json({ error: message });
   } finally {
     await pool.close();

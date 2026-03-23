@@ -4,7 +4,8 @@ import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { Input } from "@/components/ui/input";
-import { Download, FileText } from "lucide-react";
+import { Download, FileText, ListChecks } from "lucide-react";
+import { Link } from "react-router-dom";
 import { useRBAC } from "@/hooks/useRBAC";
 import { apiFetch } from "@/lib/api";
 
@@ -181,6 +182,22 @@ export default function ReportsPage() {
               <li>Per-user template assignments apply if active.</li>
               <li>Employee type access rules are enforced.</li>
             </ul>
+          </CardContent>
+        </Card>
+        <Card>
+          <CardHeader>
+            <CardTitle className="flex items-center gap-2">
+              <ListChecks className="h-5 w-5" />
+              Sync History
+            </CardTitle>
+          </CardHeader>
+          <CardContent className="flex items-center justify-between gap-3">
+            <p className="text-sm text-muted-foreground">
+              View recent SharePoint sync runs with summaries and detailed changes.
+            </p>
+            <Button asChild>
+              <Link to="/reports/sync-history">Open</Link>
+            </Button>
           </CardContent>
         </Card>
       </div>

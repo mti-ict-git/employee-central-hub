@@ -19,6 +19,8 @@ import AdminPermissions from "./pages/AdminPermissions";
 import RbacDiagnostics from "./pages/RbacDiagnostics";
 import ReportsPage from "./pages/Reports";
 import SyncSettings from "./pages/SyncSettings";
+import SyncHistory from "./pages/SyncHistory";
+import SyncRunDetail from "./pages/SyncRunDetail";
 import AddColumn from "./pages/AddColumn";
 import Auth from "./pages/Auth";
 import NotFound from "./pages/NotFound";
@@ -336,6 +338,22 @@ const App = () => {
               element={
                 <RequireAuth>
                   <ReportsPage />
+                </RequireAuth>
+              }
+            />
+            <Route
+              path="/reports/sync-history"
+              element={
+                <RequireAuth>
+                  <SyncHistory />
+                </RequireAuth>
+              }
+            />
+            <Route
+              path="/reports/sync-runs/:id"
+              element={
+                <RequireAuth>
+                  <SyncRunDetail />
                 </RequireAuth>
               }
             />

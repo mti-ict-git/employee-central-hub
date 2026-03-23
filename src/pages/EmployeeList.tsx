@@ -805,7 +805,7 @@ const EmployeeList = () => {
       setSyncElapsed(0);
       toast({ title: "Sync started", description: `${syncSource === "sharepoint" ? "SharePoint" : "RanHR"} sync is running.` });
       const url = syncSource === "sharepoint" ? "/sync/run-sharepoint" : "/sync/run";
-      const payload = syncSource === "sharepoint" ? { dry_run: false } : { dry_run: false, limit: 1000, offset: 0 };
+      const payload = syncSource === "sharepoint" ? { dry_run: false, source: "sharepoint" } : { dry_run: false, limit: 1000, offset: 0 };
       const r = await apiFetch(url, {
         method: "POST",
         credentials: "include",
@@ -901,6 +901,9 @@ const EmployeeList = () => {
                   </AlertDialogFooter>
                 </AlertDialogContent>
               </AlertDialog>
+          <Button variant="ghost" asChild>
+            <Link to="/reports/sync-history">View Sync History</Link>
+          </Button>
             </>
           )}
           <DropdownMenu>

@@ -65,6 +65,23 @@ type ImportResult = {
   action?: "inserted" | "updated" | "skipped" | "no_change";
 };
 
+type SyncRunStats = {
+  inserted: number;
+  updated: number;
+  skipped: number;
+  missing_in_source: number;
+  scanned: number;
+  examples: Array<{ employee_id?: string | null }>;
+  errors: Array<{ employee_id?: string | null; message: string }>;
+};
+
+type SyncRunResponse = {
+  ok?: boolean;
+  stats?: SyncRunStats;
+  dry_run?: boolean;
+  error?: string;
+};
+
 const requiredFields = {
   indonesia: ["employee_id", "name", "gender", "nationality", "phone_number", "division", "department", "job_title", "join_date"],
   expat: ["employee_id", "name", "gender", "nationality", "phone_number", "division", "department", "job_title", "join_date"],
@@ -189,6 +206,10 @@ const ImportEmployees = () => {
   const [onExist, setOnExist] = useState<"update" | "skip" | "error">("update");
   const [updateMode, setUpdateMode] = useState<"overwrite" | "only_filled">("only_filled");
   const [dryRun, setDryRun] = useState(false);
+  const [excelFile, setExcelFile] = useState<File | null>(null);
+  const [isExcelUploading, setIsExcelUploading] = useState(false);
+  const [excelUploadedBytes, setExcelUploadedBytes] = useState<number>(0);
+  const [isSyncRunning, setIsSyncRunning] = useState(false);
 
   const handleFileSelect = useCallback((selectedFile: File) => {
     if (!selectedFile) return;
@@ -332,6 +353,76 @@ const ImportEmployees = () => {
   const handleClearFile = () => {
     setFile(null);
     setParsedData([]);
+  };
+
+  const handleExcelSelect = async (selectedFile: File) => {
+    if (!selectedFile) return;
+    const ext = selectedFile.name.split(".").pop()?.toLowerCase();
+    if (!["xlsx"].includes(ext || "")) {
+      toast({
+        title: "Invalid file type",
+        description: "Please upload an Excel (.xlsx) file.",
+        variant: "destructive",
+      });
+      return;
+    }
+    setExcelFile(selectedFile);
+    setIsExcelUploading(true);
+    try {
+      const reader = new FileReader();
+      const done = await new Promise<string>((resolve, reject) => {
+        reader.onload = () => resolve(String(reader.result || ""));
+        reader.onerror = () => reject(new Error("READ_FAILED"));
+        reader.readAsDataURL(selectedFile);
+      });
+      const res = await apiFetch(`/sync/sharepoint/upload-local`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ excel_base64: done }),
+      });
+      if (!res.ok) throw new Error(`HTTP_${res.status}`);
+      const json: { bytes?: number; state?: string } = await res.json();
+      setExcelUploadedBytes(Number(json.bytes || 0));
+      toast({
+        title: "Master data staged",
+        description: "Excel uploaded to review storage.",
+      });
+    } catch {
+      setExcelFile(null);
+      toast({
+        title: "Upload failed",
+        description: "Could not upload Excel file.",
+        variant: "destructive",
+      });
+    } finally {
+      setIsExcelUploading(false);
+    }
+  };
+
+  const runSharepointSync = async () => {
+    setIsSyncRunning(true);
+    try {
+      const res = await apiFetch(`/sync/run-sharepoint`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ dry_run: false, source: "local_upload" }),
+      });
+      if (!res.ok) throw new Error(`HTTP_${res.status}`);
+      const json: SyncRunResponse = await res.json();
+      toast({
+        title: "SharePoint sync completed",
+        description: "Master data processed using mapping.",
+      });
+      navigate("/employees");
+    } catch {
+      toast({
+        title: "Sync failed",
+        description: "An error occurred while running sync.",
+        variant: "destructive",
+      });
+    } finally {
+      setIsSyncRunning(false);
+    }
   };
 
   const validCount = parsedData.filter((p) => p.isValid).length;
@@ -676,6 +767,93 @@ const ImportEmployees = () => {
             </CardContent>
           </Card>
         )}
+
+        <Card className="animate-fade-in" style={{ animationDelay: "0.3s" }}>
+          <CardHeader>
+            <CardTitle className="flex items-center gap-2">
+              <span className="flex h-6 w-6 items-center justify-center rounded-full bg-primary text-xs text-primary-foreground">
+                •
+              </span>
+              Import Master Data (Excel)
+            </CardTitle>
+            <CardDescription>
+              Upload the SharePoint-style Excel and run the same sync pipeline.
+            </CardDescription>
+          </CardHeader>
+          <CardContent>
+            {!excelFile ? (
+              <div className={cn("border-2 border-dashed rounded-xl p-8 text-center transition-colors", "border-border hover:border-primary/50")}>
+                <FileSpreadsheet className="h-10 w-10 text-muted-foreground mx-auto mb-3" />
+                <p className="text-muted-foreground mb-3">Upload .xlsx file</p>
+                <input
+                  type="file"
+                  accept=".xlsx"
+                  className="hidden"
+                  id="xlsx-upload"
+                  onChange={(e) => {
+                    const selectedFile = e.target.files?.[0];
+                    if (selectedFile) handleExcelSelect(selectedFile);
+                  }}
+                />
+                <Button asChild disabled={isExcelUploading}>
+                  <label htmlFor="xlsx-upload" className="cursor-pointer">
+                    {isExcelUploading ? (
+                      <>
+                        <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                        Uploading...
+                      </>
+                    ) : (
+                      <>
+                        <Upload className="mr-2 h-4 w-4" />
+                        Select Excel
+                      </>
+                    )}
+                  </label>
+                </Button>
+              </div>
+            ) : (
+              <div className="space-y-4">
+                <div className="flex items-center justify-between p-4 rounded-lg border border-border bg-card">
+                  <div className="flex items-center gap-3">
+                    <FileSpreadsheet className="h-10 w-10 text-primary" />
+                    <div>
+                      <p className="font-medium">{excelFile.name}</p>
+                      <p className="text-sm text-muted-foreground">
+                        {(excelFile.size / 1024).toFixed(2)} KB
+                      </p>
+                    </div>
+                  </div>
+                  <Button variant="ghost" size="icon" onClick={() => { setExcelFile(null); setExcelUploadedBytes(0); }}>
+                    <Trash2 className="h-4 w-4" />
+                  </Button>
+                </div>
+                <div className="flex items-center justify-between">
+                  <div className="text-sm text-muted-foreground">
+                    {excelUploadedBytes > 0 ? `Staged ${excelUploadedBytes} bytes to review storage` : "Not staged yet"}
+                  </div>
+                  <Button onClick={runSharepointSync} disabled={isSyncRunning || excelUploadedBytes === 0}>
+                    {isSyncRunning ? (
+                      <>
+                        <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                        Running Sync...
+                      </>
+                    ) : (
+                      <>
+                        <Upload className="mr-2 h-4 w-4" />
+                        Run SharePoint Sync
+                      </>
+                    )}
+                  </Button>
+                </div>
+                <div className="text-right">
+                  <Button variant="ghost" asChild>
+                    <a href="/reports/sync-history">View Sync History</a>
+                  </Button>
+                </div>
+              </div>
+            )}
+          </CardContent>
+        </Card>
       </div>
     </MainLayout>
   );
