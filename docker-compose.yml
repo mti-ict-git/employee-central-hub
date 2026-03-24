@@ -17,6 +17,7 @@ services:
       - "${BACKEND_PORT:-8083}:8083"
     volumes:
       - ./backend/scripts/dbinfo-mapping.json:/app/backend/scripts/dbinfo-mapping.json:ro
+      - ./backend/scripts/sharepoint-mapping.json:/app/backend/scripts/sharepoint-mapping.json:ro
       - ./public:/app/public:ro
       - ./storage/sharepoint-review:/app/backend/storage/sharepoint-review
     networks:

@@ -12,6 +12,8 @@ WORKDIR /app/backend
 COPY --from=build /app/backend/node_modules ./node_modules
 COPY --from=build /app/backend/dist ./dist
 COPY --from=build /app/backend/package.json ./package.json
+RUN mkdir -p ./scripts
+COPY --from=build /app/backend/scripts/sharepoint-mapping.json ./scripts/sharepoint-mapping.json
 
 EXPOSE 8083
 CMD ["node", "dist/src/server.js"]
