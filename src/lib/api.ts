@@ -9,7 +9,8 @@ export const apiFetch = async (path: string, init?: RequestInit) => {
   if (token && !headers.has("Authorization")) headers.set("Authorization", `Bearer ${token}`);
   const candidates = [API_BASE];
   if (API_BASE !== "/api") candidates.push("/api");
-  if (!candidates.includes(FALLBACK_BASE)) candidates.push(FALLBACK_BASE);
+  const isLocalHost = typeof window !== "undefined" && (location.hostname === "localhost" || location.hostname === "127.0.0.1");
+  if (isLocalHost && !candidates.includes(FALLBACK_BASE)) candidates.push(FALLBACK_BASE);
   let lastResponse: Response | null = null;
   let lastError: unknown = null;
   for (const base of candidates) {

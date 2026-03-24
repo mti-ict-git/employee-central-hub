@@ -16,6 +16,7 @@ import { ReviewStep } from "@/components/employees/form/ReviewStep";
 import { employeeFormSchema, EmployeeFormData, basicInfoSchema, contactInfoSchema, employmentSchema, onboardingSchema, bankInsuranceSchema, travelDocumentsSchema } from "@/lib/employeeSchema";
 import { ArrowLeft, ArrowRight, Save, Loader2 } from "lucide-react";
 import { toast } from "@/hooks/use-toast";
+import { apiFetch } from "@/lib/api";
 
 const steps = [
   { id: 'basic', title: 'Basic Info' },
@@ -178,7 +179,7 @@ const AddEmployee = () => {
         rptka_position: data.rptka_position,
         job_title_kitas: data.job_title_kitas,
       };
-      const res = await fetch(`http://localhost:${8083}/api/employees`, {
+      const res = await apiFetch(`/employees`, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         credentials: "include",
