@@ -805,7 +805,7 @@ const EmployeeList = () => {
       setSyncElapsed(0);
       toast({ title: "Sync started", description: `${syncSource === "sharepoint" ? "SharePoint" : "RanHR"} sync is running.` });
       const url = syncSource === "sharepoint" ? "/sync/run-sharepoint" : "/sync/run";
-      const payload = syncSource === "sharepoint" ? { dry_run: false, source: "sharepoint" } : { dry_run: false, limit: 1000, offset: 0 };
+      const payload = syncSource === "sharepoint" ? { dry_run: false, source: "sharepoint", async: true } : { dry_run: false, limit: 1000, offset: 0 };
       const r = await apiFetch(url, {
         method: "POST",
         credentials: "include",
@@ -814,9 +814,14 @@ const EmployeeList = () => {
       });
       const d = await r.json().catch(() => null);
       if (!r.ok) throw new Error(d?.error || `HTTP_${r.status}`);
-      const s = d?.stats;
-      const msg = s ? `Inserted ${s.inserted}, Updated ${s.updated}, Skipped ${s.skipped}` : "Sync completed";
-      toast({ title: "Manual Sync", description: msg });
+      if (r.status === 202 || d?.accepted) {
+        toast({ title: "Sync queued", description: "SharePoint sync started in background. See Reports → Sync History." });
+        navigate("/reports/sync-history");
+      } else {
+        const s = d?.stats;
+        const msg = s ? `Inserted ${s.inserted}, Updated ${s.updated}, Skipped ${s.skipped}` : "Sync completed";
+        toast({ title: "Manual Sync", description: msg });
+      }
     } catch (e: unknown) {
       toast({ title: "Error", description: e instanceof Error ? e.message : "Failed to run sync", variant: "destructive" });
     } finally {

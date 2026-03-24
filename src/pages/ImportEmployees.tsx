@@ -405,15 +405,23 @@ const ImportEmployees = () => {
       const res = await apiFetch(`/sync/run-sharepoint`, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ dry_run: false, source: "local_upload" }),
+        body: JSON.stringify({ dry_run: false, source: "local_upload", async: true }),
       });
       if (!res.ok) throw new Error(`HTTP_${res.status}`);
       const json: SyncRunResponse = await res.json();
-      toast({
-        title: "SharePoint sync completed",
-        description: "Master data processed using mapping.",
-      });
-      navigate("/employees");
+      if (res.status === 202 || json?.ok) {
+        toast({
+          title: "Sync queued",
+          description: "SharePoint sync running in background. See Reports → Sync History.",
+        });
+        navigate("/reports/sync-history");
+      } else {
+        toast({
+          title: "SharePoint sync completed",
+          description: "Master data processed using mapping.",
+        });
+        navigate("/employees");
+      }
     } catch {
       toast({
         title: "Sync failed",

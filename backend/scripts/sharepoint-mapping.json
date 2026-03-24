@@ -10,9 +10,9 @@
   },
   "sheet_name_map": {
     "Active Employee (ID)": "Active Empl (IND)",
-    "Inactive Employee (ID)": "Non Active (IND)",
-    "Active Employee CHN": "Active Empl (CHN)",
-    "Inactive Employee CHN": "Non Active (CHN)"
+    "Inactive Employee (ID)": "NonActive (IND)",
+    "Active Employee CHN": "Active Empl (Expat)",
+    "Inactive Employee CHN": "NonActive(CHN)"
   },
   "columns": {
     "Active Employee (ID)": [
@@ -389,7 +389,7 @@
         "status": "mapped"
       },
       {
-        "excelName": "Job Title",
+        "excelName": "Job Tittle",
         "db": {
           "table": "dbo.employee_employment",
           "column": "job_title"
@@ -413,7 +413,7 @@
         "status": "mapped"
       },
       {
-        "excelName": "Group Job Title",
+        "excelName": "Group Job Tittle",
         "db": {
           "table": "dbo.employee_employment",
           "column": "group_job_title"
@@ -867,7 +867,7 @@
         "status": "mapped"
       },
       {
-        "excelName": "Job Title",
+        "excelName": "Position Title",
         "db": {
           "table": "dbo.employee_employment",
           "column": "job_title"
@@ -941,7 +941,7 @@
         "status": "unmapped"
       },
       {
-        "excelName": "Terminated Date",
+        "excelName": "Termination Date",
         "db": {
           "table": "dbo.employee_employment",
           "column": "terminated_date"
@@ -949,7 +949,7 @@
         "status": "mapped"
       },
       {
-        "excelName": "Terminated Type",
+        "excelName": "Termination Type",
         "db": {
           "table": "dbo.employee_employment",
           "column": "terminated_type"
@@ -957,7 +957,7 @@
         "status": "mapped"
       },
       {
-        "excelName": "Terminated Reason",
+        "excelName": "Termination Reason",
         "db": {
           "table": "dbo.employee_employment",
           "column": "terminated_reason"
@@ -1248,7 +1248,7 @@
         "status": "mapped"
       },
       {
-        "excelName": "Department",
+        "excelName": "department",
         "db": {
           "table": "dbo.employee_employment",
           "column": "department"
@@ -1256,7 +1256,7 @@
         "status": "mapped"
       },
       {
-        "excelName": "Section",
+        "excelName": "section",
         "db": {
           "table": "dbo.employee_employment",
           "column": "section"
@@ -1264,7 +1264,7 @@
         "status": "mapped"
       },
       {
-        "excelName": "Direct Report",
+        "excelName": "supervisor_name",
         "db": {
           "table": "dbo.employee_employment",
           "column": "direct_report"
@@ -1272,7 +1272,7 @@
         "status": "mapped"
       },
       {
-        "excelName": "Job Title",
+        "excelName": "position_title",
         "db": {
           "table": "dbo.employee_employment",
           "column": "job_title"
@@ -1651,7 +1651,7 @@
         "status": "mapped"
       },
       {
-        "excelName": "Job Title",
+        "excelName": "Position Title",
         "db": {
           "table": "dbo.employee_employment",
           "column": "job_title"
@@ -1731,7 +1731,7 @@
         "status": "mapped"
       },
       {
-        "excelName": "Terminated Date",
+        "excelName": "Termination Date",
         "db": {
           "table": "dbo.employee_employment",
           "column": "terminated_date"
@@ -1739,7 +1739,7 @@
         "status": "mapped"
       },
       {
-        "excelName": "Terminated Type",
+        "excelName": "Termination Type",
         "db": {
           "table": "dbo.employee_employment",
           "column": "terminated_type"
@@ -1747,7 +1747,7 @@
         "status": "mapped"
       },
       {
-        "excelName": "Terminated Reason",
+        "excelName": "Termination Reason",
         "db": {
           "table": "dbo.employee_employment",
           "column": "terminated_reason"

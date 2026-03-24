@@ -342,6 +342,66 @@ syncRouter.get("/config", async (_req, res) => {
   }
 });
 
+syncRouter.get("/diagnostics/review-info", async (_req, res) => {
+  try {
+    const started = Date.now();
+    const filePath = path.resolve(process.cwd(), "storage", "sharepoint-review", "sharepoint-review.xlsx");
+    const st = await fs.stat(filePath).catch(() => null as any);
+    if (!st || !st.isFile()) return res.status(404).json({ error: "REVIEW_FILE_NOT_FOUND", path: filePath });
+    const buf = await fs.readFile(filePath);
+    const xlsx = await loadXLSXModule();
+    const workbook = xlsx.read(buf, { type: "buffer" });
+    const sheetNames = Array.isArray(workbook.SheetNames) ? workbook.SheetNames : [];
+    const headers: Record<string, string[]> = {};
+    for (const name of sheetNames.slice(0, 6)) {
+      const sheet = workbook.Sheets[name];
+      if (!sheet) continue;
+      const rawRows = xlsx.utils.sheet_to_json(sheet, { header: 1, defval: "", raw: true });
+      const rows = toRowArrays(rawRows);
+      if (!rows.length) { headers[name] = []; continue; }
+      const headerRowIndex = pickHeaderRowIndex(rows);
+      const headerRow = rows[headerRowIndex].map((v) => String(v ?? ""));
+      headers[name] = headerRow;
+    }
+    return res.json({
+      ok: true,
+      file: { path: filePath, size: st.size, mtime: st.mtime },
+      sheet_names: sheetNames,
+      headers,
+      elapsed_ms: Date.now() - started,
+    });
+  } catch (err: unknown) {
+    const message = err instanceof Error ? err.message : "FAILED_TO_READ_REVIEW_FILE";
+    return res.status(500).json({ error: message });
+  }
+});
+
+syncRouter.get("/diagnostics/health-check", async (_req, res) => {
+  const pool = getDestPool();
+  try {
+    const started = Date.now();
+    await pool.connect();
+    await ensureSyncSchema(pool);
+    const dbOk = true;
+    const mapping = await readSharepointMappingFile();
+    const mappingOk = !!mapping;
+    const reviewPath = path.resolve(process.cwd(), "storage", "sharepoint-review", "sharepoint-review.xlsx");
+    const fileStat = await fs.stat(reviewPath).catch(() => null as any);
+    return res.json({
+      ok: true,
+      db: dbOk,
+      mapping: mappingOk,
+      review_file: fileStat ? { path: reviewPath, size: fileStat.size, mtime: fileStat.mtime } : null,
+      elapsed_ms: Date.now() - started,
+    });
+  } catch (err: unknown) {
+    const message = err instanceof Error ? err.message : "FAILED_HEALTH_CHECK";
+    return res.status(500).json({ error: message });
+  } finally {
+    try { await pool.close(); } catch {}
+  }
+});
+
 syncRouter.post("/sharepoint/upload-local", async (req, res) => {
   const pool = getDestPool();
   try {
@@ -417,6 +477,18 @@ function pickHeaderRowIndex(rows: Array<Array<unknown>>): number {
 
 function normalizeHeader(value: unknown): string {
   return String(value || "").trim();
+}
+
+function normalizeHeaderKey(raw: string): string {
+  const s = String(raw || "").toLowerCase();
+  const fixed = s
+    .replace(/employement/g, "employment")
+    .replace(/tittle/g, "title");
+  const collapsed = fixed
+    .replace(/[\(\)\[\]\-_.]+/g, " ")
+    .replace(/\s+/g, " ")
+    .trim();
+  return collapsed;
 }
 
 function parseExcelDate(xlsx: { SSF?: { parse_date_code?: (value: number) => { y: number; m: number; d: number; H?: number; M?: number; S?: number } | null } }, value: unknown): Date | null {
@@ -755,142 +827,198 @@ syncRouter.post("/run-sharepoint", async (req, res) => {
   const startedAt = new Date();
   const body = req.body || {};
   const dryRun = !!body.dry_run;
+  const runAsync = body.async === undefined ? true : !!body.async;
+  const maxUsers = Math.max(0, Math.floor(Number(body.limit_users ?? body.limit ?? 0) || 0));
   const source = String(body.source || "").trim().toLowerCase() === "local_upload" ? "local_upload" : "sharepoint";
   const dest = getDestPool();
-  const stats = { inserted: 0, updated: 0, skipped: 0, missing_in_source: 0, scanned: 0, examples: [] as Array<{ employee_id?: string | null }>, errors: [] as Array<{ employee_id?: string | null; message: string }>, changes: [] as Array<{ employee_id: string; table: string; column: string; before: unknown; after: unknown; change: "insert" | "update" }> };
   try {
     await dest.connect();
     await ensureSyncSchema(dest);
-    const mappingRaw = await readSharepointMappingFile();
-    if (!mappingRaw) return res.status(404).json({ error: "MAPPING_FILE_NOT_FOUND" });
-    const mapping = mappingRaw as SharepointMapping;
-    const columnsByGroup = mapping.columns || {};
-    const sheetMap = mapping.sheet_name_map || {};
+    const initReq = new sql.Request(dest);
+    initReq.input("started_at", sql.DateTime2, startedAt);
+    initReq.input("stats", sql.NVarChar(sql.MAX), JSON.stringify({ state: "running", dry_run: dryRun, source }));
+    initReq.input("source", sql.NVarChar(50), source);
+    const initRes = await initReq.query(`
+      INSERT INTO dbo.sync_runs (started_at, success, stats, source)
+      OUTPUT INSERTED.run_id
+      VALUES (@started_at, NULL, @stats, @source)
+    `);
+    const runId = Number(((initRes.recordset || [])[0] as { run_id?: number } | undefined)?.run_id || 0);
 
-    const filePath = path.resolve(process.cwd(), "storage", "sharepoint-review", "sharepoint-review.xlsx");
-    const fileBuffer = await fs.readFile(filePath);
-    const xlsx = await loadXLSXModule();
-    const workbook = xlsx.read(fileBuffer, { type: "buffer" });
-
-    const perEmployee: Map<string, Record<string, Record<string, unknown>>> = new Map();
-    const groupStatus: Record<string, string> = {
-      "Active Employee (ID)": "Active",
-      "Inactive Employee (ID)": "Non Active",
-      "Active Employee CHN": "Active",
-      "Inactive Employee CHN": "Non Active",
-    };
-
-    const collectRow = (empId: string, table: string, column: string, value: unknown) => {
-      if (!perEmployee.has(empId)) perEmployee.set(empId, {});
-      const tables = perEmployee.get(empId) as Record<string, Record<string, unknown>>;
-      if (!tables[table]) tables[table] = {};
-      tables[table][column] = value;
-    };
-
-    for (const [group, entries] of Object.entries(columnsByGroup)) {
-      const sheetName = sheetMap[group] || group;
-      const sheet = workbook.Sheets[sheetName];
-      if (!sheet) continue;
-      const rawRows = xlsx.utils.sheet_to_json(sheet, { header: 1, defval: "", raw: true });
-      const rows = toRowArrays(rawRows);
-      if (!rows.length) continue;
-      const headerRowIndex = pickHeaderRowIndex(rows);
-      const headerRow = rows[headerRowIndex].map(normalizeHeader);
-      const headerMap = new Map<string, number>();
-      headerRow.forEach((h, idx) => {
-        if (h) headerMap.set(h, idx);
-      });
-
-      for (let r = headerRowIndex + 1; r < rows.length; r += 1) {
-        const row = rows[r];
-        const empIdIdx = headerMap.get("Emp. ID");
-        const empIdRaw = empIdIdx !== undefined ? row[empIdIdx] : null;
-        const empId = String(empIdRaw || "").trim();
-        if (!empId) continue;
-        stats.scanned += 1;
-        for (const entry of entries) {
-          if (entry.status !== "mapped" || !entry.db) continue;
-          const colIdx = headerMap.get(entry.excelName);
-          const value = colIdx !== undefined ? row[colIdx] : null;
-          const targets = Array.isArray(entry.db) ? entry.db : [entry.db];
-          for (const target of targets) {
-            if (!target || !target.table || !target.column) continue;
-            collectRow(empId, target.table, target.column, value);
-          }
-        }
-
-        const status = groupStatus[group] || "Active";
-        collectRow(empId, "employee_onboard", "employment_status", status);
-      }
-    }
-
-    const tables = ["employee_core","employee_contact","employee_employment","employee_onboard","employee_bank","employee_insurance","employee_travel"];
-    const columnsMap: Record<string, Set<string>> = {};
-    const infoMap: Record<string, Array<{ name: string; type: string; nullable: boolean; hasDefault: boolean }>> = {};
-    for (const t of tables) {
-      columnsMap[t] = await scanColumns(dest, t);
-      infoMap[t] = await getColumnInfo(dest, t);
-    }
-
-    for (const [empId, tableData] of perEmployee.entries()) {
+    const execute = async () => {
+      const workPool = getDestPool();
+      let success = 1;
+      let statsPayload: any = { inserted: 0, updated: 0, skipped: 0, missing_in_source: 0, scanned: 0, examples: [], errors: [], changes: [] };
+      let errorMessage: string | null = null;
       try {
-        const onboard = tableData.employee_onboard;
-        if (onboard && onboard.join_date) {
-          const joinDate = toDateValue(xlsx, onboard.join_date);
-          if (joinDate) onboard.years_in_service = computeYearsInService(joinDate);
-        }
-        for (const t of tables) {
-          const data = tableData[t];
-          if (!data) continue;
-          data.employee_id = empId;
-        try {
-          const existsReq = new sql.Request(dest);
-          existsReq.input("employee_id", sql.VarChar(100), empId);
-          const existsRes = await existsReq.query(`SELECT TOP 1 * FROM dbo.${t} WHERE employee_id=@employee_id`);
-          const existing = (existsRes.recordset || [])[0] as Record<string, unknown> | undefined;
-          const infoList = infoMap[t] || [];
-          const infoLookup = new Map(infoList.map((c) => [c.name, c]));
-          for (const [k, v] of Object.entries(data)) {
-            const col = String(k).toLowerCase();
-            if (col === "employee_id") continue;
-            const meta = infoLookup.get(col);
-            if (!meta) continue;
-            const afterVal = coerceValueForColumn(xlsx, meta, v);
-            const beforeRaw = existing ? (existing[col] as unknown) : null;
-            const beforeVal = beforeRaw;
-            const hasChanged =
-              (afterVal instanceof Date && beforeVal instanceof Date)
-                ? afterVal.getTime() !== beforeVal.getTime()
-                : JSON.stringify(afterVal) !== JSON.stringify(beforeVal);
-            if (existing) {
-              if (hasChanged) {
-                stats.changes.push({ employee_id: empId, table: t, column: col, before: beforeVal ?? null, after: afterVal ?? null, change: "update" });
-              }
-            } else {
-              stats.changes.push({ employee_id: empId, table: t, column: col, before: null, after: afterVal ?? null, change: "insert" });
+        await workPool.connect();
+        await ensureSyncSchema(workPool);
+        const mappingRaw = await readSharepointMappingFile();
+        if (!mappingRaw) throw new Error("MAPPING_FILE_NOT_FOUND");
+        const mapping = mappingRaw as SharepointMapping;
+        const columnsByGroup = mapping.columns || {};
+        const sheetMap = mapping.sheet_name_map || {};
+
+        const filePath = path.resolve(process.cwd(), "storage", "sharepoint-review", "sharepoint-review.xlsx");
+        const fileBuffer = await fs.readFile(filePath);
+        const xlsx = await loadXLSXModule();
+        const workbook = xlsx.read(fileBuffer, { type: "buffer" });
+
+        const perEmployee: Map<string, Record<string, Record<string, unknown>>> = new Map();
+        const groupStatus: Record<string, string> = {
+          "Active Employee (ID)": "Active",
+          "Inactive Employee (ID)": "Non Active",
+          "Active Employee CHN": "Active",
+          "Inactive Employee CHN": "Non Active",
+        };
+
+        const collectRow = (empId: string, table: string, column: string, value: unknown) => {
+          if (!perEmployee.has(empId)) perEmployee.set(empId, {});
+          const tables = perEmployee.get(empId) as Record<string, Record<string, unknown>>;
+          if (!tables[table]) tables[table] = {};
+          tables[table][column] = value;
+        };
+
+        for (const [group, entries] of Object.entries(columnsByGroup)) {
+          const sheetName = sheetMap[group] || group;
+          const sheet = workbook.Sheets[sheetName];
+          if (!sheet) continue;
+          const rawRows = xlsx.utils.sheet_to_json(sheet, { header: 1, defval: "", raw: true });
+          const rows = toRowArrays(rawRows);
+          if (!rows.length) continue;
+          const headerRowIndex = pickHeaderRowIndex(rows);
+          const headerRowA = rows[headerRowIndex].map(normalizeHeader);
+          const headerRowB = rows[headerRowIndex + 1] ? rows[headerRowIndex + 1].map(normalizeHeader) : [];
+          const headerMap = new Map<string, number>();
+          const addKey = (key: string, idx: number) => {
+            const k = normalizeHeaderKey(key);
+            if (k) headerMap.set(k, idx);
+          };
+          for (let idx = 0; idx < Math.max(headerRowA.length, headerRowB.length); idx += 1) {
+            const a = headerRowA[idx] || "";
+            const b = headerRowB[idx] || "";
+            if (a) addKey(a, idx);
+            if (b) addKey(b, idx);
+            if (a && b) {
+              addKey(`${a} ${b}`, idx);
+              addKey(`${a}-${b}`, idx);
+              addKey(`${a}/${b}`, idx);
             }
           }
-        } catch {}
-          await upsertMappedRow(dest, t, data, columnsMap[t], infoMap[t], xlsx, dryRun);
+
+          for (let r = headerRowIndex + 1; r < rows.length; r += 1) {
+            const row = rows[r];
+            const empIdIdx = headerMap.get("Emp. ID");
+            const empIdRaw = empIdIdx !== undefined ? row[empIdIdx] : null;
+            const empId = String(empIdRaw || "").trim();
+            if (!empId) continue;
+            const empIdNorm = empId.replace(/[\s.\-_:]/g, "").toLowerCase();
+            if (empIdNorm === "empid" || empIdNorm === "employeeid") continue;
+            statsPayload.scanned += 1;
+            for (const entry of entries) {
+              if (entry.status !== "mapped" || !entry.db) continue;
+              const wanted = normalizeHeaderKey(entry.excelName);
+              const colIdx = headerMap.get(wanted);
+              const value = colIdx !== undefined ? row[colIdx] : null;
+              const targets = Array.isArray(entry.db) ? entry.db : [entry.db];
+              for (const target of targets) {
+                if (!target || !target.table || !target.column) continue;
+                collectRow(empId, target.table, target.column, value);
+              }
+            }
+            const status = groupStatus[group] || "Active";
+            collectRow(empId, "employee_onboard", "employment_status", status);
+          }
         }
-        stats.inserted += 1;
+
+        const tables = ["employee_core","employee_contact","employee_employment","employee_onboard","employee_bank","employee_insurance","employee_travel"];
+        const columnsMap: Record<string, Set<string>> = {};
+        const infoMap: Record<string, Array<{ name: string; type: string; nullable: boolean; hasDefault: boolean }>> = {};
+        for (const t of tables) {
+          columnsMap[t] = await scanColumns(workPool, t);
+          infoMap[t] = await getColumnInfo(workPool, t);
+        }
+
+        let entries = Array.from(perEmployee.entries());
+        if (maxUsers > 0) entries = entries.slice(0, maxUsers);
+        for (const [empId, tableData] of entries) {
+          try {
+            const onboard = tableData.employee_onboard;
+            if (onboard && onboard.join_date) {
+              const joinDate = toDateValue(xlsx, onboard.join_date);
+              if (joinDate) onboard.years_in_service = computeYearsInService(joinDate);
+            }
+            for (const t of tables) {
+              const data = tableData[t];
+              if (!data) continue;
+              data.employee_id = empId;
+              try {
+                const existsReq = new sql.Request(workPool);
+                existsReq.input("employee_id", sql.VarChar(100), empId);
+                const existsRes = await existsReq.query(`SELECT TOP 1 * FROM dbo.${t} WHERE employee_id=@employee_id`);
+                const existing = (existsRes.recordset || [])[0] as Record<string, unknown> | undefined;
+                const infoList = infoMap[t] || [];
+                const infoLookup = new Map(infoList.map((c) => [c.name, c]));
+                for (const [k, v] of Object.entries(data)) {
+                  const col = String(k).toLowerCase();
+                  if (col === "employee_id") continue;
+                  const meta = infoLookup.get(col);
+                  if (!meta) continue;
+                  const afterVal = coerceValueForColumn(xlsx, meta, v);
+                  const beforeVal = existing ? (existing[col] as unknown) : null;
+                  const hasChanged =
+                    (afterVal instanceof Date && beforeVal instanceof Date)
+                      ? afterVal.getTime() !== (beforeVal as Date).getTime()
+                      : JSON.stringify(afterVal) !== JSON.stringify(beforeVal);
+                  if (existing) {
+                    if (hasChanged) statsPayload.changes.push({ employee_id: empId, table: t, column: col, before: beforeVal ?? null, after: afterVal ?? null, change: "update" });
+                  } else {
+                    statsPayload.changes.push({ employee_id: empId, table: t, column: col, before: null, after: afterVal ?? null, change: "insert" });
+                  }
+                }
+              } catch {}
+              await upsertMappedRow(workPool, t, data, columnsMap[t], infoMap[t], xlsx, dryRun);
+            }
+            statsPayload.inserted += 1;
+          } catch (err: unknown) {
+            statsPayload.skipped += 1;
+            statsPayload.errors.push({ employee_id: empId, message: err instanceof Error ? err.message : String(err) });
+          }
+        }
       } catch (err: unknown) {
-        stats.skipped += 1;
-        stats.errors.push({ employee_id: empId, message: err instanceof Error ? err.message : String(err) });
+        success = 0;
+        errorMessage = err instanceof Error ? err.message : "FAILED_TO_RUN_SHAREPOINT_SYNC";
+      } finally {
+        try {
+          const endReq = new sql.Request(workPool);
+          endReq.input("run_id", sql.Int, runId);
+          endReq.input("finished_at", sql.DateTime2, new Date());
+          endReq.input("success", sql.Bit, success);
+          endReq.input("stats", sql.NVarChar(sql.MAX), JSON.stringify(statsPayload));
+          endReq.input("error", sql.NVarChar(sql.MAX), errorMessage);
+          await endReq.query(`
+            UPDATE dbo.sync_runs
+            SET finished_at=@finished_at, success=@success, stats=@stats, error=@error
+            WHERE run_id=@run_id
+          `);
+        } catch {}
+        try { await workPool.close(); } catch {}
       }
+    };
+
+    if (runAsync) {
+      setTimeout(() => { execute().catch(() => {}); }, 0);
+      return res.status(202).json({ ok: true, accepted: true, run_id: runId, dry_run: dryRun, source });
     }
 
-    const runReq = new sql.Request(dest);
-    runReq.input("started_at", sql.DateTime2, startedAt);
-    runReq.input("finished_at", sql.DateTime2, new Date());
-    runReq.input("success", sql.Bit, 1);
-    runReq.input("stats", sql.NVarChar(sql.MAX), JSON.stringify(stats));
-    runReq.input("source", sql.NVarChar(50), "ranhr");
-    runReq.input("source", sql.NVarChar(50), source);
-    await runReq.query(`
-      INSERT INTO dbo.sync_runs (started_at, finished_at, success, stats, source) VALUES (@started_at, @finished_at, @success, @stats, @source)
-    `);
-    return res.json({ ok: true, stats, dry_run: dryRun });
+    await execute();
+    const doneReq = new sql.Request(dest);
+    doneReq.input("run_id", sql.Int, runId);
+    const doneRes = await doneReq.query(`SELECT TOP 1 success, stats, error FROM dbo.sync_runs WHERE run_id=@run_id`);
+    const doneRow = (doneRes.recordset || [])[0] as { success?: boolean | null; stats?: string | null; error?: string | null } | undefined;
+    const doneStats = parseJsonRecord(doneRow?.stats) || null;
+    if (!doneRow?.success) return res.status(500).json({ error: doneRow?.error || "FAILED_TO_RUN_SHAREPOINT_SYNC", stats: doneStats, run_id: runId });
+    return res.json({ ok: true, stats: doneStats, run_id: runId, dry_run: dryRun, source });
   } catch (err: unknown) {
     const message = err instanceof Error ? err.message : "FAILED_TO_RUN_SHAREPOINT_SYNC";
     try {
@@ -898,9 +1026,8 @@ syncRouter.post("/run-sharepoint", async (req, res) => {
       r.input("started_at", sql.DateTime2, startedAt);
       r.input("finished_at", sql.DateTime2, new Date());
       r.input("success", sql.Bit, 0);
-      r.input("stats", sql.NVarChar(sql.MAX), JSON.stringify(stats));
+      r.input("stats", sql.NVarChar(sql.MAX), JSON.stringify({}));
       r.input("error", sql.NVarChar(sql.MAX), String(message));
-      r.input("source", sql.NVarChar(50), "ranhr");
       r.input("source", sql.NVarChar(50), source);
       await r.query(`
         INSERT INTO dbo.sync_runs (started_at, finished_at, success, stats, error, source) VALUES (@started_at, @finished_at, @success, @stats, @error, @source)
