@@ -885,6 +885,7 @@ syncRouter.post("/run-sharepoint", async (req, res) => {
     runReq.input("finished_at", sql.DateTime2, new Date());
     runReq.input("success", sql.Bit, 1);
     runReq.input("stats", sql.NVarChar(sql.MAX), JSON.stringify(stats));
+    runReq.input("source", sql.NVarChar(50), "ranhr");
     runReq.input("source", sql.NVarChar(50), source);
     await runReq.query(`
       INSERT INTO dbo.sync_runs (started_at, finished_at, success, stats, source) VALUES (@started_at, @finished_at, @success, @stats, @source)
@@ -899,6 +900,7 @@ syncRouter.post("/run-sharepoint", async (req, res) => {
       r.input("success", sql.Bit, 0);
       r.input("stats", sql.NVarChar(sql.MAX), JSON.stringify(stats));
       r.input("error", sql.NVarChar(sql.MAX), String(message));
+      r.input("source", sql.NVarChar(50), "ranhr");
       r.input("source", sql.NVarChar(50), source);
       await r.query(`
         INSERT INTO dbo.sync_runs (started_at, finished_at, success, stats, error, source) VALUES (@started_at, @finished_at, @success, @stats, @error, @source)
@@ -1625,7 +1627,7 @@ syncRouter.post("/run", async (req, res) => {
   let offset = Math.max(0, parseInt(String(body.offset || "0"), 10) || 0);
   const dest = getDestPool();
   const src = getSrcPool();
-  const stats = { inserted: 0, updated: 0, skipped: 0, missing_in_source: 0, scanned: 0, examples: [] as Array<{ employee_id?: string | null; StaffNo?: string | null }>, errors: [] as Array<{ employee_id?: string | null; StaffNo?: string | null; message: string }> };
+  const stats = { inserted: 0, updated: 0, skipped: 0, missing_in_source: 0, scanned: 0, examples: [] as Array<{ employee_id?: string | null; StaffNo?: string | null }>, errors: [] as Array<{ employee_id?: string | null; StaffNo?: string | null; message: string }>, changes: [] as Array<{ employee_id: string; table: string; column: string; before: unknown; after: unknown; change: "insert" | "update" }> };
   try {
     await dest.connect();
     await src.connect();
@@ -1663,8 +1665,9 @@ syncRouter.post("/run", async (req, res) => {
       })();
       const idReq = new sql.Request(dest);
       idReq.input("employee_id", sql.VarChar(100), empId);
-      const existsRes = await idReq.query(`SELECT TOP 1 employee_id FROM dbo.employee_core WHERE employee_id=@employee_id`);
-      const exists = !!((existsRes.recordset || [])[0]);
+      const existsRes = await idReq.query(`SELECT TOP 1 * FROM dbo.employee_core WHERE employee_id=@employee_id`);
+      const existingCore = (existsRes.recordset || [])[0] as Record<string, unknown> | undefined;
+      const exists = !!existingCore;
       try {
         const nowIdCard = !!(s.CardNo && String(s.CardNo).trim());
         if (!exists) {
@@ -1713,6 +1716,18 @@ syncRouter.post("/run", async (req, res) => {
               }
             }
           }
+          const afterCore = {
+            name: s.employee_name ? String(s.employee_name) : null,
+            gender: (() => { const g = String(s.gender || "").toLowerCase(); if (g.startsWith("m")) return "M"; if (g.startsWith("f")) return "F"; return null; })(),
+            nationality: natVal,
+            id_card_mti: nowIdCard ? 1 : 0,
+            imip_id: String(s.StaffNo || empId),
+          };
+          for (const k of Object.keys(afterCore)) {
+            if (coreCols.has(k)) {
+              stats.changes.push({ employee_id: empId, table: "employee_core", column: k, before: null, after: (afterCore as any)[k], change: "insert" });
+            }
+          }
           if (!dryRun) {
             await reqIns.query(`
               INSERT INTO dbo.employee_core (${cols.map((c) => `[${c}]`).join(", ")})
@@ -1734,6 +1749,22 @@ syncRouter.post("/run", async (req, res) => {
           if (coreCols.has("nationality") && natVal !== null) sets.push("[nationality]=@nationality");
           if (coreCols.has("id_card_mti")) sets.push("[id_card_mti]=@id_card_mti");
           if (coreCols.has("imip_id")) sets.push("[imip_id]=ISNULL([imip_id], @imip_id)");
+          const afterCoreUpd = {
+            name: s.employee_name ? String(s.employee_name) : null,
+            gender: (() => { const g = String(s.gender || "").toLowerCase(); if (g.startsWith("m")) return "M"; if (g.startsWith("f")) return "F"; return null; })(),
+            nationality: natVal,
+            id_card_mti: nowIdCard ? 1 : 0,
+            imip_id: String(s.StaffNo || empId),
+          };
+          for (const k of Object.keys(afterCoreUpd)) {
+            if (coreCols.has(k)) {
+              const beforeVal = existingCore ? (existingCore[k] as unknown) : null;
+              const afterVal = (afterCoreUpd as any)[k];
+              if (JSON.stringify(afterVal) !== JSON.stringify(beforeVal)) {
+                stats.changes.push({ employee_id: empId, table: "employee_core", column: k, before: beforeVal ?? null, after: afterVal ?? null, change: "update" });
+              }
+            }
+          }
           if (sets.length && !dryRun) await reqUpd.query(`UPDATE dbo.employee_core SET ${sets.join(", ")} WHERE employee_id=@employee_id`);
           stats.updated++;
         }
@@ -1782,6 +1813,24 @@ syncRouter.post("/run", async (req, res) => {
               }
             }
           }
+          const existingEmpRes = await new sql.Request(dest).input("employee_id", sql.VarChar(100), empId).query(`SELECT TOP 1 * FROM dbo.employee_employment WHERE employee_id=@employee_id`);
+          const existingEmp = (existingEmpRes.recordset || [])[0] as Record<string, unknown> | undefined;
+          const afterEmp = {
+            division: s.division ? String(s.division) : null,
+            department: s.department ? String(s.department) : null,
+            section: s.section ? String(s.section) : null,
+            job_title: s.position_title ? String(s.position_title) : null,
+            grade: s.grade_interval ? String(s.grade_interval) : null,
+          };
+          for (const k of Object.keys(afterEmp)) {
+            if (employmentCols.has(k)) {
+              const beforeVal = existingEmp ? (existingEmp[k] as unknown) : null;
+              const afterVal = (afterEmp as any)[k];
+              const changeType: "insert" | "update" = existingEmp ? "update" : "insert";
+              const changed = changeType === "insert" ? true : JSON.stringify(afterVal) !== JSON.stringify(beforeVal);
+              if (changed) stats.changes.push({ employee_id: empId, table: "employee_employment", column: k, before: changeType === "insert" ? null : beforeVal ?? null, after: afterVal ?? null, change: changeType });
+            }
+          }
           if (!dryRun) {
             await reqEmp.query(`
               IF EXISTS (SELECT 1 FROM dbo.employee_employment WHERE employee_id=@employee_id)
@@ -1823,6 +1872,20 @@ syncRouter.post("/run", async (req, res) => {
                 reqContact.input(param, sql.NVarChar(200), "");
                 insCols.push(c.name); insVals.push(`@${param}`);
               }
+            }
+          }
+          const existingContactRes = await new sql.Request(dest).input("employee_id", sql.VarChar(100), empId).query(`SELECT TOP 1 * FROM dbo.employee_contact WHERE employee_id=@employee_id`);
+          const existingContact = (existingContactRes.recordset || [])[0] as Record<string, unknown> | undefined;
+          const afterContact = {
+            phone_number: s.phone ? String(s.phone) : null,
+          };
+          for (const k of Object.keys(afterContact)) {
+            if (contactCols.has(k)) {
+              const beforeVal = existingContact ? (existingContact[k] as unknown) : null;
+              const afterVal = (afterContact as any)[k];
+              const changeType: "insert" | "update" = existingContact ? "update" : "insert";
+              const changed = changeType === "insert" ? true : JSON.stringify(afterVal) !== JSON.stringify(beforeVal);
+              if (changed) stats.changes.push({ employee_id: empId, table: "employee_contact", column: k, before: changeType === "insert" ? null : beforeVal ?? null, after: afterVal ?? null, change: changeType });
             }
           }
           if (!dryRun) {
@@ -1868,6 +1931,20 @@ syncRouter.post("/run", async (req, res) => {
               }
             }
           }
+          const existingOnbRes = await new sql.Request(dest).input("employee_id", sql.VarChar(100), empId).query(`SELECT TOP 1 * FROM dbo.employee_onboard WHERE employee_id=@employee_id`);
+          const existingOnb = (existingOnbRes.recordset || [])[0] as Record<string, unknown> | undefined;
+          const afterOnb = {
+            schedule_type: s.day_type ? String(s.day_type) : null,
+          };
+          for (const k of Object.keys(afterOnb)) {
+            if (onboardCols.has(k)) {
+              const beforeVal = existingOnb ? (existingOnb[k] as unknown) : null;
+              const afterVal = (afterOnb as any)[k];
+              const changeType: "insert" | "update" = existingOnb ? "update" : "insert";
+              const changed = changeType === "insert" ? true : JSON.stringify(afterVal) !== JSON.stringify(beforeVal);
+              if (changed) stats.changes.push({ employee_id: empId, table: "employee_onboard", column: k, before: changeType === "insert" ? null : beforeVal ?? null, after: afterVal ?? null, change: changeType });
+            }
+          }
           if (!dryRun) {
             await reqOnb.query(`
               IF EXISTS (SELECT 1 FROM dbo.employee_onboard WHERE employee_id=@employee_id)
@@ -1892,7 +1969,7 @@ syncRouter.post("/run", async (req, res) => {
     runReq.input("success", sql.Bit, 1);
     runReq.input("stats", sql.NVarChar(sql.MAX), JSON.stringify(stats));
     await runReq.query(`
-      INSERT INTO dbo.sync_runs (started_at, finished_at, success, stats) VALUES (@started_at, @finished_at, @success, @stats)
+      INSERT INTO dbo.sync_runs (started_at, finished_at, success, stats, source) VALUES (@started_at, @finished_at, @success, @stats, @source)
     `);
     return res.json({ ok: true, stats, dry_run: dryRun });
   } catch (err: unknown) {
@@ -1905,7 +1982,7 @@ syncRouter.post("/run", async (req, res) => {
       r.input("stats", sql.NVarChar(sql.MAX), JSON.stringify(stats));
       r.input("error", sql.NVarChar(sql.MAX), String(message));
       await r.query(`
-        INSERT INTO dbo.sync_runs (started_at, finished_at, success, stats, error) VALUES (@started_at, @finished_at, @success, @stats, @error)
+        INSERT INTO dbo.sync_runs (started_at, finished_at, success, stats, error, source) VALUES (@started_at, @finished_at, @success, @stats, @error, @source)
       `);
     } catch {}
     return res.status(500).json({ error: message });
