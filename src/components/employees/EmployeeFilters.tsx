@@ -47,7 +47,6 @@ export function EmployeeFilters({
           <SelectValue placeholder="Employee Type" />
         </SelectTrigger>
         <SelectContent>
-          <SelectItem value="all">All Types</SelectItem>
           <SelectItem value="indonesia">Indonesia</SelectItem>
           <SelectItem value="expat">Expatriate</SelectItem>
         </SelectContent>

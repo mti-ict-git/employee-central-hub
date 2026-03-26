@@ -994,6 +994,7 @@ employeesRouter.get("/stats", async (req, res) => {
     if (isDepRep) whereParts.push("emp.department IS NOT NULL AND LTRIM(RTRIM(emp.department)) <> '' AND LOWER(emp.department) = LOWER(@department)");
     const needsEmploymentJoinForSearch = !!qRaw;
     const typeParam = String(req.query.type || "").trim().toLowerCase();
+    const statusParam = String(req.query.status || "").trim().toLowerCase();
     const searchClause = qRaw
       ? "(LOWER(core.name) LIKE @q OR LOWER(core.employee_id) LIKE @q OR LOWER(emp.department) LIKE @q OR LOWER(emp.job_title) LIKE @q)"
       : "";
@@ -1002,6 +1003,18 @@ employeesRouter.get("/stats", async (req, res) => {
       whereParts.push("(LOWER(core.nationality) <> 'indonesia')");
     } else if (typeParam === "indonesia") {
       whereParts.push("(LOWER(core.nationality) = 'indonesia')");
+    }
+    
+    if (statusParam === "active") {
+      whereParts.push(`(
+        LOWER(LTRIM(RTRIM(ISNULL(emp.employment_status, '')))) IN ('active','contract','probation','intern')
+        OR (LTRIM(RTRIM(ISNULL(emp.employment_status, ''))) = '' AND LOWER(LTRIM(RTRIM(ISNULL(emp.status, '')))) = 'active')
+      )`);
+    } else if (statusParam === "inactive") {
+      whereParts.push(`NOT (
+        LOWER(LTRIM(RTRIM(ISNULL(emp.employment_status, '')))) IN ('active','contract','probation','intern')
+        OR (LTRIM(RTRIM(ISNULL(emp.employment_status, ''))) = '' AND LOWER(LTRIM(RTRIM(ISNULL(emp.status, '')))) = 'active')
+      )`);
     }
     const whereClause = whereParts.length ? `WHERE ${whereParts.join(" AND ")}` : "";
     const rawColsParam = String(req.query.columns || "").trim();
@@ -1063,12 +1076,14 @@ employeesRouter.get("/stats", async (req, res) => {
     const wantDefaultEmployment = !userTemplateAllowed
       || userTemplateAllowed.has("employment.department")
       || userTemplateAllowed.has("employment.status")
+      || userTemplateAllowed.has("employment.employment_status")
       || userTemplateAllowed.has("employment.job_title");
     const needsEmploymentJoin = wantDefaultEmployment || needsEmploymentJoinForSearch || isDepRep;
     if (needsEmploymentJoin) {
       joins.add("employment");
       if (!userTemplateAllowed || userTemplateAllowed.has("employment.department")) selectParts.push("emp.department");
       if (!userTemplateAllowed || userTemplateAllowed.has("employment.status")) selectParts.push("emp.status");
+      if (!userTemplateAllowed || userTemplateAllowed.has("employment.employment_status")) selectParts.push("emp.employment_status");
       if (!userTemplateAllowed || userTemplateAllowed.has("employment.job_title")) selectParts.push("emp.job_title");
     }
     for (const reqCol of requested) {
@@ -1117,6 +1132,7 @@ employeesRouter.get("/stats", async (req, res) => {
       if (includeEmployment) {
         if (!userTemplateAllowed || userTemplateAllowed.has("employment.department")) fbSelect.push("emp.department");
         if (!userTemplateAllowed || userTemplateAllowed.has("employment.status")) fbSelect.push("emp.status");
+        if (!userTemplateAllowed || userTemplateAllowed.has("employment.employment_status")) fbSelect.push("emp.employment_status");
         if (!userTemplateAllowed || userTemplateAllowed.has("employment.job_title")) fbSelect.push("emp.job_title");
       }
       const fbSql = `
@@ -1133,13 +1149,28 @@ employeesRouter.get("/stats", async (req, res) => {
     const data = rows.map((r: Record<string, unknown>) => {
       const nationality = String(r["nationality"] || "").trim();
       const sRaw = String(r["status"] || "").trim().toLowerCase();
-      const statusPretty =
-        !sRaw ? undefined :
-        sRaw === "active" ? "Active" :
-        sRaw === "inactive" ? "Inactive" :
-        sRaw === "resign" ? "Resign" :
-        sRaw === "terminated" ? "Terminated" :
-        (r["status"] as string | undefined);
+      const empSRaw = String(r["employment_status"] || "").trim().toLowerCase();
+      
+      let statusPretty: string | undefined;
+      
+      // Hitung logic status aktif seperti di stats
+      const isActuallyActive = 
+        ['active','contract','probation','intern'].includes(empSRaw) ||
+        (empSRaw === '' && sRaw === 'active');
+        
+      if (isActuallyActive) {
+        statusPretty = 'Active';
+      } else {
+        // Fallback untuk inactive states supaya tetap tampil di UI badge
+        statusPretty = 
+          !sRaw ? undefined :
+          sRaw === "active" ? "Active" :
+          sRaw === "inactive" ? "Inactive" :
+          sRaw === "resign" ? "Resign" :
+          sRaw === "terminated" ? "Terminated" :
+          (r["status"] as string | undefined);
+      }
+
       const out: Record<string, unknown> = {
         core: {
           employee_id: r["employee_id"],
@@ -1149,6 +1180,7 @@ employeesRouter.get("/stats", async (req, res) => {
         employment: {
           department: r["department"],
           status: statusPretty,
+          employment_status: r["employment_status"],
           job_title: r["job_title"],
         },
         type: (nationality.toLowerCase() === "indonesia" ? "indonesia" : "expat"),

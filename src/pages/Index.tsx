@@ -48,10 +48,10 @@ const Index = () => {
         if (!employeesRes.ok) return;
         const employeesData = await employeesRes.json();
         const items = Array.isArray(employeesData.items) ? employeesData.items : [];
-        const mapped: Employee[] = items.map((e: { core: { employee_id: string; name: string; nationality?: string | null }; employment: { department?: string | null; status?: string | null }; type?: string }) => ({
+        const mapped: Employee[] = items.map((e: { core: { employee_id: string; name: string; nationality?: string | null }; employment?: { department?: string | null; job_title?: string | null; status?: string | null }; type?: string }) => ({
           core: { employee_id: e.core.employee_id, name: e.core.name, nationality: e.core.nationality || "", imip_id: "", branch: "", branch_id: "" },
           contact: { phone_number: "", email: "", address: "", city: "", spouse_name: "", child_name_1: "", child_name_2: "", child_name_3: "", emergency_contact_name: "", emergency_contact_phone: "" },
-          employment: { employment_status: "", status: e.employment.status || "Active", division: "", department: e.employment.department || "", section: "", job_title: "", grade: "", position_grade: "", group_job_title: "", direct_report: "", company_office: "", work_location: "", locality_status: "", terminated_date: "", terminated_type: "", terminated_reason: "", blacklist_mti: false, blacklist_imip: false },
+          employment: { employment_status: "", status: e.employment?.status || "Active", division: "", department: e.employment?.department || "", section: "", job_title: e.employment?.job_title || "", grade: "", position_grade: "", group_job_title: "", direct_report: "", company_office: "", work_location: "", locality_status: "", terminated_date: "", terminated_type: "", terminated_reason: "", blacklist_mti: false, blacklist_imip: false },
           onboard: { point_of_hire: "", point_of_origin: "", schedule_type: "", first_join_date_merdeka: "", transfer_merdeka: "", first_join_date: "", join_date: "", end_contract: "", years_in_service: "" },
           bank: { employee_id: e.core.employee_id, bank_name: "", account_name: "", account_no: "", bank_code: "", icbc_bank_account_no: "", icbc_username: "" },
           insurance: { employee_id: e.core.employee_id, insurance_endorsement: false, insurance_owlexa: false, insurance_fpg: false, bpjs_tk: "", bpjs_kes: "", status_bpjs_kes: undefined, social_insurance_no_alt: "", bpjs_kes_no_alt: "", fpg_no: "", owlexa_no: "" },

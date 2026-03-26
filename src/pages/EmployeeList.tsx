@@ -48,7 +48,7 @@ const EmployeeList = () => {
   const navigate = useNavigate();
   const [searchParams] = useSearchParams();
   const [search, setSearch] = useState("");
-  const [typeFilter, setTypeFilter] = useState(searchParams.get('type') || 'all');
+  const [typeFilter, setTypeFilter] = useState(searchParams.get('type') || 'indonesia');
   const [statusFilter, setStatusFilter] = useState('all');
   const [syncSource, setSyncSource] = useState<"ranhr" | "sharepoint">("ranhr");
   const [remoteEmployees, setRemoteEmployees] = useState<Employee[]>([]);
@@ -61,6 +61,9 @@ const EmployeeList = () => {
   const [sortState, setSortState] = useState<SortState>(null);
   const [columnPins, setColumnPins] = useState<Record<string, "left" | "right" | undefined>>({});
   const [colSearch, setColSearch] = useState("");
+  // baseAllowedColumns is all columns allowed by role/mapping, used to sanitize saved visibleColumns
+  const [baseAllowedColumns, setBaseAllowedColumns] = useState<Array<{ key: string; section: string; column: string; label: string }>>([]);
+  // allowedColumns is baseAllowedColumns filtered by the current Type Access, used for UI Dropdown
   const [allowedColumns, setAllowedColumns] = useState<Array<{ key: string; section: string; column: string; label: string }>>([]);
   const [page, setPage] = useState(1);
   const [pageSize, setPageSize] = useState(10);
@@ -270,7 +273,17 @@ const EmployeeList = () => {
         setSelected(new Set());
         setRemoteEmployees([]);
         setServerTotal(null);
-        const reqCols = visibleColumns.filter((c) => c !== "type").join(",");
+        
+        // Calculate the columns to request from backend based on the current type filter
+        const currentType = typeFilter === "expat" ? "expat" : "indonesia";
+        const reqColsArray = visibleColumns.filter((c) => {
+          if (c === "type") return false; // not needed in api request columns param
+          const [section, column] = c.split(".");
+          if (!section || !column) return true;
+          return typeAccess?.[currentType]?.[section]?.[column] !== false;
+        });
+        const reqCols = reqColsArray.join(",");
+        
         const params = new URLSearchParams();
         params.set("limit", String(pageSize));
         params.set("offset", String((page - 1) * pageSize));
@@ -278,6 +291,7 @@ const EmployeeList = () => {
         const q = search.trim();
         if (q) params.set("q", q);
         if (typeFilter !== "all") params.set("type", typeFilter);
+        if (statusFilter !== "all") params.set("status", statusFilter);
         const res = await apiFetch(`/employees?${params.toString()}`, { signal: ctrl.signal, credentials: "include" });
         if (cancelled) return;
         if (!res.ok) throw new Error(`HTTP_${res.status}`);
@@ -371,7 +385,7 @@ const EmployeeList = () => {
       cancelled = true;
       ctrl.abort();
     };
-  }, [visibleColumns, search, typeFilter, page, pageSize]);
+  }, [visibleColumns, search, typeFilter, statusFilter, page, pageSize]);
 
   useEffect(() => {
     const ctrl = new AbortController();
@@ -422,6 +436,7 @@ const EmployeeList = () => {
           const secKey = canonical(r.section);
           const colKey = String(r.column || "").trim().toLowerCase();
           if (!caps.canColumn(secKey, colKey, "read")) continue;
+
           const dotted = `${secKey}.${colKey}`;
           if (mappingKeys && !mappingKeys.has(dotted)) continue;
           const label = `${toTitle(secKey)} • ${toTitle(colKey)}`;
@@ -434,7 +449,7 @@ const EmployeeList = () => {
         ensure("employment.status", "employment", "status", "Employment • Status");
         ensure("type", "core", "type", "Type");
         const orderedDefs = orderColumns(defs.map((d) => d.key)).map((key) => defs.find((d) => d.key === key)).filter(Boolean) as Array<{ key: string; section: string; column: string; label: string }>;
-        setAllowedColumns(orderedDefs);
+        setBaseAllowedColumns(orderedDefs);
       } catch (e) { void e; }
     };
     run();
@@ -442,8 +457,22 @@ const EmployeeList = () => {
   }, [rbacReady, caps, orderColumns]);
 
   useEffect(() => {
-    if (!allowedColumns.length) return;
-    const filtered = visibleColumns.filter((col) => col === "type" || allowedKeySet.has(col));
+    if (!baseAllowedColumns.length) return;
+    
+    // 1. Filter allowedColumns based on type filter (for dropdown options)
+    const currentType = typeFilter === "expat" ? "expat" : "indonesia";
+    const typeFilteredDefs = baseAllowedColumns.filter(col => {
+      // type is always allowed, or check if it's explicitly denied
+      if (col.key === "type") return true;
+      const isApplicable = typeAccess?.[currentType]?.[col.section]?.[col.column] !== false;
+      return isApplicable;
+    });
+    setAllowedColumns(typeFilteredDefs);
+
+    // 2. Sanitize visibleColumns ONLY against baseAllowedColumns (Role Access), NOT Type Access
+    // This prevents wiping out Expat preferences when viewing Indonesia, and vice versa.
+    const baseAllowedKeySet = new Set(baseAllowedColumns.map((d) => d.key));
+    const filtered = visibleColumns.filter((col) => col === "type" || baseAllowedKeySet.has(col));
     const fallback = ["core.employee_id","core.name","type"];
     const next = filtered.length ? filtered : fallback;
     const same = next.length === visibleColumns.length && next.every((val, idx) => val === visibleColumns[idx]);
@@ -464,7 +493,7 @@ const EmployeeList = () => {
     };
     run();
     return () => ctrl.abort();
-  }, [allowedColumns, allowedKeySet, visibleColumns]);
+  }, [baseAllowedColumns, typeFilter, typeAccess, visibleColumns]);
 
   const handleSearchChange = (value: string) => {
     setSearch(value);
@@ -531,7 +560,13 @@ const EmployeeList = () => {
 
       // Status filter
       if (statusFilter !== 'all') {
-        const isActive = employee.employment.status === 'Active';
+        const empStatusRaw = String(employee.employment?.employment_status || "").trim().toLowerCase();
+        const statusRaw = String(employee.employment?.status || "").trim().toLowerCase();
+        
+        const isActive = 
+          ['active', 'contract', 'probation', 'intern'].includes(empStatusRaw) ||
+          (empStatusRaw === '' && statusRaw === 'active');
+
         if (statusFilter === 'active' && !isActive) return false;
         if (statusFilter === 'inactive' && isActive) return false;
       }
@@ -590,11 +625,21 @@ const EmployeeList = () => {
     return part.replace(/_/g, " ").replace(/\b\w/g, (char) => char.toUpperCase());
   }, [columnLabelMap]);
 
+  const typeFilteredDisplayedColumns = useMemo(() => {
+    return displayedColumns.filter((col) => {
+      if (col === "type") return true;
+      const [section, column] = col.split(".");
+      if (!section || !column) return true;
+      const currentType = typeFilter === "expat" ? "expat" : "indonesia";
+      return typeAccess?.[currentType]?.[section]?.[column] !== false;
+    });
+  }, [displayedColumns, typeFilter, typeAccess]);
+
   const skeletonColumns = useMemo(
-    () => (displayedColumns.length
-      ? displayedColumns
-      : ["core.employee_id", "core.name", "type", "employment.department", "employment.job_title", "employment.status"]),
-    [displayedColumns]
+    () => typeFilteredDisplayedColumns.length 
+      ? typeFilteredDisplayedColumns 
+      : ["core.employee_id", "core.name", "type", "employment.department", "employment.job_title", "employment.status"],
+    [typeFilteredDisplayedColumns]
   );
 
   const handleDelete = async (employeeId: string) => {
@@ -1105,7 +1150,7 @@ const EmployeeList = () => {
                     selected={selected}
                     onToggleSelect={toggleSelect}
                     onToggleAll={toggleSelectAll}
-                    visibleColumns={displayedColumns}
+                    visibleColumns={typeFilteredDisplayedColumns}
                     resizable
                     columnWidths={columnWidths}
                     onColumnResize={(key, width) => {
