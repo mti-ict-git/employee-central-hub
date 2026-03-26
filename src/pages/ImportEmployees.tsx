@@ -210,6 +210,7 @@ const ImportEmployees = () => {
   const [isExcelUploading, setIsExcelUploading] = useState(false);
   const [excelUploadedBytes, setExcelUploadedBytes] = useState<number>(0);
   const [isSyncRunning, setIsSyncRunning] = useState(false);
+  const [isExcelDragging, setIsExcelDragging] = useState(false);
 
   const handleFileSelect = useCallback((selectedFile: File) => {
     if (!selectedFile) return;
@@ -432,6 +433,26 @@ const ImportEmployees = () => {
       setIsSyncRunning(false);
     }
   };
+
+  const handleExcelDrop = useCallback(
+    (e: React.DragEvent<HTMLDivElement>) => {
+      e.preventDefault();
+      setIsExcelDragging(false);
+      const dropped: File | undefined = e.dataTransfer.files?.[0];
+      if (!dropped) return;
+      const ext = dropped.name.split(".").pop()?.toLowerCase();
+      if (ext !== "xlsx") {
+        toast({
+          title: "Invalid file type",
+          description: "Please drop an Excel (.xlsx) file.",
+          variant: "destructive",
+        });
+        return;
+      }
+      handleExcelSelect(dropped);
+    },
+    [handleExcelSelect]
+  );
 
   const validCount = parsedData.filter((p) => p.isValid).length;
   const invalidCount = parsedData.filter((p) => !p.isValid).length;
@@ -790,9 +811,20 @@ const ImportEmployees = () => {
           </CardHeader>
           <CardContent>
             {!excelFile ? (
-              <div className={cn("border-2 border-dashed rounded-xl p-8 text-center transition-colors", "border-border hover:border-primary/50")}>
+              <div
+                className={cn(
+                  "border-2 border-dashed rounded-xl p-8 text-center transition-colors",
+                  isExcelDragging ? "border-primary bg-primary/5" : "border-border hover:border-primary/50"
+                )}
+                onDragOver={(e) => {
+                  e.preventDefault();
+                  setIsExcelDragging(true);
+                }}
+                onDragLeave={() => setIsExcelDragging(false)}
+                onDrop={handleExcelDrop}
+              >
                 <FileSpreadsheet className="h-10 w-10 text-muted-foreground mx-auto mb-3" />
-                <p className="text-muted-foreground mb-3">Upload .xlsx file</p>
+                <p className="text-muted-foreground mb-3">Drag and drop .xlsx here or click to select</p>
                 <input
                   type="file"
                   accept=".xlsx"

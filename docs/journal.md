@@ -600,3 +600,8 @@ Wednesday, December 17, 2025 4:24:46 PM - Secured env handling: added .env to .g
 
 - Fixed runtime error "ReferenceError: detail is not defined" by adding `detail` to StatCard props destructuring and rendering guard (`src/components/dashboard/StatCard.tsx`).
 - Built frontend (`npm run build`) — completed successfully.
+
+## 2026-03-26 17:10:53 +08:00 — Import: Drag & Drop for Excel
+
+- Added native drag-and-drop to the “Import Master Data (Excel)” panel with visual highlight on drag-over, validating `.xlsx` and reusing the existing upload handler (`src/pages/ImportEmployees.tsx`).
+- Built frontend (`npm run build`) — completed successfully.
