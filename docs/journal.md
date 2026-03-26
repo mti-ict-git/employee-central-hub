@@ -549,3 +549,54 @@ Wednesday, December 17, 2025 4:24:46 PM - Secured env handling: added .env to .g
 ## 2026-03-22 12:32:19 WITA — Prompt Logging Guard
 
 - Added optional server-side console logging for Nano Banana prompt, gated by `LOG_ANNIV_PROMPT=1` env var (`backend/src/routes/anniversaries.ts`).
+## 2026-03-25 14:40:54 +08:00 — SharePoint Review Validation + Emp ID Fix
+
+- Validated the Excel review file at `backend/storage/sharepoint-review/sharepoint-review.xlsx` against `backend/scripts/sharepoint-mapping.json`. All 4 expected sheets exist and contain an Emp. ID header. Missing mapped columns detected per group: IND Active (8), IND Inactive (33), Expat Active (21), CHN Inactive (20).
+- Fixed SharePoint sync worker to correctly locate the Emp. ID column using normalized header keys so row processing works across different header formats (`backend/src/routes/sync.ts`).
+- Ran backend typecheck (`npm --prefix backend run typecheck`) — passed.
+## 2026-03-25 14:47:19 +08:00 — Excel Header Validation Script
+
+- Added `backend/scripts/validate-sharepoint-review.ts` to validate Excel headers against mapping and output a JSON summary of found/missing columns per sheet group.
+- Registered npm script `validate:sharepoint:review` in backend `package.json` to run the validator easily.
+- Executed validator and confirmed the current review file matches groups and reports missing mapped columns accurately.
+- Ran backend typecheck (`npm --prefix backend run typecheck`) — passed.
+## 2026-03-25 21:14:22 +08:00 — SharePoint Header Extract + Mapping Alias Rules
+
+- Improved SharePoint review header extraction to (1) only apply parent>child headers for `Active Empl (IND)`, and (2) trim trailing empty columns using header + sample data width (`backend/scripts/extract-review-header-bottom.js`).
+- Generated clean one-row headers under `backend/scripts/review-headers-bottom/` from `backend/storage/sharepoint-review/sharepoint-review.xlsx`.
+- Added alias/rule expansion for common variations (Employee Id vs Emp. ID, Citizenship vs Nationality, Position Title vs Job Title, POH/POO, End Date vs End Contract, typos) to increase auto-mapped coverage (`backend/scripts/build-mapping-suggestions.js`).
+- Regenerated `backend/scripts/mapping-suggestions.json` and `backend/scripts/sharepoint-mapping.generated.json`; updated summary with significantly fewer unmapped headers.
+## 2026-03-25 21:30:53 +08:00 — SharePoint Sync Dry-Run Script
+
+- Updated `backend/scripts/simulate-sharepoint-run.ts` to use the same header parsing logic as extraction (single header for most sheets, parent>child for `Active Empl (IND)`), prefer `sharepoint-mapping.generated.json` when present, and produce per-group coverage stats without touching the database.
+- Ran backend typecheck and executed the dry-run against the current `sharepoint-review.xlsx`.
+## 2026-03-25 21:45:15 +08:00 — Production Dry-Run via API + Mapping Loader
+
+- Updated SharePoint mapping loader to prefer `sharepoint-mapping.generated.json` and also work when server runs from either repo root or `backend/` (`backend/src/routes/sync.ts`).
+- Started backend server on port 8093 (8083 was already in use) and triggered `POST /api/sync/run-sharepoint` with `dry_run=true` using dev mock token to validate end-to-end processing against production DB connection. Run id: 1048.
+## 2026-03-25 21:56:40 +08:00 — SharePoint Production Sync Fix + Successful Run
+
+- Fixed SharePoint sync upsert behavior to ensure `employee_core` rows are created even when only `employee_id` is available, and to avoid `imip_id` unique-constraint conflicts by setting a fallback `imip_id = employee_id` on insert-only core rows (`backend/src/routes/sync.ts`).
+- Ran `POST /api/sync/run-sharepoint` (dry_run=false) against the current review file and mapping; succeeded with scanned=27, skipped=0, errors=0. Run id: 1053.
+## 2026-03-26 09:18:50 +08:00 — Fix Mapping Table Names + RanHR Sync Error + Safer SharePoint Updates
+
+- Fixed SharePoint mapping generator to output DB targets using bare table names (e.g., `employee_core` instead of `dbo.employee_core`) so SharePoint sync applies mapped fields correctly (`backend/scripts/build-sharepoint-mapping-from-suggestions.js`).
+- Hardened SharePoint sync to normalize table names at runtime and to skip updates when a source column is missing (and by default skip overwriting with empty values unless `allow_null_overwrite=true`) (`backend/src/routes/sync.ts`).
+- Fixed RanHR sync endpoint `/api/sync/run` failing with `Must declare the scalar variable "@source"` by supplying the `@source` parameter when writing sync_runs (`backend/src/routes/sync.ts`).
+## 2026-03-26 11:06:46 +08:00 — Fix SharePoint Sync Gender Truncation
+
+- Fixed SharePoint sync failing with `String or binary data would be truncated... employee_core.gender` by coercing gender values to `M`/`F` during value coercion (`backend/src/routes/sync.ts`).
+
+## 2026-03-26 16:19:33 +08:00 — SharePoint Sync Counts + Dashboard Inactive Split
+
+- Aligned SharePoint sync header parsing with bottom-first logic (double-header only for `Active Empl (IND)`) and handled duplicate Excel headers via suffixing so mapping stays deterministic (`backend/src/routes/sync.ts`).
+- Fixed SharePoint sync upserts for `imip_id` unique constraint by ensuring `imip_id` falls back to `employee_id` on `employee_core` writes, and normalized `blacklist_*` values to `Y`/`N` to avoid truncation (`backend/src/routes/sync.ts`).
+- Ensured Active/NonActive sheets drive `employee_employment.employment_status` and inferred nationality from sheet group so the dashboard active/inactive and Indo/Expat splits match the source (`backend/src/routes/sync.ts`).
+- Extended `GET /api/employees/stats` to return `inactive_indonesia` and `inactive_expat` and displayed the breakdown in the Inactive card on the dashboard (`backend/src/routes/employees.ts`, `src/pages/Index.tsx`, `src/components/dashboard/StatCard.tsx`).
+- Removed remaining explicit `any` types in Sync pages to satisfy lint rules (`src/pages/SyncHistory.tsx`, `src/pages/SyncRunDetail.tsx`).
+- Ran `npm run lint` (warnings only) and `npm run build`, plus backend `npm run typecheck` and `npm run build` — passed.
+
+## 2026-03-26 16:39:57 +08:00 — Dashboard StatCard detail prop fix
+
+- Fixed runtime error "ReferenceError: detail is not defined" by adding `detail` to StatCard props destructuring and rendering guard (`src/components/dashboard/StatCard.tsx`).
+- Built frontend (`npm run build`) — completed successfully.

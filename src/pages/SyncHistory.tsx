@@ -30,16 +30,26 @@ const SyncHistory = () => {
     if (success === "failed") params.set("success", "0");
     (async () => {
       const res = await apiFetch(`/sync/runs${params.toString() ? `?${params.toString()}` : ""}`);
-      const json = await res.json();
-      setRuns((json.runs || []).map((r: any) => ({
-        run_id: r.run_id,
-        started_at: r.started_at,
-        finished_at: r.finished_at || null,
-        success: !!r.success,
-        source: String(r.source || ""),
-        error: r.error || null,
-        summary: r.summary || { inserted: 0, updated: 0, skipped: 0, scanned: 0 },
-      })));
+      const json = (await res.json().catch(() => null)) as { runs?: Array<unknown> } | null;
+      const list = Array.isArray(json?.runs) ? json.runs : [];
+      setRuns(list.map((r) => {
+        const row = (typeof r === "object" && r !== null ? (r as Record<string, unknown>) : {}) as Record<string, unknown>;
+        const summaryRaw = (typeof row.summary === "object" && row.summary !== null ? (row.summary as Record<string, unknown>) : {}) as Record<string, unknown>;
+        return {
+          run_id: Number(row.run_id || 0),
+          started_at: String(row.started_at || ""),
+          finished_at: row.finished_at ? String(row.finished_at) : null,
+          success: row.success === true || row.success === 1,
+          source: String(row.source || ""),
+          error: row.error ? String(row.error) : null,
+          summary: {
+            inserted: Number(summaryRaw.inserted || 0),
+            updated: Number(summaryRaw.updated || 0),
+            skipped: Number(summaryRaw.skipped || 0),
+            scanned: Number(summaryRaw.scanned || 0),
+          },
+        };
+      }));
     })();
   }, [source, success]);
 

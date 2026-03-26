@@ -113,7 +113,9 @@ async function loadXLSXModule(): Promise<{
 
 async function readSharepointMappingFile(): Promise<Record<string, unknown> | null> {
   const candidates = [
+    path.resolve(process.cwd(), "backend", "scripts", "sharepoint-mapping.generated.json"),
     path.resolve(process.cwd(), "backend", "scripts", "sharepoint-mapping.json"),
+    path.resolve(process.cwd(), "scripts", "sharepoint-mapping.generated.json"),
     path.resolve(process.cwd(), "scripts", "sharepoint-mapping.json"),
   ];
   for (const p of candidates) {
@@ -462,13 +464,14 @@ function toRowArrays(value: unknown): Array<Array<unknown>> {
 }
 
 function pickHeaderRowIndex(rows: Array<Array<unknown>>): number {
-  const limit = Math.min(6, rows.length);
+  const limit = Math.min(25, rows.length);
   let bestIdx = 0;
-  let bestCount = 0;
+  let bestScore = -1;
   for (let i = 0; i < limit; i += 1) {
-    const count = rows[i].filter((v) => v !== null && v !== undefined && String(v).trim() !== "").length;
-    if (count > bestCount) {
-      bestCount = count;
+    const row = rows[i] || [];
+    const nonEmpty = row.reduce((acc: number, c: unknown) => acc + (String(c ?? "").trim() ? 1 : 0), 0) as number;
+    if (nonEmpty > bestScore) {
+      bestScore = nonEmpty;
       bestIdx = i;
     }
   }
@@ -489,6 +492,87 @@ function normalizeHeaderKey(raw: string): string {
     .replace(/\s+/g, " ")
     .trim();
   return collapsed;
+}
+
+function normalizeDbTableName(raw: string): string {
+  const s = String(raw || "").trim();
+  if (!s) return "";
+  const cleaned = s.replace(/[\[\]]/g, "");
+  const parts = cleaned.split(".").map((p) => p.trim()).filter(Boolean);
+  return parts.length ? parts[parts.length - 1] : cleaned;
+}
+
+function forwardFillHeaders(row: string[]): string[] {
+  let last = "";
+  return row.map((cell) => {
+    const v = String(cell || "").trim();
+    if (v) {
+      last = v;
+      return v;
+    }
+    return last;
+  });
+}
+
+function isLikelyHeaderRow(row: unknown[]): boolean {
+  if (!Array.isArray(row) || row.length === 0) return false;
+  const cells = row.map(normalizeHeader);
+  const nonEmpty = cells.filter((c) => c !== "");
+  if (nonEmpty.length < 2) return false;
+  const stringCount = nonEmpty.filter((c) => isNaN(Number(c))).length;
+  return stringCount / nonEmpty.length >= 0.8;
+}
+
+function buildHeaderMapFromRows(rows: Array<Array<unknown>>, headerRowIndex: number, sheetName: string): { map: Map<string, number>, headerDepth: number } {
+  const rowA = (rows[headerRowIndex] || []).map(normalizeHeader);
+  const allowDouble = String(sheetName || "").trim().toLowerCase() === "active empl (ind)".toLowerCase();
+  const rowB = allowDouble && isLikelyHeaderRow(rows[headerRowIndex + 1]) ? (rows[headerRowIndex + 1] || []).map(normalizeHeader) : [];
+  
+  const headerDepth = rowB.length ? 2 : 1;
+  const width = Math.max(rowA.length, rowB.length);
+  const finalHeaders: string[] = [];
+  const parentRow = rowB.length ? forwardFillHeaders(rowA) : rowA;
+  
+  for (let idx = 0; idx < width; idx += 1) {
+    const parent = (parentRow[idx] || "").trim();
+    const child = (rowB[idx] || "").trim();
+    let headerName = `col_${idx}`;
+    if (child && parent && parent !== child) {
+      headerName = `${parent} > ${child}`;
+    } else if (child) {
+      headerName = child;
+    } else if (parent) {
+      headerName = parent;
+    }
+    
+    let uniqueName = headerName;
+    let suffix = 1;
+    while (finalHeaders.includes(uniqueName)) {
+        uniqueName = `${headerName}_${suffix}`;
+        suffix++;
+    }
+    finalHeaders.push(uniqueName);
+  }
+
+  const out = new Map<string, number>();
+  
+  for (let idx = 0; idx < finalHeaders.length; idx += 1) {
+    const h = finalHeaders[idx];
+    if (h.startsWith("col_")) continue;
+    
+    // Add exact match
+    const exactKey = normalizeHeaderKey(h);
+    if (exactKey && !out.has(exactKey)) out.set(exactKey, idx);
+
+    // Also add parts so we can match mapping easily
+    const parts = h.split(" > ");
+    for (const p of parts) {
+      const pKey = normalizeHeaderKey(p);
+      if (pKey && !out.has(pKey)) out.set(pKey, idx);
+    }
+  }
+  
+  return { map: out, headerDepth };
 }
 
 function parseExcelDate(xlsx: { SSF?: { parse_date_code?: (value: number) => { y: number; m: number; d: number; H?: number; M?: number; S?: number } | null } }, value: unknown): Date | null {
@@ -518,17 +602,58 @@ function toDateValue(xlsx: { SSF?: { parse_date_code?: (value: number) => { y: n
   return isNaN(parsed.getTime()) ? null : parsed;
 }
 
-function coerceValueForColumn(xlsx: { SSF?: { parse_date_code?: (value: number) => { y: number; m: number; d: number; H?: number; M?: number; S?: number } | null } }, info: { type: string }, value: unknown): unknown {
+function coerceValueForColumn(
+  xlsx: { SSF?: { parse_date_code?: (value: number) => { y: number; m: number; d: number; H?: number; M?: number; S?: number } | null } },
+  info: { name: string; type: string },
+  value: unknown
+): unknown {
   if (value === null || value === undefined || value === "") return null;
   const type = info.type;
+  const colName = String(info.name || "").toLowerCase();
+  
+  if (colName === "gender") {
+    const v = String(value).trim().toLowerCase();
+    if (v === "m" || v === "male" || v.startsWith("m")) return "M";
+    if (v === "f" || v === "female" || v.startsWith("f")) return "F";
+    return String(value).trim().slice(0, 1);
+  }
+  
+  if (colName === "employment_status") {
+    let es = String(value).trim().toLowerCase();
+    if (es === "permanent") return "active";
+    if (es === "contract") return "contract"; 
+    if (es === "probation") return "probation";
+    if (es === "intern") return "intern";
+    if (es.includes("non")) return "non_active";
+    if (es === "terminated") return "terminated";
+    if (es === "retired") return "retired";
+    if (es === "suspended") return "suspended";
+    return "active"; // Default to active if unknown to satisfy constraint, or handle gracefully
+  }
+
+  if (colName === "blacklist_mti" || colName === "blacklist_imip") {
+    const v = String(value).trim().toLowerCase();
+    if (v === "yes" || v === "y" || v === "true" || v === "1") return "Y";
+    if (v === "no" || v === "n" || v === "false" || v === "0") return "N";
+    return String(value).trim().slice(0, 1).toUpperCase();
+  }
+  
+  if (colName === "grade") {
+    // try to extract just the number if it's a varchar mapping for grade
+    const match = String(value).match(/\d+/);
+    if (match) return match[0];
+  }
+
   if (type.includes("int")) {
+    const match = String(value).match(/\d+/);
+    if (match) return parseInt(match[0], 10);
     const n = Number(value);
     return Number.isFinite(n) ? Math.trunc(n) : null;
   }
   if (type.includes("bit")) {
     if (typeof value === "boolean") return value ? 1 : 0;
     const v = String(value).trim().toLowerCase();
-    if (["1", "true", "yes", "y"].includes(v)) return 1;
+    if (["1", "true", "yes", "y", "v"].includes(v)) return 1;
     if (["0", "false", "no", "n"].includes(v)) return 0;
     return null;
   }
@@ -539,6 +664,13 @@ function coerceValueForColumn(xlsx: { SSF?: { parse_date_code?: (value: number) 
   if (type.includes("date") || type.includes("time")) {
     return toDateValue(xlsx, value);
   }
+  
+  // Handle varchar acting like a checklist
+  if (type.includes("char") || type.includes("text")) {
+    const v = String(value).trim().toLowerCase();
+    if (v === "v") return "1"; // convert to "1" or "true" string for consistency if db expects string but acts like bit
+  }
+
   return String(value);
 }
 
@@ -554,6 +686,13 @@ async function upsertMappedRow(
   if (!row.employee_id) return;
   const req = new sql.Request(pool);
   req.input("employee_id", sql.VarChar(100), String(row.employee_id));
+
+  if (table === "employee_core" && columns.has("imip_id")) {
+    const rawImipId = row.imip_id;
+    const imipId = String(rawImipId ?? "").trim();
+    if (!imipId) row.imip_id = String(row.employee_id);
+  }
+
   const updateSets: string[] = [];
   const insertCols: string[] = ["employee_id"];
   const insertVals: string[] = ["@employee_id"];
@@ -614,7 +753,19 @@ async function upsertMappedRow(
     }
   }
 
-  if (!updateSets.length) return;
+  if (!updateSets.length) {
+    if (table !== "employee_core") return;
+    if (!dryRun) {
+      const hasImipId = columns.has("imip_id");
+      if (hasImipId) req.input("__fallback_imip_id", sql.NVarChar(100), String(row.employee_id));
+      await req.query(`
+        IF NOT EXISTS (SELECT 1 FROM dbo.${table} WHERE employee_id=@employee_id)
+          INSERT INTO dbo.${table} ([employee_id]${hasImipId ? ", [imip_id]" : ""})
+          VALUES (@employee_id${hasImipId ? ", @__fallback_imip_id" : ""})
+      `);
+    }
+    return;
+  }
   if (!dryRun) {
     await req.query(`
       IF EXISTS (SELECT 1 FROM dbo.${table} WHERE employee_id=@employee_id)
@@ -851,6 +1002,7 @@ syncRouter.post("/run-sharepoint", async (req, res) => {
       let statsPayload: any = { inserted: 0, updated: 0, skipped: 0, missing_in_source: 0, scanned: 0, examples: [], errors: [], changes: [] };
       let errorMessage: string | null = null;
       try {
+        const allowNullOverwrite = !!body.allow_null_overwrite;
         await workPool.connect();
         await ensureSyncSchema(workPool);
         const mappingRaw = await readSharepointMappingFile();
@@ -866,17 +1018,25 @@ syncRouter.post("/run-sharepoint", async (req, res) => {
 
         const perEmployee: Map<string, Record<string, Record<string, unknown>>> = new Map();
         const groupStatus: Record<string, string> = {
-          "Active Employee (ID)": "Active",
-          "Inactive Employee (ID)": "Non Active",
-          "Active Employee CHN": "Active",
-          "Inactive Employee CHN": "Non Active",
+          "Active Empl (IND)": "active",
+          "NonActive (IND)": "non_active",
+          "Active Empl (Expat)": "active",
+          "NonActive(CHN)": "non_active",
+        };
+        const groupNationality: Record<string, string> = {
+          "Active Empl (IND)": "Indonesia",
+          "NonActive (IND)": "Indonesia",
+          "Active Empl (Expat)": "China",
+          "NonActive(CHN)": "China",
         };
 
         const collectRow = (empId: string, table: string, column: string, value: unknown) => {
+          const normalizedTable = normalizeDbTableName(table);
+          if (!normalizedTable) return;
           if (!perEmployee.has(empId)) perEmployee.set(empId, {});
           const tables = perEmployee.get(empId) as Record<string, Record<string, unknown>>;
-          if (!tables[table]) tables[table] = {};
-          tables[table][column] = value;
+          if (!tables[normalizedTable]) tables[normalizedTable] = {};
+          tables[normalizedTable][column] = value;
         };
 
         for (const [group, entries] of Object.entries(columnsByGroup)) {
@@ -887,28 +1047,16 @@ syncRouter.post("/run-sharepoint", async (req, res) => {
           const rows = toRowArrays(rawRows);
           if (!rows.length) continue;
           const headerRowIndex = pickHeaderRowIndex(rows);
-          const headerRowA = rows[headerRowIndex].map(normalizeHeader);
-          const headerRowB = rows[headerRowIndex + 1] ? rows[headerRowIndex + 1].map(normalizeHeader) : [];
-          const headerMap = new Map<string, number>();
-          const addKey = (key: string, idx: number) => {
-            const k = normalizeHeaderKey(key);
-            if (k) headerMap.set(k, idx);
-          };
-          for (let idx = 0; idx < Math.max(headerRowA.length, headerRowB.length); idx += 1) {
-            const a = headerRowA[idx] || "";
-            const b = headerRowB[idx] || "";
-            if (a) addKey(a, idx);
-            if (b) addKey(b, idx);
-            if (a && b) {
-              addKey(`${a} ${b}`, idx);
-              addKey(`${a}-${b}`, idx);
-              addKey(`${a}/${b}`, idx);
-            }
-          }
+          const { map: headerMap, headerDepth } = buildHeaderMapFromRows(rows, headerRowIndex, sheetName);
 
-          for (let r = headerRowIndex + 1; r < rows.length; r += 1) {
+          for (let r = headerRowIndex + headerDepth; r < rows.length; r += 1) {
             const row = rows[r];
-            const empIdIdx = headerMap.get("Emp. ID");
+            const empIdCandidates = ["Emp. ID", "Emp ID", "Employee ID"];
+            let empIdIdx: number | undefined = undefined;
+            for (const cand of empIdCandidates) {
+              const idx = headerMap.get(normalizeHeaderKey(cand));
+              if (idx !== undefined) { empIdIdx = idx; break; }
+            }
             const empIdRaw = empIdIdx !== undefined ? row[empIdIdx] : null;
             const empId = String(empIdRaw || "").trim();
             if (!empId) continue;
@@ -919,15 +1067,29 @@ syncRouter.post("/run-sharepoint", async (req, res) => {
               if (entry.status !== "mapped" || !entry.db) continue;
               const wanted = normalizeHeaderKey(entry.excelName);
               const colIdx = headerMap.get(wanted);
-              const value = colIdx !== undefined ? row[colIdx] : null;
+              if (colIdx === undefined) continue;
+              const value = row[colIdx];
+              if (!allowNullOverwrite) {
+                if (value === null || value === undefined) continue;
+                if (typeof value === "string" && value.trim() === "") continue;
+              }
               const targets = Array.isArray(entry.db) ? entry.db : [entry.db];
               for (const target of targets) {
                 if (!target || !target.table || !target.column) continue;
                 collectRow(empId, target.table, target.column, value);
               }
             }
-            const status = groupStatus[group] || "Active";
+            const status = groupStatus[sheetName] || groupStatus[group] || "active";
             collectRow(empId, "employee_onboard", "employment_status", status);
+            collectRow(empId, "employee_employment", "employment_status", status);
+
+            const inferredNationality = groupNationality[sheetName] || groupNationality[group] || "";
+            if (inferredNationality) {
+              const tables = perEmployee.get(empId) as Record<string, Record<string, unknown>> | undefined;
+              const core = tables?.employee_core;
+              const existingNationality = String(core?.nationality ?? "").trim();
+              if (!existingNationality) collectRow(empId, "employee_core", "nationality", inferredNationality);
+            }
           }
         }
 
@@ -943,14 +1105,25 @@ syncRouter.post("/run-sharepoint", async (req, res) => {
         if (maxUsers > 0) entries = entries.slice(0, maxUsers);
         for (const [empId, tableData] of entries) {
           try {
+            if (!tableData.employee_core) tableData.employee_core = {};
             const onboard = tableData.employee_onboard;
             if (onboard && onboard.join_date) {
               const joinDate = toDateValue(xlsx, onboard.join_date);
               if (joinDate) onboard.years_in_service = computeYearsInService(joinDate);
             }
-            for (const t of tables) {
-              const data = tableData[t];
-              if (!data) continue;
+            const presentTables = tables.filter((tt) => {
+              const d = tableData[tt];
+              if (!d) return false;
+              const keys = Object.keys(d).filter((k) => k !== "employee_id");
+              return keys.length > 0;
+            });
+            if (presentTables.length === 0) continue;
+            if (!tableData.employee_core || Object.keys(tableData.employee_core).length === 0) {
+              presentTables.unshift("employee_core");
+              if (!tableData.employee_core) tableData.employee_core = {};
+            }
+            for (const t of presentTables) {
+              const data = tableData[t] || {};
               data.employee_id = empId;
               try {
                 const existsReq = new sql.Request(workPool);
@@ -1754,6 +1927,7 @@ syncRouter.post("/run", async (req, res) => {
   let offset = Math.max(0, parseInt(String(body.offset || "0"), 10) || 0);
   const dest = getDestPool();
   const src = getSrcPool();
+  const source = "ranhr";
   const stats = { inserted: 0, updated: 0, skipped: 0, missing_in_source: 0, scanned: 0, examples: [] as Array<{ employee_id?: string | null; StaffNo?: string | null }>, errors: [] as Array<{ employee_id?: string | null; StaffNo?: string | null; message: string }>, changes: [] as Array<{ employee_id: string; table: string; column: string; before: unknown; after: unknown; change: "insert" | "update" }> };
   try {
     await dest.connect();
@@ -2095,6 +2269,7 @@ syncRouter.post("/run", async (req, res) => {
     runReq.input("finished_at", sql.DateTime2, new Date());
     runReq.input("success", sql.Bit, 1);
     runReq.input("stats", sql.NVarChar(sql.MAX), JSON.stringify(stats));
+    runReq.input("source", sql.NVarChar(50), source);
     await runReq.query(`
       INSERT INTO dbo.sync_runs (started_at, finished_at, success, stats, source) VALUES (@started_at, @finished_at, @success, @stats, @source)
     `);
@@ -2108,6 +2283,7 @@ syncRouter.post("/run", async (req, res) => {
       r.input("success", sql.Bit, 0);
       r.input("stats", sql.NVarChar(sql.MAX), JSON.stringify(stats));
       r.input("error", sql.NVarChar(sql.MAX), String(message));
+      r.input("source", sql.NVarChar(50), source);
       await r.query(`
         INSERT INTO dbo.sync_runs (started_at, finished_at, success, stats, error, source) VALUES (@started_at, @finished_at, @success, @stats, @error, @source)
       `);

@@ -1,0 +1,30 @@
+{
+  "ok": true,
+  "source": "C:\\Scripts\\Projects\\employee-central-hub\\backend\\storage\\sharepoint-review\\sharepoint-review.xlsx",
+  "sheets": [
+    {
+      "name": "Active Empl (IND)",
+      "file": "C:\\Scripts\\Projects\\employee-central-hub\\backend\\scripts\\review-headers-bottom\\Active_Empl_IND_.json",
+      "headerRowIndex": 2,
+      "dataCount": 5
+    },
+    {
+      "name": "NonActive (IND)",
+      "file": "C:\\Scripts\\Projects\\employee-central-hub\\backend\\scripts\\review-headers-bottom\\NonActive_IND_.json",
+      "headerRowIndex": 3,
+      "dataCount": 8
+    },
+    {
+      "name": "Active Empl (Expat)",
+      "file": "C:\\Scripts\\Projects\\employee-central-hub\\backend\\scripts\\review-headers-bottom\\Active_Empl_Expat_.json",
+      "headerRowIndex": 4,
+      "dataCount": 8
+    },
+    {
+      "name": "NonActive(CHN)",
+      "file": "C:\\Scripts\\Projects\\employee-central-hub\\backend\\scripts\\review-headers-bottom\\NonActive_CHN_.json",
+      "headerRowIndex": 3,
+      "dataCount": 7
+    }
+  ]
+}

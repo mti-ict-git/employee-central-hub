@@ -46,21 +46,26 @@ const FormField = ({
   placeholder?: string;
   disabled?: boolean;
   visible?: boolean;
-}) => (
-  !visible ? null : (
-  <div className="space-y-2">
-    <Label className="text-sm font-medium">{label}</Label>
-    <Input 
-      type={type}
-      value={value || ''} 
-      onChange={(e) => onChange(e.target.value)}
-      placeholder={placeholder}
-      disabled={disabled}
-      className="bg-background"
-    />
-  </div>
-  )
-);
+}) => {
+  if (!visible) return null;
+  let displayValue = value || '';
+  if (type === 'date' && displayValue && displayValue.length > 10) {
+    displayValue = displayValue.slice(0, 10);
+  }
+  return (
+    <div className="space-y-2">
+      <Label className="text-sm font-medium">{label}</Label>
+      <Input 
+        type={type}
+        value={displayValue} 
+        onChange={(e) => onChange(e.target.value)}
+        placeholder={placeholder}
+        disabled={disabled}
+        className="bg-background"
+      />
+    </div>
+  );
+};
 
 const SelectField = ({ 
   label, 

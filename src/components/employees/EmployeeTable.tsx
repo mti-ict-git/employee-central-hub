@@ -24,6 +24,7 @@ import { SortableContext, horizontalListSortingStrategy, useSortable } from "@dn
 import { CSS } from "@dnd-kit/utilities";
 import { Link } from "react-router-dom";
 import { cn } from "@/lib/utils";
+import { format, isValid, parseISO } from "date-fns";
 import { Checkbox } from "@/components/ui/checkbox";
 import { useRBAC } from "@/hooks/useRBAC";
 import {
@@ -358,7 +359,16 @@ export function EmployeeTable({ employees, onDelete, selectable = false, selecte
           </Badge>
         );
       }
-      if (typeof val === "string" && val.length > 0) return val as string;
+      if (typeof val === "string" && val.length > 0) {
+        // Check if it's an ISO date string or YYYY-MM-DD
+        if (/^\d{4}-\d{2}-\d{2}T\d{2}:\d{2}:\d{2}/.test(val) || /^\d{4}-\d{2}-\d{2}$/.test(val)) {
+          const parsed = parseISO(val);
+          if (isValid(parsed)) {
+            return format(parsed, "dd MMMM yyyy");
+          }
+        }
+        return val as string;
+      }
       if (typeof val === "number") return String(val as number);
       if (typeof val === "boolean") return (val as boolean) ? "Yes" : "No";
       return "-";

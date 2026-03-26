@@ -1,5 +1,6 @@
 import { useParams, Link } from "react-router-dom";
 import { useEffect, useState } from "react";
+import { format, isValid, parseISO } from "date-fns";
 import { MainLayout } from "@/components/layout/MainLayout";
 import type { Employee, EmployeeCustomField } from "@/types/employee";
 import { Badge } from "@/components/ui/badge";
@@ -30,7 +31,17 @@ function isRecord(value: unknown): value is Record<string, unknown> {
 
 const InfoRow = ({ label, value, visible = true }: { label: string; value?: string | boolean | null; visible?: boolean }) => {
   if (!visible) return null;
-  const displayValue = typeof value === 'boolean' ? (value ? 'Yes' : 'No') : (value ?? '');
+  let displayValue = typeof value === 'boolean' ? (value ? 'Yes' : 'No') : (value ?? '');
+  
+  if (typeof displayValue === 'string' && displayValue.length > 0) {
+    if (/^\d{4}-\d{2}-\d{2}T\d{2}:\d{2}:\d{2}/.test(displayValue) || /^\d{4}-\d{2}-\d{2}$/.test(displayValue)) {
+      const parsed = parseISO(displayValue);
+      if (isValid(parsed)) {
+        displayValue = format(parsed, "dd MMMM yyyy");
+      }
+    }
+  }
+
   const text = displayValue === '' ? 'N/A' : displayValue;
   return (
     <div className="flex flex-col sm:flex-row sm:items-center py-2 border-b border-border/50 last:border-0">

@@ -6,7 +6,7 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { apiFetch } from "@/lib/api";
 
-type ChangeEntry = { employee_id: string; table: string; column: string; before: any; after: any; change: "insert" | "update" };
+type ChangeEntry = { employee_id: string; table: string; column: string; before: unknown; after: unknown; change: "insert" | "update" };
 type Stats = { inserted: number; updated: number; skipped: number; scanned: number; errors?: Array<{ employee_id?: string | null; message: string }>; changes?: ChangeEntry[] };
 
 const SyncRunDetail = () => {
@@ -20,9 +20,14 @@ const SyncRunDetail = () => {
     if (!id) return;
     (async () => {
       const res = await apiFetch(`/sync/runs/${id}`);
-      const json = await res.json();
-      setMeta({ run_id: json.run_id, started_at: json.started_at, finished_at: json.finished_at, success: !!json.success, source: String(json.source || "") });
-      setStats(json.stats || null);
+      const json = (await res.json().catch(() => null)) as Record<string, unknown> | null;
+      const runId = Number(json?.run_id || 0);
+      const startedAt = String(json?.started_at || "");
+      const finishedAt = json?.finished_at ? String(json.finished_at) : null;
+      const successVal = json?.success === true || json?.success === 1;
+      const sourceVal = String(json?.source || "");
+      setMeta({ run_id: runId, started_at: startedAt, finished_at: finishedAt, success: successVal, source: sourceVal });
+      setStats((json?.stats as Stats | undefined) || null);
     })();
   }, [params.id]);
 

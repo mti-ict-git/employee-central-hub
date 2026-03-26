@@ -358,10 +358,10 @@
         "status": "mapped"
       },
       {
-        "excelName": "Insurance (Card)_1",
+        "excelName": "Insurance (Card)",
         "db": {
           "table": "employee_insurance",
-          "column": "insurance_fpg"
+          "column": "insurance_owlexa"
         },
         "status": "mapped"
       },

@@ -11,7 +11,7 @@ import { apiFetch } from "@/lib/api";
 
 const Index = () => {
   const [employees, setEmployees] = useState<Employee[]>([]);
-  const [stats, setStats] = useState({ total: 0, active: 0, inactive: 0, indonesia: 0, expat: 0 });
+  const [stats, setStats] = useState({ total: 0, active: 0, inactive: 0, indonesia: 0, expat: 0, inactive_indonesia: 0, inactive_expat: 0 });
   const [departments, setDepartments] = useState<Array<{ department: string; count: number }>>([]);
   useEffect(() => {
     const ctrl = new AbortController();
@@ -24,7 +24,7 @@ const Index = () => {
 
         if (statsRes.ok) {
           const data = (await statsRes.json().catch(() => null)) as
-            | { total?: number; active?: number; inactive?: number; indonesia?: number; expat?: number; departments?: Array<{ department?: string; count?: number }> }
+            | { total?: number; active?: number; inactive?: number; indonesia?: number; expat?: number; inactive_indonesia?: number; inactive_expat?: number; departments?: Array<{ department?: string; count?: number }> }
             | null;
           setStats({
             total: Number(data?.total || 0),
@@ -32,6 +32,8 @@ const Index = () => {
             inactive: Number(data?.inactive || 0),
             indonesia: Number(data?.indonesia || 0),
             expat: Number(data?.expat || 0),
+            inactive_indonesia: Number(data?.inactive_indonesia || 0),
+            inactive_expat: Number(data?.inactive_expat || 0),
           });
           setDepartments(
             Array.isArray(data?.departments)
@@ -61,7 +63,7 @@ const Index = () => {
         setEmployees(mapped);
       } catch {
         setEmployees([]);
-        setStats({ total: 0, active: 0, inactive: 0, indonesia: 0, expat: 0 });
+        setStats({ total: 0, active: 0, inactive: 0, indonesia: 0, expat: 0, inactive_indonesia: 0, inactive_expat: 0 });
         setDepartments([]);
       }
     };
@@ -86,7 +88,7 @@ const Index = () => {
         const r = await apiFetch(`/employees/stats`, { credentials: "include" });
         if (r.ok) {
           const data = (await r.json().catch(() => null)) as
-            | { total?: number; active?: number; inactive?: number; indonesia?: number; expat?: number; departments?: Array<{ department?: string; count?: number }> }
+            | { total?: number; active?: number; inactive?: number; indonesia?: number; expat?: number; inactive_indonesia?: number; inactive_expat?: number; departments?: Array<{ department?: string; count?: number }> }
             | null;
           setStats({
             total: Number(data?.total || 0),
@@ -94,6 +96,8 @@ const Index = () => {
             inactive: Number(data?.inactive || 0),
             indonesia: Number(data?.indonesia || 0),
             expat: Number(data?.expat || 0),
+            inactive_indonesia: Number(data?.inactive_indonesia || 0),
+            inactive_expat: Number(data?.inactive_expat || 0),
           });
           setDepartments(
             Array.isArray(data?.departments)
@@ -133,6 +137,7 @@ const Index = () => {
           title="Inactive"
           value={stats.inactive}
           icon={UserX}
+          detail={`ID: ${stats.inactive_indonesia} • Expat/CHN: ${stats.inactive_expat}`}
         />
         <StatCard
           title="Indonesia"

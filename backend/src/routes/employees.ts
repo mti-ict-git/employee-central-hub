@@ -834,7 +834,11 @@ function extractDbErrorDetails(err: unknown): { code?: string; number?: number; 
 type EmployeeStatsRow = {
   total: number;
   active: number;
+  inactive: number;
+  inactive_indonesia: number;
+  inactive_expat: number;
   indonesia: number;
+  expat: number;
 };
 
 type EmployeeDeptRow = {
@@ -885,7 +889,33 @@ employeesRouter.get("/stats", async (req, res) => {
           WHEN LTRIM(RTRIM(ISNULL(emp.employment_status, ''))) = '' AND LOWER(LTRIM(RTRIM(ISNULL(emp.status, '')))) = 'active' THEN 1
           ELSE 0
         END) AS active,
-        SUM(CASE WHEN LOWER(LTRIM(RTRIM(ISNULL(core.nationality, '')))) = 'indonesia' THEN 1 ELSE 0 END) AS indonesia
+        SUM(CASE 
+          WHEN LOWER(LTRIM(RTRIM(ISNULL(emp.employment_status, '')))) IN ('active','contract','probation','intern') THEN 0
+          WHEN LTRIM(RTRIM(ISNULL(emp.employment_status, ''))) = '' AND LOWER(LTRIM(RTRIM(ISNULL(emp.status, '')))) = 'active' THEN 0
+          ELSE 1
+        END) AS inactive,
+        SUM(CASE WHEN LOWER(LTRIM(RTRIM(ISNULL(core.nationality, '')))) = 'indonesia' THEN 1 ELSE 0 END) AS indonesia,
+        SUM(CASE WHEN LOWER(LTRIM(RTRIM(ISNULL(core.nationality, '')))) <> 'indonesia' THEN 1 ELSE 0 END) AS expat,
+        SUM(CASE 
+          WHEN (
+            CASE 
+              WHEN LOWER(LTRIM(RTRIM(ISNULL(emp.employment_status, '')))) IN ('active','contract','probation','intern') THEN 0
+              WHEN LTRIM(RTRIM(ISNULL(emp.employment_status, ''))) = '' AND LOWER(LTRIM(RTRIM(ISNULL(emp.status, '')))) = 'active' THEN 0
+              ELSE 1
+            END
+          ) = 1 AND LOWER(LTRIM(RTRIM(ISNULL(core.nationality, '')))) = 'indonesia' THEN 1
+          ELSE 0
+        END) AS inactive_indonesia,
+        SUM(CASE 
+          WHEN (
+            CASE 
+              WHEN LOWER(LTRIM(RTRIM(ISNULL(emp.employment_status, '')))) IN ('active','contract','probation','intern') THEN 0
+              WHEN LTRIM(RTRIM(ISNULL(emp.employment_status, ''))) = '' AND LOWER(LTRIM(RTRIM(ISNULL(emp.status, '')))) = 'active' THEN 0
+              ELSE 1
+            END
+          ) = 1 AND LOWER(LTRIM(RTRIM(ISNULL(core.nationality, '')))) <> 'indonesia' THEN 1
+          ELSE 0
+        END) AS inactive_expat
       FROM dbo.employee_core AS core
       LEFT JOIN dbo.employee_employment AS emp ON emp.employee_id = core.employee_id
       ${whereClause}
@@ -911,15 +941,17 @@ employeesRouter.get("/stats", async (req, res) => {
     const total = Number(row?.total || 0);
     const active = Number(row?.active || 0);
     const indonesia = Number(row?.indonesia || 0);
-    const inactive = Math.max(0, total - active);
-    const expat = Math.max(0, total - indonesia);
+    const inactive = Number(row?.inactive || Math.max(0, total - active));
+    const expat = Number(row?.expat || Math.max(0, total - indonesia));
+    const inactive_indonesia = Number(row?.inactive_indonesia || 0);
+    const inactive_expat = Number(row?.inactive_expat || 0);
 
     const departments = (deptResult.recordset || []).map((r) => ({
       department: String(r.department || "-").trim() || "-",
       count: Number(r.count || 0),
     }));
 
-    return res.json({ total, active, inactive, indonesia, expat, departments });
+    return res.json({ total, active, inactive, indonesia, expat, inactive_indonesia, inactive_expat, departments });
   } catch (err: unknown) {
     const message = err instanceof Error ? err.message : "FAILED_TO_QUERY_EMPLOYEE_STATS";
     const details = extractDbErrorDetails(err);

@@ -5,6 +5,7 @@ interface StatCardProps {
   title: string;
   value: string | number;
   icon: LucideIcon;
+  detail?: string;
   trend?: {
     value: number;
     label: string;
@@ -19,7 +20,7 @@ const variantStyles = {
   warning: "bg-warning text-warning-foreground",
 };
 
-export function StatCard({ title, value, icon: Icon, trend, variant = 'default' }: StatCardProps) {
+export function StatCard({ title, value, icon: Icon, detail, trend, variant = 'default' }: StatCardProps) {
   const isPrimary = variant !== 'default';
 
   return (
@@ -41,6 +42,14 @@ export function StatCard({ title, value, icon: Icon, trend, variant = 'default' 
           )}>
             {value}
           </p>
+          {!!detail && (
+            <p className={cn(
+              "mt-1 text-xs",
+              isPrimary ? "text-current/70" : "text-muted-foreground"
+            )}>
+              {detail}
+            </p>
+          )}
           {trend && (
             <p className={cn(
               "mt-2 text-xs",
