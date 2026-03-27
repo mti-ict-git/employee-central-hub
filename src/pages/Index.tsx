@@ -10,16 +10,18 @@ import { toast } from "@/hooks/use-toast";
 import { apiFetch } from "@/lib/api";
 
 const Index = () => {
-  const [employees, setEmployees] = useState<Employee[]>([]);
+  const [recentIndo, setRecentIndo] = useState<Employee[]>([]);
+  const [recentExpat, setRecentExpat] = useState<Employee[]>([]);
   const [stats, setStats] = useState({ total: 0, active: 0, inactive: 0, indonesia: 0, expat: 0, inactive_indonesia: 0, inactive_expat: 0 });
   const [departments, setDepartments] = useState<Array<{ department: string; count: number }>>([]);
   useEffect(() => {
     const ctrl = new AbortController();
     const run = async () => {
       try {
-        const [statsRes, employeesRes] = await Promise.all([
+        const [statsRes, indoRes, expatRes] = await Promise.all([
           apiFetch(`/employees/stats`, { signal: ctrl.signal, credentials: "include" }),
-          apiFetch(`/employees?limit=500`, { signal: ctrl.signal, credentials: "include" }),
+          apiFetch(`/employees?limit=5&status=active&order=recent&type=indonesia`, { signal: ctrl.signal, credentials: "include" }),
+          apiFetch(`/employees?limit=5&status=active&order=recent&type=expat`, { signal: ctrl.signal, credentials: "include" }),
         ]);
 
         if (statsRes.ok) {
@@ -45,24 +47,141 @@ const Index = () => {
           );
         }
 
-        if (!employeesRes.ok) return;
-        const employeesData = await employeesRes.json();
-        const items = Array.isArray(employeesData.items) ? employeesData.items : [];
-        const mapped: Employee[] = items.map((e: { core: { employee_id: string; name: string; nationality?: string | null }; employment?: { department?: string | null; job_title?: string | null; status?: string | null }; type?: string }) => ({
-          core: { employee_id: e.core.employee_id, name: e.core.name, nationality: e.core.nationality || "", imip_id: "", branch: "", branch_id: "" },
-          contact: { phone_number: "", email: "", address: "", city: "", spouse_name: "", child_name_1: "", child_name_2: "", child_name_3: "", emergency_contact_name: "", emergency_contact_phone: "" },
-          employment: { employment_status: "", status: e.employment?.status || "Active", division: "", department: e.employment?.department || "", section: "", job_title: e.employment?.job_title || "", grade: "", position_grade: "", group_job_title: "", direct_report: "", company_office: "", work_location: "", locality_status: "", terminated_date: "", terminated_type: "", terminated_reason: "", blacklist_mti: false, blacklist_imip: false },
-          onboard: { point_of_hire: "", point_of_origin: "", schedule_type: "", first_join_date_merdeka: "", transfer_merdeka: "", first_join_date: "", join_date: "", end_contract: "", years_in_service: "" },
-          bank: { employee_id: e.core.employee_id, bank_name: "", account_name: "", account_no: "", bank_code: "", icbc_bank_account_no: "", icbc_username: "" },
-          insurance: { employee_id: e.core.employee_id, insurance_endorsement: false, insurance_owlexa: false, insurance_fpg: false, bpjs_tk: "", bpjs_kes: "", status_bpjs_kes: undefined, social_insurance_no_alt: "", bpjs_kes_no_alt: "", fpg_no: "", owlexa_no: "" },
-          travel: { employee_id: e.core.employee_id, kitas_no: "", passport_no: "", travel_in: "", travel_out: "", name_as_passport: "", passport_expiry: "", kitas_expiry: "", imta: "", rptka_no: "", rptka_position: "", kitas_address: "", job_title_kitas: "" },
-          checklist: { employee_id: e.core.employee_id, passport_checklist: false, kitas_checklist: false, imta_checklist: false, rptka_checklist: false, npwp_checklist: false, bpjs_kes_checklist: false, bpjs_tk_checklist: false, bank_checklist: false },
-          notes: { employee_id: e.core.employee_id, batch: "", note: "" },
-          type: (e.type === "indonesia" ? "indonesia" : "expat"),
-        }));
-        setEmployees(mapped);
+        type ApiEmployeeItem = { core: { employee_id: string; name: string; nationality?: string | null }; employment?: { department?: string | null; job_title?: string | null; status?: string | null }; type?: string };
+        type ApiEmployeesResponse = { items?: ApiEmployeeItem[] };
+        const mapItems = (data: ApiEmployeesResponse): Employee[] => {
+          const items = Array.isArray(data?.items) ? data.items : [];
+          return items.map((e: ApiEmployeeItem): Employee => {
+            const employeeId = e.core.employee_id;
+            const normalizePrettyStatus = (raw: unknown): Employee["employment"]["status"] => {
+              const s = typeof raw === "string" ? raw.trim().toLowerCase() : "";
+              if (!s) return "Active";
+              if (s === "active") return "Active";
+              if (s === "inactive" || s === "non_active" || s === "non active" || s === "retired" || s === "suspended") return "Inactive";
+              if (s === "resign" || s === "resignation") return "Resign";
+              if (s === "terminated" || s === "termination") return "Terminated";
+              return "Active";
+            };
+            return {
+              core: {
+                employee_id: employeeId,
+                imip_id: "",
+                name: e.core.name,
+                gender: "Male",
+                nationality: e.core.nationality || "",
+                branch: "",
+                branch_id: "",
+              },
+              contact: {
+                employee_id: employeeId,
+                phone_number: "",
+                email: "",
+                address: "",
+                city: "",
+                spouse_name: "",
+                child_name_1: "",
+                child_name_2: "",
+                child_name_3: "",
+                emergency_contact_name: "",
+                emergency_contact_phone: "",
+              },
+              employment: {
+                employee_id: employeeId,
+                employment_status: undefined,
+                status: normalizePrettyStatus(e.employment?.status),
+                division: "",
+                department: e.employment?.department || "",
+                section: "",
+                direct_report: "",
+                job_title: e.employment?.job_title || "",
+                grade: "",
+                position_grade: undefined,
+                group_job_title: "",
+                locality_status: undefined,
+                terminated_date: "",
+                terminated_type: undefined,
+                terminated_reason: "",
+                company_office: "",
+                work_location: "",
+                blacklist_mti: false,
+                blacklist_imip: false,
+              },
+              bank: {
+                employee_id: employeeId,
+                bank_name: "",
+                account_name: "",
+                account_no: "",
+                bank_code: "",
+                icbc_bank_account_no: "",
+                icbc_username: "",
+              },
+              insurance: {
+                employee_id: employeeId,
+                insurance_endorsement: false,
+                insurance_owlexa: false,
+                insurance_fpg: false,
+                bpjs_tk: "",
+                bpjs_kes: "",
+                status_bpjs_kes: undefined,
+                social_insurance_no_alt: "",
+                bpjs_kes_no_alt: "",
+                fpg_no: "",
+                owlexa_no: "",
+              },
+              onboard: {
+                employee_id: employeeId,
+                point_of_hire: "",
+                point_of_origin: "",
+                schedule_type: "",
+                first_join_date_merdeka: "",
+                transfer_merdeka: "",
+                first_join_date: "",
+                join_date: "",
+                end_contract: "",
+                years_in_service: "",
+              },
+              travel: {
+                employee_id: employeeId,
+                kitas_no: "",
+                passport_no: "",
+                travel_in: "",
+                travel_out: "",
+                name_as_passport: "",
+                passport_expiry: "",
+                kitas_expiry: "",
+                imta: "",
+                rptka_no: "",
+                rptka_position: "",
+                kitas_address: "",
+                job_title_kitas: "",
+              },
+              checklist: {
+                employee_id: employeeId,
+                passport_checklist: false,
+                kitas_checklist: false,
+                imta_checklist: false,
+                rptka_checklist: false,
+                npwp_checklist: false,
+                bpjs_kes_checklist: false,
+                bpjs_tk_checklist: false,
+                bank_checklist: false,
+              },
+              notes: { employee_id: employeeId, batch: "", note: "" },
+              type: e.type === "indonesia" ? "indonesia" : "expat",
+            };
+          });
+        };
+        if (indoRes.ok) {
+          const data: ApiEmployeesResponse = await indoRes.json();
+          setRecentIndo(mapItems(data));
+        }
+        if (expatRes.ok) {
+          const data: ApiEmployeesResponse = await expatRes.json();
+          setRecentExpat(mapItems(data));
+        }
       } catch {
-        setEmployees([]);
+        setRecentIndo([]);
+        setRecentExpat([]);
         setStats({ total: 0, active: 0, inactive: 0, indonesia: 0, expat: 0, inactive_indonesia: 0, inactive_expat: 0 });
         setDepartments([]);
       }
@@ -70,7 +189,6 @@ const Index = () => {
     run();
     return () => ctrl.abort();
   }, []);
-  const recentEmployees = employees.slice(0, 5);
   const handleDelete = async (employeeId: string) => {
     try {
       const res = await apiFetch(`/employees/${encodeURIComponent(employeeId)}`, {
@@ -82,8 +200,8 @@ const Index = () => {
         const msg = data?.error || `HTTP_${res.status}`;
         throw new Error(msg);
       }
-      const next = employees.filter((e) => e.core.employee_id !== employeeId);
-      setEmployees(next);
+      setRecentIndo(prev => prev.filter((e) => e.core.employee_id !== employeeId));
+      setRecentExpat(prev => prev.filter((e) => e.core.employee_id !== employeeId));
       try {
         const r = await apiFetch(`/employees/stats`, { credentials: "include" });
         if (r.ok) {
@@ -153,17 +271,31 @@ const Index = () => {
 
       {/* Quick Actions */}
       <div className="mt-8 grid gap-6 lg:grid-cols-3">
-        <div className="lg:col-span-2 animate-fade-in" style={{ animationDelay: '0.1s' }}>
-          <div className="flex items-center justify-between mb-4">
-            <h2 className="font-display text-lg font-semibold">Recent Employees</h2>
-            <Button variant="ghost" size="sm" asChild>
-              <Link to="/employees">
-                View All
-                <ArrowRight className="ml-2 h-4 w-4" />
-              </Link>
-            </Button>
+        <div className="lg:col-span-2 space-y-8 animate-fade-in" style={{ animationDelay: '0.1s' }}>
+          <div>
+            <div className="flex items-center justify-between mb-4">
+              <h2 className="font-display text-lg font-semibold">Recent Employees — Indonesia</h2>
+              <Button variant="ghost" size="sm" asChild>
+                <Link to="/employees?type=indonesia">
+                  View All
+                  <ArrowRight className="ml-2 h-4 w-4" />
+                </Link>
+              </Button>
+            </div>
+            <EmployeeTable employees={recentIndo} onDelete={handleDelete} showAvatar={false} />
           </div>
-          <EmployeeTable employees={recentEmployees} onDelete={handleDelete} showAvatar={false} />
+          <div>
+            <div className="flex items-center justify-between mb-4">
+              <h2 className="font-display text-lg font-semibold">Recent Employees — Expatriate</h2>
+              <Button variant="ghost" size="sm" asChild>
+                <Link to="/employees?type=expat">
+                  View All
+                  <ArrowRight className="ml-2 h-4 w-4" />
+                </Link>
+              </Button>
+            </div>
+            <EmployeeTable employees={recentExpat} onDelete={handleDelete} showAvatar={false} />
+          </div>
         </div>
 
         <div className="space-y-4 animate-fade-in" style={{ animationDelay: '0.2s' }}>

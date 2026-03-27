@@ -605,3 +605,21 @@ Wednesday, December 17, 2025 4:24:46 PM - Secured env handling: added .env to .g
 
 - Added native drag-and-drop to the “Import Master Data (Excel)” panel with visual highlight on drag-over, validating `.xlsx` and reusing the existing upload handler (`src/pages/ImportEmployees.tsx`).
 - Built frontend (`npm run build`) — completed successfully.
+
+## 2026-03-27 10:23:54 +08:00 — Dashboard Recent Employees Ordering
+
+- Updated Dashboard “Recent Employees” to sort by the numeric suffix of `employee_id` (largest number = most recent) before taking the first 5 rows (`src/pages/Index.tsx`).
+
+## 2026-03-27 10:49:40 +08:00 — Dashboard Recent Employees Year-Aware Ordering
+
+- Refined “Recent Employees” sorting to treat the first two digits of the numeric part as a year (e.g. `23` → `2023`) and the remaining digits as the sequence, then sort by (year desc, sequence desc) (`src/pages/Index.tsx`).
+
+## 2026-03-27 11:02:39 +08:00 — Dashboard Recent Employees Server-Side Ordering
+
+- Fixed Dashboard “Recent Employees” showing older years (e.g. `23xxxx`) by adding `order=recent` sorting in `GET /api/employees` and fetching only 5 rows from the backend with `status=active&order=recent` so newest-year IDs are returned even when overall dataset is large (`backend/src/routes/employees.ts`, `src/pages/Index.tsx`).
+# #       D a t e   F o r m a t t i n g   U p d a t e 
+ 
+ -   U p d a t e d   E m p l o y e e T a b l e . t s x   t o   f o r m a t   I S O   d a t e   s t r i n g s   t o   ' d d   M M M M   y y y y '   u s i n g   d a t e - f n s . 
+ -   U p d a t e d   E m p l o y e e D e t a i l . t s x   t o   f o r m a t   I S O   d a t e   s t r i n g s   t o   ' d d   M M M M   y y y y '   u s i n g   d a t e - f n s . 
+ -   U p d a t e d   E d i t E m p l o y e e . t s x   t o   s l i c e   I S O   d a t e   s t r i n g s   t o   ' Y Y Y Y - M M - D D '   s o   n a t i v e   < i n p u t   t y p e = " d a t e " >   d i s p l a y s   c o r r e c t l y .  
+ 

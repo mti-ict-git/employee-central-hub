@@ -1098,12 +1098,21 @@ employeesRouter.get("/stats", async (req, res) => {
       const info = sectionToTable[sec];
       return `LEFT JOIN dbo.${info.table} AS ${info.alias} ON ${info.alias}.employee_id = core.employee_id`;
     });
+    const orderParam = String(req.query.order || req.query.sort || "").trim().toLowerCase();
+    const orderClause = (() => {
+      if (orderParam !== "recent") return "ORDER BY core.employee_id";
+      const p = "PATINDEX('%[0-9]%', core.employee_id)";
+      const d = `CASE WHEN ${p} > 0 THEN SUBSTRING(core.employee_id, ${p}, 50) ELSE '' END`;
+      const yy = `TRY_CONVERT(int, LEFT(${d}, 2))`;
+      const seq = `TRY_CONVERT(int, SUBSTRING(${d}, 3, 50))`;
+      return `ORDER BY ISNULL(${yy}, -1) DESC, ISNULL(${seq}, -1) DESC, core.employee_id DESC`;
+    })();
     const sqlText = `
       SELECT ${selectParts.join(", ")}
       FROM dbo.employee_core AS core
       ${joinClauses.join("\n")}
       ${whereClause}
-      ORDER BY core.employee_id
+      ${orderClause}
       OFFSET ${offset} ROWS FETCH NEXT ${limit} ROWS ONLY;
     `;
     let result: sql.IResult<any>;
@@ -1140,7 +1149,7 @@ employeesRouter.get("/stats", async (req, res) => {
         FROM dbo.employee_core AS core
         ${fbJoins.join("\n")}
         ${whereClause}
-        ORDER BY core.employee_id
+        ${orderClause}
         OFFSET ${offset} ROWS FETCH NEXT ${limit} ROWS ONLY;
       `;
       result = await request.query(fbSql);
