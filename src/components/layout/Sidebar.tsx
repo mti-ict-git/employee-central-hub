@@ -88,6 +88,7 @@ export function Sidebar({ collapsed = false, onToggleSidebar }: { collapsed?: bo
     const stored: Record<string, boolean> = {};
     for (const item of navigation) {
       if (!item.children || !item.children.length) continue;
+      stored[item.name] = false;
       const key = `nav_group_open:${item.name}`;
       const raw = localStorage.getItem(key);
       if (raw === "true" || raw === "false") {
@@ -116,7 +117,7 @@ export function Sidebar({ collapsed = false, onToggleSidebar }: { collapsed?: bo
 
   const toggleGroup = (name: string) => {
     setOpenGroups((prev) => {
-      const nextOpen = !(prev[name] ?? true);
+      const nextOpen = !(prev[name] ?? false);
       const next = { ...prev, [name]: nextOpen };
       localStorage.setItem(`nav_group_open:${name}`, String(nextOpen));
       return next;
@@ -224,7 +225,7 @@ export function Sidebar({ collapsed = false, onToggleSidebar }: { collapsed?: bo
 
             if (visibleChildren.length === 0) return null;
 
-            const isOpen = openGroups[item.name] ?? true;
+            const isOpen = openGroups[item.name] ?? false;
             const hasActiveChild = visibleChildren.some((c) => location.pathname === c.href || (location.pathname.startsWith(`${c.href}/`) && c.href !== "/"));
             const shouldShowChildren = isOpen || hasActiveChild;
 
