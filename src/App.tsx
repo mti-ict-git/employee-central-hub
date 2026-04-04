@@ -27,48 +27,23 @@ import NotFound from "./pages/NotFound";
 import RequireAuth from "./components/auth/RequireAuth";
 import RequireRole from "./components/auth/RequireRole";
 import { apiFetch } from "@/lib/api";
+import { readStoredAuthUser } from "@/lib/auth-user";
+import { normalizePalettePref, normalizeThemePref, readCachedUiPrefs, type PalettePref, writeCachedUiPrefs } from "@/lib/ui-prefs";
+
+declare global {
+  interface WindowEventMap {
+    "auth:login": CustomEvent;
+    "prefs:updated": CustomEvent;
+  }
+}
 
 const queryClient = new QueryClient();
 const IDLE_TIMEOUT_MS = 30 * 60 * 1000;
 const IDLE_CHECK_MS = 60 * 1000;
 
-type StoredAuthUser = {
-  username?: string;
-  displayName?: string;
-  role?: string;
-  roles?: string[];
-};
-
-function readStoredAuthUser(): StoredAuthUser | null {
-  const raw = typeof window !== "undefined" ? localStorage.getItem("auth_user") : null;
-  if (!raw) return null;
-  try {
-    const parsed: unknown = JSON.parse(raw);
-    if (typeof parsed !== "object" || parsed === null) return null;
-    const obj = parsed as Record<string, unknown>;
-    const roles = Array.isArray(obj.roles) ? obj.roles.map((r) => String(r)) : undefined;
-    return {
-      username: obj.username ? String(obj.username) : undefined,
-      displayName: obj.displayName ? String(obj.displayName) : undefined,
-      role: obj.role ? String(obj.role) : undefined,
-      roles,
-    };
-  } catch {
-    return null;
-  }
-}
-
 function isRecord(value: unknown): value is Record<string, unknown> {
   return typeof value === "object" && value !== null && !Array.isArray(value);
 }
-
-function normalizeThemePref(value: unknown): "light" | "dark" | "system" | null {
-  const v = String(value || "").trim().toLowerCase();
-  if (v === "light" || v === "dark" || v === "system") return v;
-  return null;
-}
-
-type PalettePref = "corporate" | "emerald" | "violet" | "rose" | "amber";
 
 const PALETTE_CLASS_BY_PREF: Record<Exclude<PalettePref, "corporate">, string> = {
   emerald: "theme-emerald",
@@ -76,13 +51,6 @@ const PALETTE_CLASS_BY_PREF: Record<Exclude<PalettePref, "corporate">, string> =
   rose: "theme-rose",
   amber: "theme-amber",
 };
-
-function normalizePalettePref(value: unknown): PalettePref | null {
-  const v = String(value || "").trim().toLowerCase();
-  if (v === "corporate" || v === "default" || v === "blue") return "corporate";
-  if (v === "emerald" || v === "violet" || v === "rose" || v === "amber") return v;
-  return null;
-}
 
 function applyPalettePref(pref: PalettePref) {
   if (typeof document === "undefined") return;
@@ -105,24 +73,54 @@ const ThemePreferenceLoader = () => {
   const { setTheme } = useTheme();
 
   useEffect(() => {
-    const token = typeof window !== "undefined" ? localStorage.getItem("auth_token") : null;
-    if (!token) return;
-
     const ctrl = new AbortController();
+
+    const applyCached = () => {
+      const cached = readCachedUiPrefs();
+      if (cached.theme) setTheme(cached.theme);
+      if (cached.palette) applyPalettePref(cached.palette);
+    };
+
     const run = async () => {
+      const token = typeof window !== "undefined" ? localStorage.getItem("auth_token") : null;
+      if (!token) return;
+      applyCached();
       const res = await apiFetch(`/users/me/preferences`, { signal: ctrl.signal, credentials: "include" });
       if (!res.ok) return;
       const body = (await res.json().catch(() => null)) as unknown;
       if (!isRecord(body)) return;
       const theme = normalizeThemePref(body.theme);
-      if (theme) setTheme(theme);
+      if (theme) {
+        setTheme(theme);
+      }
 
       const palette = normalizePalettePref(body.palette);
-      if (palette) applyPalettePref(palette);
+      if (palette) {
+        applyPalettePref(palette);
+      }
+      if (theme || palette) {
+        writeCachedUiPrefs({ theme: theme || undefined, palette: palette || undefined });
+      }
     };
 
-    run().catch(() => {});
-    return () => ctrl.abort();
+    const rerun = () => {
+      run().catch(() => {});
+    };
+    const onAuthLogin = () => {
+      rerun();
+    };
+    const onPrefsUpdated = () => {
+      rerun();
+    };
+
+    rerun();
+    window.addEventListener("auth:login", onAuthLogin);
+    window.addEventListener("prefs:updated", onPrefsUpdated);
+    return () => {
+      ctrl.abort();
+      window.removeEventListener("auth:login", onAuthLogin);
+      window.removeEventListener("prefs:updated", onPrefsUpdated);
+    };
   }, [setTheme]);
 
   return null;

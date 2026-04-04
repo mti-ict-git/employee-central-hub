@@ -93,6 +93,7 @@ const Auth = () => {
       };
       localStorage.setItem("auth_user", JSON.stringify(userWithRole));
       localStorage.setItem("auth_last_activity", String(Date.now()));
+      window.dispatchEvent(new CustomEvent("auth:login"));
       console.info(`${userWithRole.displayName || userWithRole.username || "unknown"} is logged in with role ${userWithRole.role || "unknown"}`);
       toast({ 
         title: "Login Successful", 

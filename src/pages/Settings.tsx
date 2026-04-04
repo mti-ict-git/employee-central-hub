@@ -15,10 +15,7 @@ import { User, Bell, Shield, Palette, Globe, Save, KeyRound, Cake, Briefcase, X,
 import { Slider } from "@/components/ui/slider";
 import { apiFetch } from "@/lib/api";
 import { useTheme } from "next-themes";
-
-type ThemePref = "light" | "dark" | "system";
-
-type PalettePref = "corporate" | "emerald" | "violet" | "rose" | "amber";
+import { normalizePalettePref, normalizeThemePref, readCachedUiPrefs, type PalettePref, type ThemePref, writeCachedUiPrefs } from "@/lib/ui-prefs";
 
 const PALETTE_CLASS_BY_PREF: Record<Exclude<PalettePref, "corporate">, string> = {
   emerald: "theme-emerald",
@@ -29,19 +26,6 @@ const PALETTE_CLASS_BY_PREF: Record<Exclude<PalettePref, "corporate">, string> =
 
 function isRecord(value: unknown): value is Record<string, unknown> {
   return typeof value === "object" && value !== null && !Array.isArray(value);
-}
-
-function normalizeThemePref(value: unknown): ThemePref | null {
-  const v = String(value || "").trim().toLowerCase();
-  if (v === "light" || v === "dark" || v === "system") return v;
-  return null;
-}
-
-function normalizePalettePref(value: unknown): PalettePref | null {
-  const v = String(value || "").trim().toLowerCase();
-  if (v === "corporate" || v === "default" || v === "blue") return "corporate";
-  if (v === "emerald" || v === "violet" || v === "rose" || v === "amber") return v;
-  return null;
 }
 
 function applyPalettePref(pref: PalettePref) {
@@ -137,6 +121,9 @@ const Settings = () => {
       if (palette) {
         applyPalettePref(palette);
         setPalettePref(palette);
+      }
+      if (pref || palette) {
+        writeCachedUiPrefs({ theme: pref || undefined, palette: palette || undefined });
       }
     };
 
@@ -266,6 +253,8 @@ const Settings = () => {
 
       await saveOne("theme", themePref);
       await saveOne("palette", palettePref);
+      writeCachedUiPrefs({ theme: themePref, palette: palettePref });
+      window.dispatchEvent(new CustomEvent("prefs:updated"));
       toast({
         title: "Preferences Updated",
         description: "Your preferences have been saved successfully.",
