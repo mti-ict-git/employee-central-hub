@@ -16,7 +16,6 @@ import {
   RefreshCcw,
   PanelRight,
   ChevronDown,
-  ChevronRight
 } from "lucide-react";
 import { Link, useLocation } from "react-router-dom";
 import { useEffect, useState, type ComponentType } from "react";
@@ -227,6 +226,7 @@ export function Sidebar({ collapsed = false, onToggleSidebar }: { collapsed?: bo
 
             const isOpen = openGroups[item.name] ?? true;
             const hasActiveChild = visibleChildren.some((c) => location.pathname === c.href || (location.pathname.startsWith(`${c.href}/`) && c.href !== "/"));
+            const shouldShowChildren = isOpen || hasActiveChild;
 
             return (
               <div key={item.name} className="space-y-1">
@@ -245,7 +245,7 @@ export function Sidebar({ collapsed = false, onToggleSidebar }: { collapsed?: bo
                         aria-label={collapsed ? `Expand ${item.name}` : `Toggle ${item.name}`}
                         aria-expanded={collapsed ? undefined : isOpen}
                         className={cn(
-                          "flex min-h-12 w-full items-center gap-3 rounded-lg px-3 py-2.5 text-left text-sm font-medium leading-6 transition-colors",
+                          "group/sidebar-toggle flex min-h-12 w-full items-center gap-3 rounded-lg px-3 py-2.5 text-left text-sm font-medium leading-6 transition-all duration-300 ease-[cubic-bezier(0.22,1,0.36,1)] motion-reduce:transition-none active:scale-[0.99]",
                           "text-sidebar-foreground/60 hover:bg-sidebar-accent/40 hover:text-sidebar-foreground/80",
                           collapsed ? "justify-center" : undefined,
                         )}
@@ -258,11 +258,12 @@ export function Sidebar({ collapsed = false, onToggleSidebar }: { collapsed?: bo
                               {item.icon && <item.icon className="h-5 w-5" />}
                               <span className="truncate whitespace-nowrap text-sm font-medium">{item.name}</span>
                             </div>
-                            {isOpen ? (
-                              <ChevronDown className="h-5 w-5 shrink-0 text-sidebar-foreground/50" />
-                            ) : (
-                              <ChevronRight className="h-5 w-5 shrink-0 text-sidebar-foreground/50" />
-                            )}
+                            <ChevronDown
+                              className={cn(
+                                "h-5 w-5 shrink-0 text-sidebar-foreground/50 transition-transform duration-300 ease-[cubic-bezier(0.22,1,0.36,1)] motion-reduce:transition-none group-hover/sidebar-toggle:scale-110",
+                                shouldShowChildren ? "rotate-0" : "-rotate-90"
+                              )}
+                            />
                           </div>
                         )}
                       </button>
@@ -274,31 +275,46 @@ export function Sidebar({ collapsed = false, onToggleSidebar }: { collapsed?: bo
                     )}
                   </Tooltip>
                 </TooltipProvider>
-                {(!collapsed && (isOpen || hasActiveChild)) && (
-                  <div className={cn("space-y-1", collapsed ? undefined : "pt-0.5")}>
-                    {visibleChildren.map((child) => {
-                      const isActive = location.pathname === child.href;
-                      return (
-                        <Link
-                          key={child.name}
-                          to={child.href}
-                          className={cn(
-                            "group relative ml-6 flex min-h-11 items-center gap-3 rounded-lg px-3 py-2.5 text-sm font-medium leading-6 transition-all duration-200",
-                            collapsed ? "ml-0 justify-center" : undefined,
-                            isActive
-                              ? "bg-primary/15 text-primary shadow-sm"
-                              : "text-sidebar-foreground hover:bg-sidebar-accent/70 hover:text-sidebar-foreground"
-                          )}
-                        >
-                          <span className={cn(
-                            "absolute left-0 top-1/2 h-6 w-1 -translate-y-1/2 rounded-r-full bg-primary transition-opacity",
-                            isActive ? "opacity-100" : "opacity-0 group-hover:opacity-70"
-                          )} />
-                          {child.icon && <child.icon className="h-4 w-4" />}
-                          <span className={cn("whitespace-nowrap", collapsed ? "hidden" : undefined)}>{child.name}</span>
-                        </Link>
-                      );
-                    })}
+                {!collapsed && (
+                  <div
+                    className={cn(
+                      "grid transition-[grid-template-rows,opacity] duration-300 ease-[cubic-bezier(0.22,1,0.36,1)] motion-reduce:transition-none",
+                      shouldShowChildren ? "grid-rows-[1fr] opacity-100" : "grid-rows-[0fr] opacity-0"
+                    )}
+                  >
+                    <div className="overflow-hidden">
+                      <div className={cn("space-y-1 pt-0.5 transition-all duration-300 ease-[cubic-bezier(0.22,1,0.36,1)] motion-reduce:transition-none", shouldShowChildren ? "translate-y-0 blur-0" : "-translate-y-1 blur-[1px]")}>
+                        {visibleChildren.map((child, index) => {
+                          const isActive = location.pathname === child.href;
+                          return (
+                            <Link
+                              key={child.name}
+                              to={child.href}
+                              className={cn(
+                                "group relative ml-6 flex min-h-11 items-center gap-3 rounded-lg px-3 py-2.5 text-sm font-medium leading-6 transition-all duration-300 ease-[cubic-bezier(0.22,1,0.36,1)] motion-reduce:transition-none",
+                                collapsed ? "ml-0 justify-center" : undefined,
+                                shouldShowChildren ? "translate-y-0 opacity-100" : "-translate-y-1 opacity-0",
+                                isActive
+                                  ? "bg-primary/15 text-primary shadow-sm"
+                                  : "text-sidebar-foreground hover:bg-sidebar-accent/70 hover:text-sidebar-foreground"
+                              )}
+                              style={{
+                                transitionDelay: shouldShowChildren
+                                  ? `${index * 35}ms`
+                                  : `${(visibleChildren.length - 1 - index) * 25}ms`
+                              }}
+                            >
+                              <span className={cn(
+                                "absolute left-0 top-1/2 h-6 w-1 -translate-y-1/2 rounded-r-full bg-primary transition-opacity",
+                                isActive ? "opacity-100" : "opacity-0 group-hover:opacity-70"
+                              )} />
+                              {child.icon && <child.icon className="h-4 w-4" />}
+                              <span className={cn("whitespace-nowrap", collapsed ? "hidden" : undefined)}>{child.name}</span>
+                            </Link>
+                          );
+                        })}
+                      </div>
+                    </div>
                   </div>
                 )}
               </div>
